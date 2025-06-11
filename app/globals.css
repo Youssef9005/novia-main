@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
+
+  --primary: 221 83% 53%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 160 84% 39%;
+  --secondary-foreground: 0 0% 100%;
+
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 0 0% 63.9%;
+
+  --accent: 240 3.7% 15.9%;
+  --accent-foreground: 0 0% 98%;
+
+  --success: 142.1 76.2% 36.3%;
+  --success-foreground: 0 0% 98%;
+
+  --warning: 35 92% 65%;
+  --warning-foreground: 0 0% 0%;
+
+  --danger: 0 84.2% 60.2%;
+  --danger-foreground: 0 0% 98%;
+
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  --ring: 240 4.9% 83.9%;
+
+  --radius: 0.5rem;
+}
+
+body {
+  @apply bg-black;
+}

@@ -1,0 +1,120 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
+import Link from "next/link"
+import { CheckCircle, XCircle, Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+
+export default function VerifyEmailPage() {
+  const router = useRouter()
+  const params = useParams()
+  const [verifying, setVerifying] = useState(true)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState("")
+  
+  useEffect(() => {
+    const verifyEmail = async () => {
+      try {
+        // Get token from URL params
+        const token = params.token as string
+        
+        if (!token) {
+          throw new Error("Invalid verification link")
+        }
+        
+        // Directly make a request to the backend through our API route
+        // Backend expects a GET request to /api/auth/verify-email/:token
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'; // Fallback for safety
+        const response = await fetch(`${apiUrl}/api/auth/verify-email/${token}`, {
+          method: 'GET',
+        })
+        
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.message || 'Email verification failed')
+        }
+        
+        setSuccess(true)
+      } catch (err: any) {
+        console.error('Verification error:', err)
+        setError(err.message || "Failed to verify email")
+      } finally {
+        setVerifying(false)
+      }
+    }
+    
+    verifyEmail()
+  }, [params.token])
+  
+  return (
+    <div className="flex min-h-screen w-full items-center justify-center bg-black bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))]">
+      <div className="absolute inset-0 z-0">
+        {/* Background stars/particles could go here */}
+      </div>
+      
+      <div className="relative z-10 w-full max-w-md px-4 py-8 sm:px-6 md:py-12 lg:py-16">
+        <Card className="border-gray-800 bg-gray-950/80 backdrop-blur-sm">
+          <CardHeader className="space-y-1 text-center">
+            <CardTitle className="text-2xl font-bold tracking-tight">
+              Email Verification
+            </CardTitle>
+            <CardDescription className="text-gray-400">
+              Verifying your email address
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent className="pt-5">
+            {verifying ? (
+              <div className="flex flex-col items-center justify-center space-y-4 py-6">
+                <Loader2 className="h-16 w-16 animate-spin text-indigo-500" />
+                <p className="text-center text-gray-300">Verifying your email address...</p>
+              </div>
+            ) : success ? (
+              <div className="flex flex-col items-center justify-center space-y-4 py-6">
+                <CheckCircle className="h-16 w-16 text-green-500" />
+                <h3 className="text-xl font-medium text-green-500">Email Verified Successfully</h3>
+                <p className="text-center text-gray-300">
+                  Thank you for verifying your email address. You can now login to your account.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center space-y-4 py-6">
+                <XCircle className="h-16 w-16 text-red-500" />
+                <h3 className="text-xl font-medium text-red-500">Verification Failed</h3>
+                <p className="text-center text-gray-300">{error}</p>
+                <Alert className="border-red-500/20 bg-red-500/10">
+                  <AlertDescription>
+                    The verification link may have expired or is invalid. Please try registering again or contact support.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
+          </CardContent>
+          
+          <CardFooter className="flex flex-col">
+            <Button
+              className="w-full"
+              onClick={() => router.push('/login')}
+              disabled={verifying}
+            >
+              {success ? 'Go to Login' : 'Back to Login'}
+            </Button>
+            
+            {!success && !verifying && (
+              <div className="mt-4 text-center text-sm text-gray-500">
+                Need help?{' '}
+                <Link href="/contact" className="text-indigo-500 hover:text-indigo-400">
+                  Contact Support
+                </Link>
+              </div>
+            )}
+          </CardFooter>
+        </Card>
+      </div>
+    </div>
+  )
+}
