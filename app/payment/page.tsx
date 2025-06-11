@@ -94,7 +94,7 @@ export default function PaymentPage() {
       }
 
       // Verify token with backend
-      const response = await fetch('http://localhost:8080/api/users/me', {
+      const response = await fetch('https://api.novia-ai.com/api/users/me', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
