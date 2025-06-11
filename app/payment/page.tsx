@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { ChevronLeft, CreditCard, Bitcoin, Info, Loader2 } from "lucide-react"
@@ -59,7 +59,7 @@ const PLAN_LIMITS: PlanLimits = {
   'Professional': 0 // 0 means unlimited
 };
 
-export default function PaymentPage() {
+function PaymentContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const planName = searchParams.get('plan')
@@ -622,4 +622,12 @@ export default function PaymentPage() {
       </Card>
     </div>
   );
+}
+
+export default function PaymentPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <PaymentContent />
+    </Suspense>
+  )
 }
