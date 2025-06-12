@@ -176,7 +176,7 @@ export function EnhancedFooter() {
               <li className="flex items-start gap-3">
                 <Phone className="h-5 w-5 text-emerald-500 mt-0.5" />
                 <div>
-                  <p className="text-sm">+90 534 486 29 20</p>
+                  <p className="text-sm">+90 534 486 92 20/p>
                   <p className="text-xs text-gray-500">Turkey</p>
                 </div>
               </li>
