@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import Image from "next/image"
 
 export default function ForgotPasswordPage() {
   const router = useRouter()
@@ -59,10 +60,8 @@ export default function ForgotPasswordPage() {
         </Button>
       </div>
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-emerald-500">
-          <div className="h-8 w-8 rounded-full bg-black" />
-        </div>
+      <div className="sm:mx-auto sm:w-full sm:max-w-md flex items-center flex-col">
+        <Image src={"./logo.jpeg"} alt="Website Logo" width={100} height={100} className="rounded-full border border-gray-800 p-2" />
         <h2 className="mt-6 text-center text-2xl font-bold leading-9 tracking-tight">
           {isSuccess ? 'Check your email' : 'Reset your password'}
         </h2>

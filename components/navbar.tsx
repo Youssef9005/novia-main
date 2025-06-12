@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -74,8 +75,8 @@ export function Navbar() {
           <Link href="/" className="-m-1.5 p-1.5">
             <span className="sr-only">Novia AI</span>
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-500 to-emerald-500" />
-              <span className="text-xl font-bold tracking-tight">Novia AI</span>
+            <Image src={"./logo.jpeg"} alt="Website Logo" width={50} height={50} className="rounded-full border border-gray-800 p-2" />
+            <span className="text-xl font-bold tracking-tight">Novia AI</span>
             </div>
           </Link>
         </div>

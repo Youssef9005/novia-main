@@ -10,10 +10,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import Image from "next/image"
+import { parsePhoneNumberFromString } from 'libphonenumber-js'
+import type { CountryCode } from 'libphonenumber-js'
 
 interface Country {
   name: string;
-  code: string;
+  code: CountryCode;
   phoneCode: string;
 }
 
@@ -98,6 +101,51 @@ export default function RegisterPage() {
     setIsLoading(true)
     setError("")
 
+    // Password strength validation
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters long")
+      setIsLoading(false)
+      return
+    }
+    if (!/[A-Z]/.test(formData.password)) {
+      setError("Password must include at least one uppercase letter")
+      setIsLoading(false)
+      return
+    }
+    if (!/[a-z]/.test(formData.password)) {
+      setError("Password must include at least one lowercase letter")
+      setIsLoading(false)
+      return
+    }
+    if (!/[0-9]/.test(formData.password)) {
+      setError("Password must include at least one number")
+      setIsLoading(false)
+      return
+    }
+    if (!/[^A-Za-z0-9]/.test(formData.password)) {
+      setError("Password must include at least one special character")
+      setIsLoading(false)
+      return
+    }
+
+    // Validate phone number format
+    if (!selectedCountry) {
+      setError("Please select a country for your phone number")
+      setIsLoading(false)
+      return
+    }
+    // Strict validation with libphonenumber-js
+    const phoneNumberObj = parsePhoneNumberFromString(
+      formData.phoneNumber.number,
+      selectedCountry.code
+    )
+    if (!phoneNumberObj || !phoneNumberObj.isPossible() || !phoneNumberObj.isValid()) {
+      setError("Invalid phone number for the selected country")
+      setIsLoading(false)
+      return
+    }
+    const formattedPhone = phoneNumberObj.format('E.164')
+
     // Basic validation
     if (formData.password !== formData.passwordConfirm) {
       setError("Passwords do not match")
@@ -107,14 +155,6 @@ export default function RegisterPage() {
 
     if (!formData.phoneNumber.countryCode || !formData.phoneNumber.number) {
       setError("Please provide a valid phone number")
-      setIsLoading(false)
-      return
-    }
-
-    // Validate phone number format
-    const phoneNumberRegex = /^[0-9]{8,15}$/
-    if (!phoneNumberRegex.test(formData.phoneNumber.number)) {
-      setError("Phone number must be between 8 and 15 digits")
       setIsLoading(false)
       return
     }
@@ -133,8 +173,8 @@ export default function RegisterPage() {
           passwordConfirm: formData.passwordConfirm,
           referralCode: showReferralCode ? formData.referralCode : undefined,
           phoneNumber: {
-            countryCode: formData.phoneNumber.countryCode,
-            number: formData.phoneNumber.number
+            countryCode: selectedCountry.code,
+            number: formattedPhone
           }
         }),
       })
@@ -165,10 +205,9 @@ export default function RegisterPage() {
         </Button>
       </div>
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-emerald-500">
-          <div className="h-8 w-8 rounded-full bg-black" />
-        </div>
+      <div className="sm:mx-auto sm:w-full sm:max-w-md flex items-center flex-col">
+        <Image src={"./logo.jpeg"} alt="Website Logo" width={100} height={100} className="rounded-full border border-gray-800 p-2" />
+
         <h2 className="mt-6 text-center text-2xl font-bold leading-9 tracking-tight">Create a new account</h2>
       </div>
 

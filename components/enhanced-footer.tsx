@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Github, Linkedin, Twitter, ArrowRight, Mail, Phone, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import Image from "next/image"
 
 export function EnhancedFooter() {
   return (
@@ -62,7 +63,7 @@ export function EnhancedFooter() {
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
           <div className="lg:col-span-1 space-y-6">
             <div className="flex items-center gap-2">
-              <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-emerald-500" />
+              <Image src={"./logo.jpeg"} alt="Website Logo" width={100} height={100} className="rounded-full border border-gray-800 p-2"/>
               <span className="text-2xl font-bold tracking-tight">Novia AI</span>
             </div>
             <p className="text-gray-400">
@@ -168,22 +169,21 @@ export function EnhancedFooter() {
               <li className="flex items-start gap-3">
                 <Mail className="h-5 w-5 text-blue-500 mt-0.5" />
                 <div>
-                  <p className="text-sm">support@Novia AI.com</p>
+                  <p className="text-sm">info@novia-ai.com</p>
                   <p className="text-xs text-gray-500">For general inquiries</p>
                 </div>
               </li>
               <li className="flex items-start gap-3">
                 <Phone className="h-5 w-5 text-emerald-500 mt-0.5" />
                 <div>
-                  <p className="text-sm">+1 (555) 123-4567</p>
-                  <p className="text-xs text-gray-500">Mon-Fri, 9am-6pm EST</p>
+                  <p className="text-sm">+90 534 486 29 20</p>
+                  <p className="text-xs text-gray-500">Turkey</p>
                 </div>
               </li>
               <li className="flex items-start gap-3">
                 <MapPin className="h-5 w-5 text-purple-500 mt-0.5" />
                 <div>
-                  <p className="text-sm">350 Financial District Blvd</p>
-                  <p className="text-xs text-gray-500">New York, NY 10004, USA</p>
+                  <p className="text-sm">Turkey istanbul</p>
                 </div>
               </li>
             </ul>
