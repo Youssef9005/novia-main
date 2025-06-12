@@ -11,12 +11,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import Image from "next/image"
-import { parsePhoneNumberFromString } from 'libphonenumber-js'
-import type { CountryCode } from 'libphonenumber-js'
 
 interface Country {
   name: string;
-  code: CountryCode;
+  code: string;
   phoneCode: string;
 }
 
@@ -128,23 +126,12 @@ export default function RegisterPage() {
       return
     }
 
-    // Validate phone number format
-    if (!selectedCountry) {
-      setError("Please select a country for your phone number")
+    // Ensure phone number is provided
+    if (!formData.phoneNumber.number) {
+      setError("Please enter your phone number")
       setIsLoading(false)
       return
     }
-    // Strict validation with libphonenumber-js
-    const phoneNumberObj = parsePhoneNumberFromString(
-      formData.phoneNumber.number,
-      selectedCountry.code
-    )
-    if (!phoneNumberObj || !phoneNumberObj.isPossible() || !phoneNumberObj.isValid()) {
-      setError("Invalid phone number for the selected country")
-      setIsLoading(false)
-      return
-    }
-    const formattedPhone = phoneNumberObj.format('E.164')
 
     // Basic validation
     if (formData.password !== formData.passwordConfirm) {
@@ -173,8 +160,8 @@ export default function RegisterPage() {
           passwordConfirm: formData.passwordConfirm,
           referralCode: showReferralCode ? formData.referralCode : undefined,
           phoneNumber: {
-            countryCode: selectedCountry.code,
-            number: formattedPhone
+            countryCode: selectedCountry?.code || '',
+            number: formData.phoneNumber.number
           }
         }),
       })
