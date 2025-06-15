@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     const encodedToken = encodeURIComponent(token);
     
     // Forward the request to our backend server with the token in the URL as expected by the backend
-    const response = await fetch(`https://api.novia-ai.com/api/auth/reset-password/${encodedToken}`, {
+    const response = await fetch(`http://localhost:8080/api/auth/reset-password/${encodedToken}`, {
       method: 'PATCH', // The backend expects a PATCH request
       headers: {
         'Content-Type': 'application/json',

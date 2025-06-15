@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Pencil, User, Key, CreditCard, Settings, Bell, Loader2, Eye, EyeOff, AlertTriangle } from "lucide-react"
+import { Pencil, User, Key, CreditCard, Settings, Bell, Loader2, Eye, EyeOff, AlertTriangle, Users } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Switch } from "@/components/ui/switch"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -444,7 +444,7 @@ export default function ProfilePage() {
         <h1 className="text-4xl font-bold text-white text-center mb-12">My Profile</h1>
 
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-5 h-auto mb-8 bg-gray-900 border border-gray-700">
+          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-6 h-auto mb-8 bg-gray-900 border border-gray-700">
             <TabsTrigger value="profile" className="flex flex-col h-auto py-3 data-[state=active]:bg-gray-800 text-gray-300 data-[state=active]:text-white">
               <User className="h-5 w-5 mb-1" />
               <span className="text-xs sm:text-sm">Profile</span>
@@ -464,6 +464,10 @@ export default function ProfilePage() {
             <TabsTrigger value="asset-preferences" className="flex flex-col h-auto py-3 data-[state=active]:bg-gray-800 text-gray-300 data-[state=active]:text-white">
               <Settings className="h-5 w-5 mb-1" />
               <span className="text-xs sm:text-sm">Asset Preferences</span>
+            </TabsTrigger>
+            <TabsTrigger value="referral" className="flex flex-col h-auto py-3 data-[state=active]:bg-gray-800 text-gray-300 data-[state=active]:text-white">
+              <Users className="h-5 w-5 mb-1" />
+              <span className="text-xs sm:text-sm">Referral</span>
             </TabsTrigger>
           </TabsList>
           
@@ -930,6 +934,96 @@ export default function ProfilePage() {
                     "Save Asset Preferences"
                   )}
                 </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="referral">
+            <Card className="border-gray-800 bg-gray-950/80 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-white">Referral Program</CardTitle>
+                <CardDescription className="text-gray-400">Share your referral code and earn points for each successful referral.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-gray-900 p-4 rounded-lg border border-gray-800">
+                    <h3 className="text-lg font-semibold text-white mb-2">Your Referral Code</h3>
+                    <div className="flex items-center space-x-2">
+                      <Input 
+                        value={user.myReferralCode} 
+                        readOnly 
+                        className="bg-gray-800 text-white border-gray-700"
+                      />
+                      <Button 
+                        variant="outline" 
+                        onClick={() => {
+                          navigator.clipboard.writeText(user.myReferralCode);
+                          toast({
+                            title: "Copied!",
+                            description: "Referral code copied to clipboard",
+                          });
+                        }}
+                        className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                      >
+                        Copy
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gray-900 p-4 rounded-lg border border-gray-800">
+                    <h3 className="text-lg font-semibold text-white mb-2">Total Referrals</h3>
+                    <p className="text-3xl font-bold text-yellow-500">{user.referralPoints / 10}</p>
+                    <p className="text-sm text-gray-400">People who used your code</p>
+                  </div>
+                  
+                  <div className="bg-gray-900 p-4 rounded-lg border border-gray-800">
+                    <h3 className="text-lg font-semibold text-white mb-2">Current Points</h3>
+                    <p className="text-3xl font-bold text-yellow-500">{user.referralPoints}</p>
+                    <p className="text-sm text-gray-400">Available points to redeem</p>
+                  </div>
+                </div>
+
+                <div className="bg-gray-900 p-4 rounded-lg border border-gray-800">
+                  <h3 className="text-lg font-semibold text-white mb-4">How it works</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-start space-x-3">
+                      <div className="bg-yellow-500/20 p-2 rounded-full">
+                        <span className="text-yellow-500 font-bold">1</span>
+                      </div>
+                      <div>
+                        <h4 className="text-white font-medium">Share Your Code</h4>
+                        <p className="text-gray-400">Share your unique referral code with friends and colleagues</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <div className="bg-yellow-500/20 p-2 rounded-full">
+                        <span className="text-yellow-500 font-bold">2</span>
+                      </div>
+                      <div>
+                        <h4 className="text-white font-medium">They Sign Up</h4>
+                        <p className="text-gray-400">When they sign up using your code, you both get 10 points</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <div className="bg-yellow-500/20 p-2 rounded-full">
+                        <span className="text-yellow-500 font-bold">3</span>
+                      </div>
+                      <div>
+                        <h4 className="text-white font-medium">Earn More Points</h4>
+                        <p className="text-gray-400">Get additional points when they subscribe to a paid plan</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {user.referredBy && (
+                  <div className="bg-gray-900 p-4 rounded-lg border border-gray-800">
+                    <h3 className="text-lg font-semibold text-white mb-2">Referred By</h3>
+                    <p className="text-gray-300">
+                      You were referred by: <span className="text-yellow-500">{user.referredBy.name || user.referredBy.email}</span>
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

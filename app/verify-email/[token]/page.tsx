@@ -28,7 +28,7 @@ export default function VerifyEmailPage() {
         
         // Directly make a request to the backend through our API route
         // Backend expects a GET request to /api/auth/verify-email/:token
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.novia-ai.com'; // Fallback for safety
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'; // Fallback for safety
         const response = await fetch(`${apiUrl}/api/auth/verify-email/${token}`, {
           method: 'GET',
         })

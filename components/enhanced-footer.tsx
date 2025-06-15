@@ -176,7 +176,7 @@ export function EnhancedFooter() {
               <li className="flex items-start gap-3">
                 <Phone className="h-5 w-5 text-emerald-500 mt-0.5" />
                 <div>
-                  <p className="text-sm">+90 534 486 29 20</p>
+                  <p className="text-sm">+90 534 486 92 20</p>
                   <p className="text-xs text-gray-500">Turkey</p>
                 </div>
               </li>
@@ -184,6 +184,8 @@ export function EnhancedFooter() {
                 <MapPin className="h-5 w-5 text-purple-500 mt-0.5" />
                 <div>
                   <p className="text-sm">Turkey istanbul</p>
+                  <p className="text-sm">Egypt Cairo</p>
+                  <p className="text-sm">Bahrain</p>
                 </div>
               </li>
             </ul>

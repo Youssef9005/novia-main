@@ -3,7 +3,7 @@
  */
 
 // API Configuration
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.novia-ai.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 // Auth endpoints
 const AUTH_ENDPOINTS = {
@@ -247,13 +247,26 @@ export const userApi = {
 export const api = {
   // Subscription endpoints
   subscriptions: {
-    getPlans: async () => {
+    getAll: async () => {
       const response = await fetch(`${API_URL}/api/subscriptions`, {
         headers: getHeaders()
       });
       const responseData = await response.json();
       if (!response.ok) {
         throw new Error(responseData.message || 'Failed to fetch subscription plans');
+      }
+      return responseData;
+    },
+
+    adminActivate: async (userId: string, data: { planId: string; selectedAssets: string[] }) => {
+      const response = await fetch(`${API_URL}/api/subscriptions/admin-activate/${userId}`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data)
+      });
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Failed to activate subscription');
       }
       return responseData;
     },
