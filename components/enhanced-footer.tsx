@@ -63,7 +63,7 @@ export function EnhancedFooter() {
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
           <div className="lg:col-span-1 space-y-6">
             <div className="flex items-center gap-2">
-              <Image src={"./logo.jpeg"} alt="Website Logo" width={100} height={100} className="rounded-full border border-gray-800 p-2"/>
+              <Image src="/logo.jpeg" alt="Website Logo" width={100} height={100} className="rounded-full border border-gray-800 p-2"/>
               <span className="text-2xl font-bold tracking-tight">Novia AI</span>
             </div>
             <p className="text-gray-400">
@@ -176,7 +176,7 @@ export function EnhancedFooter() {
               <li className="flex items-start gap-3">
                 <Phone className="h-5 w-5 text-emerald-500 mt-0.5" />
                 <div>
-                  <p className="text-sm">+90 534 486 92 20/p>
+                  <p className="text-sm">+90 534 486 92 20</p>
                   <p className="text-xs text-gray-500">Turkey</p>
                 </div>
               </li>
@@ -198,17 +198,14 @@ export function EnhancedFooter() {
               &copy; {new Date().getFullYear()} Novia AI Inc. All rights reserved.
             </p>
             <div className="flex gap-6 mt-4 md:mt-0">
-              <Link href="#" className="text-xs text-gray-500 hover:text-gray-400 transition-colors">
-                Privacy
+              <Link href="#" className="text-sm text-gray-400 hover:text-white transition-colors">
+                Privacy Policy
               </Link>
-              <Link href="#" className="text-xs text-gray-500 hover:text-gray-400 transition-colors">
-                Terms
+              <Link href="#" className="text-sm text-gray-400 hover:text-white transition-colors">
+                Terms of Service
               </Link>
-              <Link href="#" className="text-xs text-gray-500 hover:text-gray-400 transition-colors">
-                Cookies
-              </Link>
-              <Link href="#" className="text-xs text-gray-500 hover:text-gray-400 transition-colors">
-                Sitemap
+              <Link href="#" className="text-sm text-gray-400 hover:text-white transition-colors">
+                Cookie Policy
               </Link>
             </div>
           </div>
