@@ -68,7 +68,9 @@ function PaymentContent() {
   const [paymentMethod, setPaymentMethod] = useState("nowpayments")
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userId, setUserId] = useState<string>('')
-  const [cryptoCurrencies, setCryptoCurrencies] = useState<string[]>(['BTC', 'ETH'])
+  // Supported currencies must match backend
+  const SUPPORTED_CURRENCIES = ['BTC', 'USDT', 'ETH', 'BNB', 'BUSD', 'TRX', 'LTC', 'DOGE'];
+  const [cryptoCurrencies, setCryptoCurrencies] = useState<string[]>(SUPPORTED_CURRENCIES)
   const [selectedCurrency, setSelectedCurrency] = useState('btc')
   const [paymentData, setPaymentData] = useState<PaymentResponseData | null>(null)
   const [paymentError, setPaymentError] = useState('')
@@ -94,7 +96,7 @@ function PaymentContent() {
       }
 
       // Verify token with backend
-      const response = await fetch('http://localhost:8080/api/users/me', {
+      const response = await fetch('https://api.novia-ai.com/api/users/me', {
         headers: {
           'Authorization': `Bearer ${token}`
         }

@@ -37,7 +37,6 @@ export function PlanCard({
   
   // Check authentication status when component mounts
   useEffect(() => {
-    // We need to check in useEffect because localStorage is not available during SSR
     const checkAuth = () => {
       if (typeof window !== 'undefined') {
         const token = localStorage.getItem('token')
@@ -50,6 +49,8 @@ export function PlanCard({
   
   // Handle plan selection based on authentication status
   const handlePlanSelection = () => {
+    if (isLoading) return;
+    
     if (isAuthenticated) {
       // If user is logged in, redirect to payment page with plan details
       router.push(`/payment?plan=${encodeURIComponent(name)}&price=${price}`)
@@ -61,11 +62,9 @@ export function PlanCard({
   
   return (
     <Card
-      className={cn(
-        "flex flex-col justify-between",
-        highlighted ? "border-blue-500 shadow-xl shadow-blue-500/10 ring-2 ring-blue-500/20" : "",
-        isLoading ? "opacity-50 cursor-not-allowed" : ""
-      )}
+      className={`flex flex-col justify-between relative ${
+        highlighted ? "border-blue-500 shadow-xl shadow-blue-500/10 ring-2 ring-blue-500/20" : ""
+      } ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
     >
       {isLoading ? (
         <div className="flex items-center justify-center h-full min-h-[200px]">

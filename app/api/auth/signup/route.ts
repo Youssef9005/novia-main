@@ -5,7 +5,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     
     // Forward the request to our backend server
-    const response = await fetch('http://localhost:8080/api/auth/signup', {
+    const response = await fetch('https://api.novia-ai.com/api/auth/signup', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -19,8 +19,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(data, { status: response.status });
   } catch (error: any) {
     console.error('Signup error:', error);
+    
+    // Handle specific error cases
+    if (error.code === 'ECONNREFUSED') {
+      return NextResponse.json(
+        { 
+          status: 'error', 
+          message: 'Unable to connect to the server. Please try again later.' 
+        },
+        { status: 503 }
+      );
+    }
+    
+    if (error.name === 'FetchError') {
+      return NextResponse.json(
+        { 
+          status: 'error', 
+          message: 'Network error. Please check your connection and try again.' 
+        },
+        { status: 503 }
+      );
+    }
+    
     return NextResponse.json(
-      { status: 'error', message: error.message || 'Internal server error' },
+      { 
+        status: 'error', 
+        message: error.message || 'An unexpected error occurred. Please try again.' 
+      },
       { status: 500 }
     );
   }

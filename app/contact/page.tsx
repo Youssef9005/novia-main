@@ -99,16 +99,15 @@ export default function ContactPage() {
                     <Mail className="h-6 w-6 text-blue-500 mt-1" />
                     <div>
                       <h3 className="font-medium">Email</h3>
-                      <p className="text-sm text-gray-400">support@Novia AI.com</p>
-                      <p className="text-sm text-gray-400">info@Novia AI.com</p>
+                      <p className="text-sm text-gray-400">info@novia-ai.com</p>
+                      <p className="text-sm text-gray-400">support@novia-ai.com</p>
                     </div>
                   </div>
                   <div className="flex items-start space-x-4">
                     <Phone className="h-6 w-6 text-emerald-500 mt-1" />
                     <div>
                       <h3 className="font-medium">Phone</h3>
-                      <p className="text-sm text-gray-400">+1 (555) 123-4567</p>
-                      <p className="text-sm text-gray-400">Mon-Fri, 9am-6pm EST</p>
+                      <p className="text-sm text-gray-400">+90 534 486 92 20</p>
                     </div>
                   </div>
                   <div className="flex items-start space-x-4">
@@ -116,46 +115,13 @@ export default function ContactPage() {
                     <div>
                       <h3 className="font-medium">Location</h3>
                       <p className="text-sm text-gray-400">
-                        350 Financial District Blvd
+                        Turkey istanbul
                         <br />
-                        New York, NY 10004
+                        Egypt Cairo
                         <br />
-                        United States
+                        Bahrain
                       </p>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-gray-800 bg-gray-950/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="text-2xl">Frequently asked questions</CardTitle>
-                  <CardDescription>Quick answers to common questions.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <h3 className="font-medium">How long does it take to get a response?</h3>
-                    <p className="text-sm text-gray-400">
-                      We aim to respond to all inquiries within 24 hours during business days.
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="font-medium">Can I change my subscription plan?</h3>
-                    <p className="text-sm text-gray-400">
-                      Yes, you can upgrade or downgrade your plan at any time from your account settings.
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="font-medium">How do I select which assets to receive analysis for?</h3>
-                    <p className="text-sm text-gray-400">
-                      After subscribing, you'll be guided through the asset selection process in your dashboard.
-                    </p>
-                  </div>
-                  <div className="flex justify-center mt-6">
-                    <Button variant="outline" size="sm" className="flex items-center gap-1.5">
-                      <MessageSquare className="h-4 w-4" />
-                      View all FAQs
-                    </Button>
                   </div>
                 </CardContent>
               </Card>

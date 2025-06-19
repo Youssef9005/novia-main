@@ -3,7 +3,113 @@
  */
 
 // API Configuration
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.novia-ai.com';
+
+// Type Definitions
+interface User {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: 'user' | 'admin';
+  subscription?: Subscription;
+  selectedAssets?: string[];
+  preferences?: {
+    emailNotifications?: boolean;
+  };
+}
+
+interface Subscription {
+  _id: string;
+  plan: string;
+  status: 'active' | 'cancelled' | 'expired';
+  startDate: string;
+  endDate: string;
+  price: number;
+  paymentMethod: 'credit_card' | 'paypal' | 'bank_transfer';
+  selectedAssets?: string[];
+}
+
+interface SubscriptionPlan {
+  _id: string;
+  title: string;
+  description: string;
+  price: number;
+  originalPrice?: number;
+  features: string[];
+  isOnSale: boolean;
+  saleEndsAt?: string;
+  saleDescription?: string;
+  isActive: boolean;
+  assetCount: number;
+}
+
+interface Notification {
+  _id: string;
+  title: string;
+  message: string;
+  type: string;
+  read: boolean;
+  createdAt: string;
+}
+
+interface Country {
+  name: string;
+  code: string;
+  phoneCode: string;
+}
+
+interface LoginData {
+  email: string;
+  password: string;
+}
+
+interface SignupData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  passwordConfirm: string;
+  referralCode?: string;
+  phoneNumber: {
+    countryCode: string;
+    number: string;
+  };
+}
+
+interface ResetPasswordData {
+  password: string;
+  passwordConfirm: string;
+}
+
+interface UpdatePasswordData {
+  currentPassword: string;
+  password: string;
+  passwordConfirm: string;
+}
+
+interface UpdateProfileData {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phoneNumber?: {
+    countryCode: string;
+    number: string;
+  };
+}
+
+interface PaymentData {
+  planId: string;
+  paymentMethod: 'credit_card' | 'paypal' | 'bank_transfer';
+  amount: number;
+  currency: string;
+}
+
+interface ApiResponse<T> {
+  status: 'success' | 'error';
+  message?: string;
+  data?: T;
+}
 
 // Auth endpoints
 const AUTH_ENDPOINTS = {
@@ -27,7 +133,7 @@ const NOTIFICATION_ENDPOINTS = {
 };
 
 // Helper function to get auth token
-const getAuthToken = () => {
+const getAuthToken = (): string | null => {
   if (typeof window !== 'undefined') {
     return localStorage.getItem('token');
   }
@@ -35,7 +141,7 @@ const getAuthToken = () => {
 };
 
 // Helper function to get headers
-const getHeaders = () => {
+const getHeaders = (): HeadersInit => {
   const token = getAuthToken();
   return {
     'Content-Type': 'application/json',
@@ -78,10 +184,10 @@ export const isAuthenticated = (): boolean => {
 /**
  * Base fetch function with authentication and error handling
  */
-async function fetchApi(
+async function fetchApi<T>(
   url: string,
   options: RequestInit = {}
-): Promise<any> {
+): Promise<ApiResponse<T>> {
   const token = getToken();
   
   // Set default headers
@@ -116,13 +222,13 @@ async function fetchApi(
 export const authApi = {
   // Login user
   login: async (email: string, password: string) => {
-    const data = await fetchApi(AUTH_ENDPOINTS.LOGIN, {
+    const data = await fetchApi<{ token: string }>(AUTH_ENDPOINTS.LOGIN, {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
     
-    if (data.token) {
-      setToken(data.token);
+    if (data.data?.token) {
+      setToken(data.data.token);
     }
     
     return data;
@@ -171,7 +277,7 @@ export const authApi = {
 export const notificationApi = {
   // Get all notifications for the current user
   getNotifications: async (): Promise<Notification[]> => {
-    const response = await fetchApi(NOTIFICATION_ENDPOINTS.NOTIFICATIONS, {
+    const response = await fetchApi<{ notifications: Notification[] }>(NOTIFICATION_ENDPOINTS.NOTIFICATIONS, {
       method: 'GET',
     });
     return response.data?.notifications || [];
@@ -193,7 +299,7 @@ export const notificationApi = {
 
   // Get unread notifications count
   getUnreadCount: async (): Promise<number> => {
-    const response = await fetchApi(NOTIFICATION_ENDPOINTS.UNREAD_COUNT, {
+    const response = await fetchApi<{ count: number }>(NOTIFICATION_ENDPOINTS.UNREAD_COUNT, {
       method: 'GET',
     });
     return response.data?.count || 0;
@@ -247,7 +353,7 @@ export const userApi = {
 export const api = {
   // Subscription endpoints
   subscriptions: {
-    getAll: async () => {
+    getPlans: async (): Promise<ApiResponse<{ plans: SubscriptionPlan[] }>> => {
       const response = await fetch(`${API_URL}/api/subscriptions`, {
         headers: getHeaders()
       });
@@ -258,7 +364,18 @@ export const api = {
       return responseData;
     },
 
-    adminActivate: async (userId: string, data: { planId: string; selectedAssets: string[] }) => {
+    getAll: async (): Promise<ApiResponse<{ subscriptions: Subscription[] }>> => {
+      const response = await fetch(`${API_URL}/api/subscriptions`, {
+        headers: getHeaders()
+      });
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Failed to fetch subscriptions');
+      }
+      return responseData;
+    },
+
+    adminActivate: async (userId: string, data: { planId: string; selectedAssets: string[] }): Promise<ApiResponse<{ user: User }>> => {
       const response = await fetch(`${API_URL}/api/subscriptions/admin-activate/${userId}`, {
         method: 'POST',
         headers: getHeaders(),
@@ -271,7 +388,7 @@ export const api = {
       return responseData;
     },
     
-    getPlanFeatures: async () => {
+    getPlanFeatures: async (): Promise<ApiResponse<{ features: any[] }>> => {
       const response = await fetch(`${API_URL}/api/subscriptions/features`, {
         headers: getHeaders()
       });
@@ -282,7 +399,7 @@ export const api = {
       return responseData;
     },
     
-    subscribe: async (subscriptionData: SubscriptionData) => {
+    subscribe: async (subscriptionData: { planId: string }): Promise<ApiResponse<{ subscription: Subscription }>> => {
       const response = await fetch(`${API_URL}/api/subscriptions/subscribe/${subscriptionData.planId}`, {
         method: 'POST',
         headers: getHeaders()
@@ -294,7 +411,7 @@ export const api = {
       return responseData;
     },
     
-    cancel: async () => {
+    cancel: async (): Promise<ApiResponse<{ subscription: Subscription }>> => {
       const response = await fetch(`${API_URL}/api/subscriptions/cancel`, {
         method: 'POST',
         headers: getHeaders()
@@ -306,7 +423,7 @@ export const api = {
       return responseData;
     },
     
-    getCurrentSubscription: async () => {
+    getCurrentSubscription: async (): Promise<ApiResponse<{ subscription: Subscription }>> => {
       const response = await fetch(`${API_URL}/api/subscriptions/my-subscription`, {
         headers: getHeaders()
       });
@@ -320,29 +437,57 @@ export const api = {
 
   // User endpoints
   users: {
-    getMe: () => fetch(`${API_URL}/api/users/me`, {
-      headers: getHeaders()
-    }).then(res => res.json()),
+    getMe: async (): Promise<ApiResponse<{ user: User }>> => {
+      const response = await fetch(`${API_URL}/api/users/me`, {
+        headers: getHeaders()
+      });
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Failed to fetch user profile');
+      }
+      return responseData;
+    },
     
-    updateMe: (data: any) => fetch(`${API_URL}/api/users/update-me`, {
-      method: 'PATCH',
-      headers: getHeaders(),
-      body: JSON.stringify(data)
-    }).then(res => res.json()),
+    updateMe: async (data: UpdateProfileData): Promise<ApiResponse<{ user: User }>> => {
+      const response = await fetch(`${API_URL}/api/users/update-me`, {
+        method: 'PATCH',
+        headers: getHeaders(),
+        body: JSON.stringify(data)
+      });
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Failed to update profile');
+      }
+      return responseData;
+    },
     
-    updatePassword: (data: any) => fetch(`${API_URL}/api/users/update-password`, {
-      method: 'PATCH',
-      headers: getHeaders(),
-      body: JSON.stringify(data)
-    }).then(res => res.json()),
+    updatePassword: async (data: UpdatePasswordData): Promise<ApiResponse<{ user: User }>> => {
+      const response = await fetch(`${API_URL}/api/users/update-password`, {
+        method: 'PATCH',
+        headers: getHeaders(),
+        body: JSON.stringify(data)
+      });
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Failed to update password');
+      }
+      return responseData;
+    },
     
-    updateNotifications: (data: any) => fetch(`${API_URL}/api/users/update-notifications`, {
-      method: 'PATCH',
-      headers: getHeaders(),
-      body: JSON.stringify(data)
-    }).then(res => res.json()),
+    updateNotifications: async (data: { notifications: { marketing?: boolean; assetAnalysis?: boolean; priceAlerts?: boolean } }): Promise<ApiResponse<{ user: User }>> => {
+      const response = await fetch(`${API_URL}/api/users/update-notifications`, {
+        method: 'PATCH',
+        headers: getHeaders(),
+        body: JSON.stringify(data)
+      });
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Failed to update notifications');
+      }
+      return responseData;
+    },
 
-    getProfile: async () => {
+    getProfile: async (): Promise<ApiResponse<{ user: User }>> => {
       const response = await fetch(`${API_URL}/api/users/profile`, {
         headers: getHeaders()
       });
@@ -353,7 +498,7 @@ export const api = {
       return responseData;
     },
     
-    updateProfile: async (data: UpdateProfileData) => {
+    updateProfile: async (data: UpdateProfileData): Promise<ApiResponse<{ user: User }>> => {
       const response = await fetch(`${API_URL}/api/users/profile`, {
         method: 'PATCH',
         headers: getHeaders(),
@@ -366,7 +511,7 @@ export const api = {
       return responseData;
     },
     
-    updateAvatar: async (formData: FormData) => {
+    updateAvatar: async (formData: FormData): Promise<ApiResponse<{ user: User }>> => {
       const response = await fetch(`${API_URL}/api/users/avatar`, {
         method: 'PATCH',
         headers: {
@@ -384,33 +529,41 @@ export const api = {
   
   // Auth endpoints
   auth: {
-    login: async (data: LoginData) => {
+    login: async (data: LoginData): Promise<ApiResponse<{ token: string; user: User }>> => {
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify(data)
       });
       const responseData = await response.json();
-      if (responseData.token) {
-        setToken(responseData.token);
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Failed to login');
       }
-      return responseData;
+      const typedResponse = responseData as ApiResponse<{ token: string; user: User }>;
+      if (typedResponse.status === 'success' && typedResponse.data?.token) {
+        setToken(typedResponse.data.token);
+      }
+      return typedResponse;
     },
     
-    signup: async (data: SignupData) => {
+    signup: async (data: SignupData): Promise<ApiResponse<{ token: string; user: User }>> => {
       const response = await fetch(`${API_URL}/api/auth/signup`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify(data)
       });
       const responseData = await response.json();
-      if (responseData.token) {
-        setToken(responseData.token);
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Failed to signup');
       }
-      return responseData;
+      const typedResponse = responseData as ApiResponse<{ token: string; user: User }>;
+      if (typedResponse.status === 'success' && typedResponse.data?.token) {
+        setToken(typedResponse.data.token);
+      }
+      return typedResponse;
     },
     
-    verifyEmail: async (token: string) => {
+    verifyEmail: async (token: string): Promise<ApiResponse<{ message: string }>> => {
       const response = await fetch(`${API_URL}/api/auth/verify-email/${token}`, {
         method: 'GET',
         headers: getHeaders()
@@ -422,7 +575,7 @@ export const api = {
       return responseData;
     },
     
-    resendVerification: async (email: string) => {
+    resendVerification: async (email: string): Promise<ApiResponse<{ message: string }>> => {
       const response = await fetch(`${API_URL}/api/auth/resend-verification`, {
         method: 'POST',
         headers: getHeaders(),
@@ -435,7 +588,7 @@ export const api = {
       return responseData;
     },
     
-    forgotPassword: async (email: string) => {
+    forgotPassword: async (email: string): Promise<ApiResponse<{ message: string }>> => {
       const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
         method: 'POST',
         headers: getHeaders(),
@@ -448,7 +601,7 @@ export const api = {
       return responseData;
     },
     
-    resetPassword: async (token: string, data: ResetPasswordData) => {
+    resetPassword: async (token: string, data: ResetPasswordData): Promise<ApiResponse<{ message: string }>> => {
       const response = await fetch(`${API_URL}/api/auth/reset-password/${token}`, {
         method: 'POST',
         headers: getHeaders(),
@@ -461,7 +614,7 @@ export const api = {
       return responseData;
     },
     
-    updatePassword: async (data: UpdatePasswordData) => {
+    updatePassword: async (data: UpdatePasswordData): Promise<ApiResponse<{ message: string }>> => {
       const response = await fetch(`${API_URL}/api/auth/update-password`, {
         method: 'PATCH',
         headers: getHeaders(),
@@ -474,13 +627,13 @@ export const api = {
       return responseData;
     },
     
-    logout: () => {
+    logout: (): void => {
       removeToken();
     },
   },
 
   payments: {
-    createPayment: async (data: PaymentData) => {
+    createPayment: async (data: PaymentData): Promise<ApiResponse<{ payment: any }>> => {
       try {
         const token = localStorage.getItem('token');
         if (!token) {
@@ -507,7 +660,7 @@ export const api = {
       }
     },
     
-    verifyPayment: async (paymentId: string) => {
+    verifyPayment: async (paymentId: string): Promise<ApiResponse<{ payment: any }>> => {
       const response = await fetch(`${API_URL}/api/payments/verify/${paymentId}`, {
         method: 'POST',
         headers: getHeaders()
@@ -519,7 +672,7 @@ export const api = {
       return responseData;
     },
     
-    getPaymentHistory: async () => {
+    getPaymentHistory: async (): Promise<ApiResponse<{ payments: any[] }>> => {
       const response = await fetch(`${API_URL}/api/payments/history`, {
         headers: getHeaders()
       });
@@ -532,7 +685,7 @@ export const api = {
   },
 
   tradingPairs: {
-    getAll: async () => {
+    getAll: async (): Promise<ApiResponse<{ pairs: string[] }>> => {
       const response = await fetch(`${API_URL}/api/trading-pairs`, {
         headers: getHeaders()
       });
@@ -543,7 +696,7 @@ export const api = {
       return responseData;
     },
 
-    getSelected: async () => {
+    getSelected: async (): Promise<ApiResponse<{ pairs: string[] }>> => {
       const response = await fetch(`${API_URL}/api/trading-pairs/selected`, {
         headers: getHeaders()
       });
@@ -554,7 +707,7 @@ export const api = {
       return responseData;
     },
 
-    add: async (pair: string) => {
+    add: async (pair: string): Promise<ApiResponse<{ pairs: string[] }>> => {
       const response = await fetch(`${API_URL}/api/trading-pairs`, {
         method: 'POST',
         headers: getHeaders(),
@@ -567,7 +720,7 @@ export const api = {
       return responseData;
     },
 
-    remove: async (pair: string) => {
+    remove: async (pair: string): Promise<ApiResponse<{ pairs: string[] }>> => {
       const response = await fetch(`${API_URL}/api/trading-pairs/${pair}`, {
         method: 'DELETE',
         headers: getHeaders()
@@ -579,7 +732,7 @@ export const api = {
       return responseData;
     },
 
-    update: async (pairs: string[]) => {
+    update: async (pairs: string[]): Promise<ApiResponse<{ pairs: string[] }>> => {
       const response = await fetch(`${API_URL}/api/trading-pairs`, {
         method: 'PATCH',
         headers: getHeaders(),
@@ -594,7 +747,7 @@ export const api = {
   },
 
   notifications: {
-    getAll: async () => {
+    getAll: async (): Promise<ApiResponse<{ notifications: Notification[] }>> => {
       const response = await fetch(`${API_URL}/api/notifications`, {
         headers: getHeaders()
       });
@@ -602,10 +755,16 @@ export const api = {
       if (!response.ok) {
         throw new Error(responseData.message || 'Failed to fetch notifications');
       }
-      return responseData.data?.notifications || [];
+      const typedResponse = responseData as ApiResponse<{ notifications: Notification[] }>;
+      return {
+        status: 'success',
+        data: {
+          notifications: typedResponse.data?.notifications || []
+        }
+      };
     },
 
-    markAsRead: async (id: string) => {
+    markAsRead: async (id: string): Promise<ApiResponse<{ notification: Notification }>> => {
       const response = await fetch(`${API_URL}/api/notifications/${id}/read`, {
         method: 'PATCH',
         headers: getHeaders()
@@ -617,7 +776,7 @@ export const api = {
       return responseData;
     },
 
-    markAllAsRead: async () => {
+    markAllAsRead: async (): Promise<ApiResponse<{ message: string }>> => {
       const response = await fetch(`${API_URL}/api/notifications/read-all`, {
         method: 'PATCH',
         headers: getHeaders()
@@ -629,7 +788,7 @@ export const api = {
       return responseData;
     },
 
-    delete: async (id: string) => {
+    delete: async (id: string): Promise<ApiResponse<{ message: string }>> => {
       const response = await fetch(`${API_URL}/api/notifications/${id}`, {
         method: 'DELETE',
         headers: getHeaders()
@@ -641,20 +800,16 @@ export const api = {
       return responseData;
     },
 
-    getUnreadCount: async () => {
-      const response = await fetch(`${API_URL}/api/notifications/unread-count`, {
-        headers: getHeaders()
+    getUnreadCount: async (): Promise<number> => {
+      const response = await fetchApi<{ count: number }>(NOTIFICATION_ENDPOINTS.UNREAD_COUNT, {
+        method: 'GET',
       });
-      const responseData = await response.json();
-      if (!response.ok) {
-        throw new Error(responseData.message || 'Failed to get unread notifications count');
-      }
-      return responseData.data?.count || 0;
+      return response.data?.count || 0;
     },
   },
 
   countries: {
-    getAll: async () => {
+    getAll: async (): Promise<ApiResponse<{ countries: Country[] }>> => {
       const response = await fetch(`${API_URL}/api/countries`, {
         headers: getHeaders()
       });
@@ -662,10 +817,10 @@ export const api = {
       if (!response.ok) {
         throw new Error(responseData.message || 'Failed to fetch countries');
       }
-      return responseData.data?.countries || [];
+      return responseData;
     },
 
-    search: async (query: string) => {
+    search: async (query: string): Promise<ApiResponse<{ countries: Country[] }>> => {
       const response = await fetch(`${API_URL}/api/countries/search?query=${query}`, {
         headers: getHeaders()
       });
@@ -673,7 +828,7 @@ export const api = {
       if (!response.ok) {
         throw new Error(responseData.message || 'Failed to search countries');
       }
-      return responseData.data?.countries || [];
+      return responseData;
     },
   },
 };

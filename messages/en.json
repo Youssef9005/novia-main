@@ -1,0 +1,23 @@
+{
+  "common": {
+    "success": "Success",
+    "error": "Error",
+    "cancel": "Cancel",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All"
+  },
+  "users": {
+    "subscription": {
+      "managementTitle": "Manage Subscription & Assets",
+      "managementDescription": "Select the subscription plan and assets you want to assign to the user",
+      "selectPlan": "Select Plan",
+      "selectPlanPlaceholder": "Choose a subscription plan",
+      "duration": "Duration (months)",
+      "tradingPairs": "Trading Pairs",
+      "updateButton": "Update",
+      "updatingButton": "Updating...",
+      "updateSuccess": "Subscription and assets updated successfully",
+      "updateError": "An error occurred while updating subscription and assets"
+    }
+  }
+} 

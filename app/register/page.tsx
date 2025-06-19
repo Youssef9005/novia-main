@@ -169,6 +169,10 @@ export default function RegisterPage() {
       const data = await response.json()
 
       if (!response.ok) {
+        // Handle specific error cases
+        if (response.status === 503) {
+          throw new Error('Server is currently unavailable. Please try again later.')
+        }
         throw new Error(data.message || 'Registration failed')
       }
 

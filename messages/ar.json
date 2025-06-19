@@ -1,0 +1,23 @@
+{
+  "common": {
+    "success": "تم بنجاح",
+    "error": "خطأ",
+    "cancel": "إلغاء",
+    "selectAll": "تحديد الكل",
+    "deselectAll": "إلغاء تحديد الكل"
+  },
+  "users": {
+    "subscription": {
+      "managementTitle": "إدارة الاشتراك والأصول",
+      "managementDescription": "اختر خطة الاشتراك والأصول التي تريد إضافتها للمستخدم",
+      "selectPlan": "اختر الخطة",
+      "selectPlanPlaceholder": "اختر خطة الاشتراك",
+      "duration": "المدة (بالأشهر)",
+      "tradingPairs": "أزواج التداول",
+      "updateButton": "تحديث",
+      "updatingButton": "جاري التحديث...",
+      "updateSuccess": "تم تحديث الاشتراك والأصول بنجاح",
+      "updateError": "حدث خطأ أثناء تحديث الاشتراك والأصول"
+    }
+  }
+} 

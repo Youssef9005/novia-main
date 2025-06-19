@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { apiRequest, subscriptionsApi } from "@/lib/api";
 import type { SubscriptionPlan } from "@/lib/api";
+import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
 import {
   Dialog,
@@ -26,7 +27,6 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "sonner";
 
 interface Props {
   isOpen: boolean;
@@ -35,8 +35,9 @@ interface Props {
   onSuccess: () => void;
 }
 
-export const SubscriptionActivationModal: React.FC<Props> = ({ isOpen, onClose, userId, onSuccess }) => {
+export const SubscriptionManagementModal: React.FC<Props> = ({ isOpen, onClose, userId, onSuccess }) => {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<string>("");
   const [duration, setDuration] = useState<string>("1");
@@ -101,10 +102,6 @@ export const SubscriptionActivationModal: React.FC<Props> = ({ isOpen, onClose, 
 
   const handleConfirm = async () => {
     if (!selectedPlan) return;
-    if (selectedPairs.length === 0) {
-      toast.error(t("users.subscription.selectPairsError"));
-      return;
-    }
     setIsSubmitting(true);
     try {
       // Update subscription
@@ -122,12 +119,19 @@ export const SubscriptionActivationModal: React.FC<Props> = ({ isOpen, onClose, 
         body: JSON.stringify({ pairs: selectedPairs }),
       });
 
-      toast.success(t("users.subscription.updateSuccess"));
+      toast({
+        title: t("common.success"),
+        description: t("users.subscription.updateSuccess"),
+      });
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error("Error activating subscription:", err);
-      toast.error(err.message || t("users.subscription.updateError"));
+      console.error("Error updating subscription:", err);
+      toast({
+        title: t("common.error"),
+        description: err.message || t("users.subscription.updateError"),
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -144,9 +148,9 @@ export const SubscriptionActivationModal: React.FC<Props> = ({ isOpen, onClose, 
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[800px]">
         <DialogHeader>
-          <DialogTitle>{t("users.subscription.dialogTitle")}</DialogTitle>
+          <DialogTitle>{t("users.subscription.managementTitle")}</DialogTitle>
           <DialogDescription>
-            {t("users.subscription.dialogDescription")}
+            {t("users.subscription.managementDescription")}
           </DialogDescription>
         </DialogHeader>
 

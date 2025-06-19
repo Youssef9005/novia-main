@@ -53,14 +53,15 @@ export default function Home() {
     const fetchPlans = async () => {
       try {
         const response = await api.subscriptions.getPlans();
-        if (response.status === 'success' && Array.isArray(response.data.plans)) {
+        if (response.status === 'success' && Array.isArray(response.data?.plans)) {
           // Filter for active plans and sort by price
           const activePlans = response.data.plans
-            .filter((plan: any) => plan.isActive)
-            .sort((a: any, b: any) => a.price - b.price);
+            .filter((plan: Plan) => plan.isActive)
+            .sort((a: Plan, b: Plan) => a.price - b.price);
           setPlans(activePlans);
         } else {
-          setError(response.message || 'Failed to fetch plans');
+          console.error('Invalid response format:', response);
+          setError('Failed to load plans. Please try again later.');
         }
       } catch (error) {
         console.error('Error fetching plans:', error);
