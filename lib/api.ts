@@ -99,10 +99,28 @@ interface UpdateProfileData {
 }
 
 interface PaymentData {
-  planId: string;
-  paymentMethod: 'credit_card' | 'paypal' | 'bank_transfer';
+  paymentId: string;
+  orderId: string;
   amount: number;
   currency: string;
+  walletAddress: string;
+  network: string;
+  status: string;
+  message: string;
+}
+
+interface PaymentCreateData {
+  planName: string;
+  planPrice: number;
+  userId: string;
+  selectedPairs: string[];
+  senderAddress?: string;
+}
+
+interface ScreenshotUploadData {
+  screenshotUrl: string;
+  transactionHash?: string;
+  senderAddress?: string;
 }
 
 interface ApiResponse<T> {
@@ -633,7 +651,16 @@ export const api = {
   },
 
   payments: {
-    createPayment: async (data: PaymentData): Promise<ApiResponse<{ payment: any }>> => {
+    createPayment: async (data: PaymentCreateData): Promise<ApiResponse<{
+      paymentId: string;
+      orderId: string;
+      amount: number;
+      currency: string;
+      walletAddress: string;
+      network: string;
+      status: string;
+      message: string;
+    }>> => {
       try {
         const token = localStorage.getItem('token');
         if (!token) {
@@ -660,6 +687,37 @@ export const api = {
       }
     },
     
+    uploadScreenshot: async (paymentId: string, data: ScreenshotUploadData): Promise<ApiResponse<{
+      paymentId: string;
+      status: string;
+      message: string;
+    }>> => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('Authentication token is missing');
+        }
+
+        const response = await fetch(`${API_URL}/api/payments/${paymentId}/upload-screenshot`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(data)
+        });
+
+        const responseData = await response.json();
+        if (!response.ok) {
+          throw new Error(responseData.message || 'Failed to upload screenshot');
+        }
+        return responseData;
+      } catch (error) {
+        console.error('Screenshot upload error:', error);
+        throw error;
+      }
+    },
+    
     verifyPayment: async (paymentId: string): Promise<ApiResponse<{ payment: any }>> => {
       const response = await fetch(`${API_URL}/api/payments/verify/${paymentId}`, {
         method: 'POST',
@@ -682,10 +740,21 @@ export const api = {
       }
       return responseData;
     },
+
+    getScreenshot: (paymentId: string) => 
+      fetchApi(`${API_URL}/api/payments/screenshot/${paymentId}`),
+    
+    getPaymentStatus: (paymentId: string) => 
+      fetchApi(`${API_URL}/api/payments/status/${paymentId}`),
   },
 
   tradingPairs: {
-    getAll: async (): Promise<ApiResponse<{ pairs: string[] }>> => {
+    getAll: async (): Promise<ApiResponse<{
+      forex: Array<{ symbol: string; name: string; category: string }>;
+      indices: Array<{ symbol: string; name: string; category: string }>;
+      commodities: Array<{ symbol: string; name: string; category: string }>;
+      crypto: Array<{ symbol: string; name: string; category: string }>;
+    }>> => {
       const response = await fetch(`${API_URL}/api/trading-pairs`, {
         headers: getHeaders()
       });

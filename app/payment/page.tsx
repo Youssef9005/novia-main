@@ -3,35 +3,16 @@
 import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, CreditCard, Bitcoin, Info, Loader2 } from "lucide-react"
+import { ChevronLeft, CreditCard, Bitcoin, Info, Loader2, Upload, CheckCircle, XCircle, Wallet, Shield, Clock, Star, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
 import { api } from "@/lib/api"
-
-// Define types for NOWPayments response
-interface NOWPaymentInternalData {
-  payment_id: string
-  payment_status: string
-  pay_address: string
-  pay_amount: number
-  pay_currency: string
-  price_amount: number
-  price_currency: string
-  order_id: string
-  order_description: string
-  invoice_url?: string
-  created_at: string
-}
-
-interface PaymentResponseData {
-  paymentId: string;
-  nowPaymentsData: NOWPaymentInternalData;
-  message?: string;
-}
 
 interface TradingPair {
   symbol: string;
@@ -46,18 +27,16 @@ interface GroupedPairs {
   crypto: TradingPair[];
 }
 
-// Add plan limits interface
-interface PlanLimits {
-  [key: string]: number;
+interface PaymentData {
+  paymentId: string;
+  orderId: string;
+  amount: number;
+  currency: string;
+  walletAddress: string;
+  network: string;
+  status: string;
+  message: string;
 }
-
-// Update plan limits
-const PLAN_LIMITS: PlanLimits = {
-  'Basic': 5,
-  'Standard': 10,
-  'Expert': 0, // 0 means unlimited
-  'Professional': 0 // 0 means unlimited
-};
 
 function PaymentContent() {
   const router = useRouter()
@@ -65,17 +44,9 @@ function PaymentContent() {
   const planName = searchParams.get('plan')
   const planPrice = searchParams.get('price')
   const [isLoading, setIsLoading] = useState(false)
-  const [paymentMethod, setPaymentMethod] = useState("nowpayments")
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userId, setUserId] = useState<string>('')
-  // Supported currencies must match backend
-  const SUPPORTED_CURRENCIES = ['BTC', 'USDT', 'ETH', 'BNB', 'BUSD', 'TRX', 'LTC', 'DOGE'];
-  const [cryptoCurrencies, setCryptoCurrencies] = useState<string[]>(SUPPORTED_CURRENCIES)
-  const [selectedCurrency, setSelectedCurrency] = useState('btc')
-  const [paymentData, setPaymentData] = useState<PaymentResponseData | null>(null)
-  const [paymentError, setPaymentError] = useState('')
-  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false)
-  const [showProcessingMessage, setShowProcessingMessage] = useState(false);
+  const [paymentData, setPaymentData] = useState<PaymentData | null>(null)
   const [tradingPairs, setTradingPairs] = useState<GroupedPairs>({ forex: [], indices: [], commodities: [], crypto: [] });
   const [selectedPairs, setSelectedPairs] = useState<string[]>([]);
   const [loadingPairs, setLoadingPairs] = useState(true);
@@ -85,6 +56,13 @@ function PaymentContent() {
     includesTelegramGroup: boolean;
   } | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  
+  // Screenshot upload states
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [screenshotUrl, setScreenshotUrl] = useState<string>('');
+  const [transactionHash, setTransactionHash] = useState<string>('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [senderAddress, setSenderAddress] = useState<string>('');
   
   // Function to verify authentication
   const verifyAuth = async () => {
@@ -129,7 +107,9 @@ function PaymentContent() {
     try {
       const response = await api.tradingPairs.getAll();
       console.log('Fetched trading pairs successfully:', response.data);
-      setTradingPairs(response.data);
+      if (response.data) {
+        setTradingPairs(response.data);
+      }
     } catch (error) {
       console.error('Error fetching trading pairs:', error);
       toast({
@@ -243,8 +223,41 @@ function PaymentContent() {
     });
   };
 
-  // Handle payment
-  const handlePayment = async (method: 'nowpayments' | 'stripe' | 'binance') => {
+  // Handle file upload
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast({
+          title: 'File too large',
+          description: 'Please select a file smaller than 5MB',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: 'Invalid file type',
+          description: 'Please select an image file',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      setScreenshotFile(file);
+      
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setScreenshotUrl(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle payment creation
+  const handleCreatePayment = async () => {
     if (!isAuthenticated || !userId) {
       toast({
         title: 'Error',
@@ -280,30 +293,28 @@ function PaymentContent() {
         planName,
         planPrice: parseFloat(planPrice),
         userId,
-        currency: selectedCurrency,
         selectedPairs,
+        senderAddress,
       });
 
       const response = await api.payments.createPayment({
         planName,
         planPrice: parseFloat(planPrice),
         userId,
-        currency: selectedCurrency,
         selectedPairs,
+        senderAddress,
       });
 
       console.log('Payment response:', response);
 
-      if (response.status === 'success' && method === 'nowpayments') {
-        const { pay_address, pay_amount, pay_currency, payment_id } = response.data.nowPaymentsData;
+      if (response.status === 'success' && response.data) {
         setPaymentData(response.data);
-
         toast({
-          title: 'Payment Details',
-          description: `Please send ${pay_amount} ${pay_currency.toUpperCase()} to ${pay_address}. Payment ID: ${payment_id}`,
+          title: 'Payment Created',
+          description: 'Please send USDT to the provided address and upload screenshot for confirmation.',
           variant: 'default',
         });
-      } else if (response.status === 'error') {
+      } else {
         throw new Error(response.message || 'Failed to create payment');
       }
     } catch (error) {
@@ -318,317 +329,656 @@ function PaymentContent() {
     }
   };
 
+  // Handle screenshot upload
+  const handleUploadScreenshot = async () => {
+    if (!paymentData || !screenshotFile) {
+      toast({
+        title: 'Error',
+        description: 'Please select a screenshot file',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      // In a real app, you would upload the file to a cloud service first
+      // For now, we'll use the data URL as the screenshot URL
+      const response = await api.payments.uploadScreenshot(paymentData.paymentId, {
+        screenshotUrl: screenshotUrl,
+        transactionHash: transactionHash || undefined,
+        senderAddress: senderAddress || undefined,
+      });
+
+      if (response.status === 'success') {
+        toast({
+          title: 'Screenshot Uploaded',
+          description: 'Your payment is now waiting for admin confirmation.',
+          variant: 'default',
+        });
+        
+        // Update payment data
+        setPaymentData(prev => prev ? { ...prev, status: 'waiting_confirmation' } : null);
+      } else {
+        throw new Error(response.message || 'Failed to upload screenshot');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: 'Error',
+        description: (error as Error).message || 'Failed to upload screenshot. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   // Loading states
   if (isCheckingAuth) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <p className="ml-2 text-white">Verifying authentication...</p>
+      <div className="min-h-screen bg-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white text-lg">Verifying authentication...</p>
+        </div>
       </div>
     );
   }
 
   if (loadingPairs) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <p className="ml-2 text-white">Loading trading pairs...</p>
+      <div className="min-h-screen bg-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white text-lg">Loading trading pairs...</p>
+        </div>
       </div>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <div className="flex items-center justify-center min-h-screen flex-col">
-        <p className="text-white">Please log in to continue</p>
-        <Button 
-          onClick={() => router.push('/login')}
-          className="mt-4"
-        >
-          Go to Login
-        </Button>
+      <div className="min-h-screen bg-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 max-w-md mx-auto">
+            <Shield className="h-16 w-16 text-white mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-white mb-4">Authentication Required</h2>
+            <p className="text-gray-300 mb-6">Please log in to continue with your payment</p>
+            <Button 
+              onClick={() => router.push('/login')}
+              className="bg-gray-800 hover:bg-gray-700 text-white px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105"
+            >
+              Go to Login
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!planName || !planPrice) {
     return (
-      <div className="flex items-center justify-center min-h-screen flex-col">
-        <p className="text-white">Missing plan information</p>
-        <Button 
-          onClick={() => router.push('/#pricing')}
-          className="mt-4"
-        >
-          Choose a Plan
-        </Button>
+      <div className="min-h-screen bg-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 max-w-md mx-auto">
+            <Star className="h-16 w-16 text-white mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-white mb-4">Plan Information Missing</h2>
+            <p className="text-gray-300 mb-6">Please select a plan to continue</p>
+            <Button 
+              onClick={() => router.push('/#pricing')}
+              className="bg-gray-800 hover:bg-gray-700 text-white px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105"
+            >
+              Choose a Plan
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
 
-  console.log('Ready to render main payment page with:', {
-    tradingPairs,
-    selectedPairs,
-    planName,
-    planPrice,
-    isAuthenticated,
-    loadingPairs // Should be false here
-  });
-
   return (
-    <div className="container mx-auto py-8">
-      <Card className="max-w-2xl mx-auto">
-        <CardHeader>
-          <CardTitle>Select Trading Pairs</CardTitle>
-          <CardDescription>
-            {planFeatures?.unlimitedTradingPairs 
-              ? 'Select unlimited trading pairs with your plan'
-              : `Choose up to ${getPlanLimit()} trading pairs with your ${planName || 'Basic'} plan`}
-            {planFeatures?.includesTelegramGroup && (
-              <span className="block mt-2 text-green-500">
-                ✓ Includes Telegram Group Access
-              </span>
-            )}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            {/* Trading Pair Selection */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <h3 className="font-semibold mb-2">Forex Pairs</h3>
-                <Select onValueChange={handlePairSelect}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select Forex pairs" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tradingPairs.forex && tradingPairs.forex.length > 0 ? (
-                      tradingPairs.forex.map((pair) => (
-                        <SelectItem 
-                          key={pair.symbol} 
-                          value={pair.symbol}
-                          className={selectedPairs.includes(pair.symbol) ? 'bg-primary/10 text-primary font-medium' : ''}
-                        >
-                          {pair.symbol}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="no-forex" disabled>No Forex pairs available</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              {parseFloat(planPrice || '0') > 100 && (
-                <>
-                  <div>
-                    <h3 className="font-semibold mb-2">Indices</h3>
-                    <Select onValueChange={handlePairSelect}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select Indices" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {tradingPairs.indices && tradingPairs.indices.length > 0 ? (
-                          tradingPairs.indices.map((pair) => (
-                            <SelectItem 
-                              key={pair.symbol} 
-                              value={pair.symbol}
-                              className={selectedPairs.includes(pair.symbol) ? 'bg-primary/10 text-primary font-medium' : ''}
-                            >
-                              {pair.symbol}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="no-indices" disabled>No Indices available</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-2">Commodities</h3>
-                    <Select onValueChange={handlePairSelect}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select Commodities" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {tradingPairs.commodities && tradingPairs.commodities.length > 0 ? (
-                          tradingPairs.commodities.map((pair) => (
-                            <SelectItem 
-                              key={pair.symbol} 
-                              value={pair.symbol}
-                              className={selectedPairs.includes(pair.symbol) ? 'bg-primary/10 text-primary font-medium' : ''}
-                            >
-                              {pair.symbol}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="no-commodities" disabled>No Commodities available</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-2">Cryptocurrencies</h3>
-                    <Select onValueChange={handlePairSelect}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select Cryptocurrencies" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {tradingPairs.crypto && tradingPairs.crypto.length > 0 ? (
-                          tradingPairs.crypto.map((pair) => (
-                            <SelectItem 
-                              key={pair.symbol} 
-                              value={pair.symbol}
-                              className={selectedPairs.includes(pair.symbol) ? 'bg-primary/10 text-primary font-medium' : ''}
-                            >
-                              {pair.symbol}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="no-crypto" disabled>No Cryptocurrencies available</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </>
-              )}
-            </div>
+    <div className="min-h-screen bg-gray-800 py-8 px-4">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-800 rounded-full mb-4">
+            <Wallet className="h-8 w-8 text-white" />
+          </div>
+          <h1 className="text-4xl font-bold text-white mb-2">Secure Payment</h1>
+          <p className="text-gray-300 text-lg">Complete your subscription with USDT</p>
+        </div>
 
-            {selectedPairs.length > 0 && (
-              <div className="mt-4">
-                <h3 className="font-semibold mb-2">
-                  Selected Pairs {!planFeatures?.unlimitedTradingPairs && 
-                    `(${selectedPairs.length}/${getPlanLimit()})`}:
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {selectedPairs.map((pair) => (
-                    <div
-                      key={pair}
-                      className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm flex items-center gap-2"
-                    >
-                      {pair}
-                      <button
-                        onClick={() => handlePairSelect(pair)}
-                        className="hover:text-destructive"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Payment Method Tabs */}
-            <Tabs defaultValue="nowpayments" className="mt-6">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="nowpayments">NOWPayments</TabsTrigger>
-                <TabsTrigger value="stripe" disabled>Stripe (Coming Soon)</TabsTrigger>
-                <TabsTrigger value="binance" disabled>Binance Pay (Coming Soon)</TabsTrigger>
-              </TabsList>
-              <TabsContent value="nowpayments">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Pay with NOWPayments</CardTitle>
-                    <CardDescription>
-                      Pay using cryptocurrency (BTC, ETH)
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {/* Display payment details if available */}
-                    {paymentData && (
-                      <Alert className="mb-4">
-                        <Info className="h-4 w-4" />
-                        <AlertTitle>Payment Details</AlertTitle>
-                        <AlertDescription>
-                          <p><strong>Status:</strong> {paymentData.nowPaymentsData.payment_status}</p>
-                          <p><strong>Amount to pay:</strong> {paymentData.nowPaymentsData.pay_amount} {paymentData.nowPaymentsData.pay_currency?.toUpperCase()}</p>
-                          <p><strong>Wallet Address:</strong> {paymentData.nowPaymentsData.pay_address}</p>
-                          {paymentData.nowPaymentsData.invoice_url && (
-                            <p>
-                              <a href={paymentData.nowPaymentsData.invoice_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
-                                View Invoice on NOWPayments
-                              </a>
-                            </p>
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Main Payment Card */}
+          <div className="lg:col-span-2">
+            <Card className="bg-white/10 backdrop-blur-lg border-white/20 shadow-2xl">
+              <CardHeader className="text-center">
+                <CardTitle className="text-2xl font-bold text-white flex items-center justify-center gap-2">
+                  <Zap className="h-6 w-6 text-yellow-400" />
+                  {planName} Plan
+                </CardTitle>
+                <CardDescription className="text-gray-300">
+                  {planFeatures?.unlimitedTradingPairs 
+                    ? 'Unlimited trading pairs with your premium plan'
+                    : `Choose up to ${getPlanLimit()} trading pairs with your ${planName} plan`}
+                  {planFeatures?.includesTelegramGroup && (
+                    <span className="block mt-2 text-green-400 font-semibold">
+                      ✨ Includes Premium Telegram Group Access
+                    </span>
+                  )}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Trading Pair Selection */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                    <Star className="h-5 w-5 text-yellow-400" />
+                    Select Trading Pairs
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-white font-medium">Forex Pairs</Label>
+                      <Select onValueChange={handlePairSelect}>
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue placeholder="Select Forex pairs" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-800 border-white/20">
+                          {tradingPairs.forex && tradingPairs.forex.length > 0 ? (
+                            tradingPairs.forex.map((pair) => (
+                              <SelectItem 
+                                key={pair.symbol} 
+                                value={pair.symbol}
+                                className={selectedPairs.includes(pair.symbol) ? 'bg-gray-800/20 text-gray-300' : 'text-white hover:bg-slate-700'}
+                              >
+                                {pair.symbol}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="no-forex" disabled>No Forex pairs available</SelectItem>
                           )}
-                          <p className="mt-2 text-sm text-gray-400">
-                            Please send the exact amount to the address above. Payment will be confirmed automatically.
-                          </p>
-                        </AlertDescription>
-                      </Alert>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {parseFloat(planPrice || '0') > 100 && (
+                      <>
+                        <div className="space-y-2">
+                          <Label className="text-white font-medium">Indices</Label>
+                          <Select onValueChange={handlePairSelect}>
+                            <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                              <SelectValue placeholder="Select Indices" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-slate-800 border-white/20">
+                              {tradingPairs.indices && tradingPairs.indices.length > 0 ? (
+                                tradingPairs.indices.map((pair) => (
+                                  <SelectItem 
+                                    key={pair.symbol} 
+                                    value={pair.symbol}
+                                    className={selectedPairs.includes(pair.symbol) ? 'bg-gray-800/20 text-gray-300' : 'text-white hover:bg-slate-700'}
+                                  >
+                                    {pair.symbol}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <SelectItem value="no-indices" disabled>No Indices available</SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-white font-medium">Commodities</Label>
+                          <Select onValueChange={handlePairSelect}>
+                            <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                              <SelectValue placeholder="Select Commodities" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-slate-800 border-white/20">
+                              {tradingPairs.commodities && tradingPairs.commodities.length > 0 ? (
+                                tradingPairs.commodities.map((pair) => (
+                                  <SelectItem 
+                                    key={pair.symbol} 
+                                    value={pair.symbol}
+                                    className={selectedPairs.includes(pair.symbol) ? 'bg-gray-800/20 text-gray-300' : 'text-white hover:bg-slate-700'}
+                                  >
+                                    {pair.symbol}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <SelectItem value="no-commodities" disabled>No Commodities available</SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-white font-medium">Cryptocurrencies</Label>
+                          <Select onValueChange={handlePairSelect}>
+                            <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                              <SelectValue placeholder="Select Cryptocurrencies" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-slate-800 border-white/20">
+                              {tradingPairs.crypto && tradingPairs.crypto.length > 0 ? (
+                                tradingPairs.crypto.map((pair) => (
+                                  <SelectItem 
+                                    key={pair.symbol} 
+                                    value={pair.symbol}
+                                    className={selectedPairs.includes(pair.symbol) ? 'bg-gray-800/20 text-gray-300' : 'text-white hover:bg-slate-700'}
+                                  >
+                                    {pair.symbol}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <SelectItem value="no-crypto" disabled>No Cryptocurrencies available</SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </>
                     )}
+                  </div>
 
-                    {/* Currency Selection */}
-                    {!paymentData && (
-                      <div className="mb-4">
-                        <h4 className="font-semibold mb-2">Select Payment Currency:</h4>
-                        <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select a currency" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {cryptoCurrencies.map((currency) => (
-                              <SelectItem key={currency} value={currency.toLowerCase()}>{currency}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                  {selectedPairs.length > 0 && (
+                    <div className="mt-4">
+                      <Label className="text-white font-medium">
+                        Selected Pairs {!planFeatures?.unlimitedTradingPairs && 
+                          `(${selectedPairs.length}/${getPlanLimit()})`}:
+                      </Label>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {selectedPairs.map((pair) => (
+                          <div
+                            key={pair}
+                            className="bg-gray-800/50 border border-gray-600/30 text-gray-300 px-3 py-1 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm"
+                          >
+                            {pair}
+                            <button
+                              onClick={() => handlePairSelect(pair)}
+                              className="hover:text-red-400 transition-colors"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
                       </div>
-                    )}
-                    
+                    </div>
+                  )}
+                </div>
+
+                {/* Payment Section */}
+                {!paymentData ? (
+                  <div className="mt-6">
                     <Button
-                      onClick={() => handlePayment('nowpayments')}
-                      disabled={isLoading || selectedPairs.length === 0 || !!paymentData}
-                      className="w-full"
+                      onClick={handleCreatePayment}
+                      disabled={isLoading || selectedPairs.length === 0}
+                      className="w-full bg-gray-800 hover:bg-gray-700 text-white py-4 rounded-xl font-semibold text-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:transform-none"
                     >
                       {isLoading ? (
                         <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Processing Payment...
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Creating Payment...
                         </>
                       ) : (
-                        paymentData ? 'Payment Details Displayed' : 'Pay Now'
+                        <>
+                          <Wallet className="mr-2 h-5 w-5" />
+                          Create Payment
+                        </>
                       )}
                     </Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              <TabsContent value="stripe">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Pay with Stripe</CardTitle>
-                    <CardDescription>
-                      Coming soon...
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              </TabsContent>
-              <TabsContent value="binance">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Pay with Binance Pay</CardTitle>
-                    <CardDescription>
-                      Coming soon...
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              </TabsContent>
-            </Tabs>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Payment Details */}
+                    <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-500/30 rounded-xl p-6 backdrop-blur-sm">
+                      <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                        <CheckCircle className="h-5 w-5 text-green-400" />
+                        Payment Details
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <Label className="text-gray-300 text-sm">Amount to Pay</Label>
+                          <div className="text-3xl font-bold text-green-400">
+                            {paymentData.amount} {paymentData.currency}
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-gray-300 text-sm">Payment Status</Label>
+                          <div className="flex items-center gap-2">
+                            {paymentData.status === 'pending' && (
+                              <div className="text-yellow-400 font-medium flex items-center gap-1">
+                                <Clock className="h-4 w-4" />
+                                Pending
+                              </div>
+                            )}
+                            {paymentData.status === 'waiting_confirmation' && (
+                              <div className="text-blue-400 font-medium flex items-center gap-1">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Waiting Confirmation
+                              </div>
+                            )}
+                            {paymentData.status === 'completed' && (
+                              <div className="text-green-400 font-medium flex items-center gap-1">
+                                <CheckCircle className="h-4 w-4" />
+                                Completed
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <Label className="text-gray-300 text-sm">USDT TRC20 Address</Label>
+                        <div className="bg-slate-800/50 p-4 rounded-lg font-mono text-sm break-all text-green-400 border border-green-500/30">
+                          {paymentData.walletAddress}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-green-500/30 text-green-400 hover:bg-green-500/20"
+                          onClick={() => {
+                            navigator.clipboard.writeText(paymentData.walletAddress);
+                            toast({
+                              title: 'Address Copied',
+                              description: 'USDT address copied to clipboard',
+                            });
+                          }}
+                        >
+                          Copy Address
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Screenshot Upload */}
+                    {paymentData.status === 'pending' && (
+                      <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-xl p-6 backdrop-blur-sm">
+                        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                          <Upload className="h-5 w-5 text-blue-400" />
+                          Upload Payment Screenshot
+                        </h3>
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="senderAddress" className="text-gray-300 text-sm">Sender Address (Optional)</Label>
+                            <Input
+                              id="senderAddress"
+                              type="text"
+                              placeholder="Enter your USDT sender address for verification"
+                              value={senderAddress}
+                              onChange={(e) => setSenderAddress(e.target.value)}
+                              className="mt-1 bg-white/10 border-white/20 text-white placeholder-gray-400"
+                            />
+                            <p className="text-xs text-gray-400 mt-1">
+                              This helps us verify your payment more quickly
+                            </p>
+                          </div>
+
+                          <div>
+                            <Label htmlFor="screenshot" className="text-gray-300 text-sm">Payment Screenshot</Label>
+                            <div className="mt-1 relative">
+                              <Input
+                                id="screenshot"
+                                type="file"
+                                accept="image/*"
+                                onChange={handleFileChange}
+                                className="bg-white/10 border-white/20 text-white file:bg-gray-800 file:border-0 file:text-white file:rounded-lg file:px-4 file:py-2 file:mr-4 file:hover:bg-gray-700 file:cursor-pointer file:relative file:top-0 file:leading-none file:align-middle file:inline-flex file:items-center file:justify-center file:h-10 file:min-h-0 file:my-0 file:box-border file:appearance-none file:bg-gray-800 file:text-white file:rounded-lg file:px-4 file:py-2 file:mr-4 file:hover:bg-gray-700 file:transition-colors file:duration-200 file:font-medium file:text-sm file:border file:border-gray-600 file:hover:border-gray-500"
+                                style={{
+                                  '--tw-file-padding-y': '0.5rem',
+                                  '--tw-file-padding-x': '1rem',
+                                  '--tw-file-line-height': '1.25rem',
+                                  '--tw-file-font-size': '0.875rem',
+                                  '--tw-file-font-weight': '500',
+                                  '--tw-file-border-radius': '0.5rem',
+                                  '--tw-file-border-width': '1px',
+                                  '--tw-file-border-color': 'rgb(75 85 99)',
+                                  '--tw-file-bg-opacity': '1',
+                                  '--tw-file-bg': 'rgb(31 41 55)',
+                                  '--tw-file-text-opacity': '1',
+                                  '--tw-file-text': 'rgb(255 255 255)',
+                                  '--tw-file-hover-bg': 'rgb(55 65 81)',
+                                  '--tw-file-hover-border-color': 'rgb(107 114 128)',
+                                  '--tw-file-transition-property': 'color, background-color, border-color, text-decoration-color, fill, stroke',
+                                  '--tw-file-transition-timing-function': 'cubic-bezier(0.4, 0, 0.2, 1)',
+                                  '--tw-file-transition-duration': '150ms'
+                                } as React.CSSProperties}
+                              />
+                              <style jsx>{`
+                                input[type="file"]::-webkit-file-upload-button {
+                                  background-color: rgb(31 41 55) !important;
+                                  color: white !important;
+                                  border: 1px solid rgb(75 85 99) !important;
+                                  border-radius: 0.5rem !important;
+                                  padding: 0.5rem 1rem !important;
+                                  margin-right: 1rem !important;
+                                  cursor: pointer !important;
+                                  font-size: 0.875rem !important;
+                                  font-weight: 500 !important;
+                                  line-height: 1.25rem !important;
+                                  transition: all 150ms !important;
+                                  vertical-align: middle !important;
+                                  display: inline-flex !important;
+                                  align-items: center !important;
+                                  justify-content: center !important;
+                                  height: 2.5rem !important;
+                                  min-height: 0 !important;
+                                  margin: 0 !important;
+                                  position: relative !important;
+                                  top: 0 !important;
+                                }
+                                input[type="file"]::-webkit-file-upload-button:hover {
+                                  background-color: rgb(55 65 81) !important;
+                                  border-color: rgb(107 114 128) !important;
+                                }
+                                input[type="file"]::-moz-file-upload-button {
+                                  background-color: rgb(31 41 55) !important;
+                                  color: white !important;
+                                  border: 1px solid rgb(75 85 99) !important;
+                                  border-radius: 0.5rem !important;
+                                  padding: 0.5rem 1rem !important;
+                                  margin-right: 1rem !important;
+                                  cursor: pointer !important;
+                                  font-size: 0.875rem !important;
+                                  font-weight: 500 !important;
+                                  line-height: 1.25rem !important;
+                                  transition: all 150ms !important;
+                                  vertical-align: middle !important;
+                                  display: inline-flex !important;
+                                  align-items: center !important;
+                                  justify-content: center !important;
+                                  height: 2.5rem !important;
+                                  min-height: 0 !important;
+                                  margin: 0 !important;
+                                  position: relative !important;
+                                  top: 0 !important;
+                                }
+                                input[type="file"]::-moz-file-upload-button:hover {
+                                  background-color: rgb(55 65 81) !important;
+                                  border-color: rgb(107 114 128) !important;
+                                }
+                              `}</style>
+                            </div>
+                            <p className="text-xs text-gray-400 mt-1">
+                              Upload a screenshot of your USDT transfer (max 5MB)
+                            </p>
+                          </div>
+
+                          {screenshotUrl && (
+                            <div>
+                              <Label className="text-gray-300 text-sm">Preview</Label>
+                              <div className="mt-2">
+                                <img
+                                  src={screenshotUrl}
+                                  alt="Payment screenshot"
+                                  className="max-w-full h-auto max-h-64 rounded-lg border border-white/20"
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          <div>
+                            <Label htmlFor="transactionHash" className="text-gray-300 text-sm">Transaction Hash (Optional)</Label>
+                            <Input
+                              id="transactionHash"
+                              type="text"
+                              placeholder="Enter transaction hash if available"
+                              value={transactionHash}
+                              onChange={(e) => setTransactionHash(e.target.value)}
+                              className="mt-1 bg-white/10 border-white/20 text-white placeholder-gray-400"
+                            />
+                          </div>
+
+                          <Button
+                            onClick={handleUploadScreenshot}
+                            disabled={!screenshotFile || isUploading}
+                            className="w-full bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:transform-none"
+                          >
+                            {isUploading ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Uploading...
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="mr-2 h-4 w-4" />
+                                Upload Screenshot
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Payment Status */}
+                    {paymentData.status === 'waiting_confirmation' && (
+                      <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-500/30 rounded-xl p-6 backdrop-blur-sm">
+                        <div className="flex items-center gap-3">
+                          <CheckCircle className="h-6 w-6 text-green-400" />
+                          <div>
+                            <h3 className="text-lg font-bold text-white">Payment Submitted</h3>
+                            <p className="text-gray-300">
+                              Your payment screenshot has been uploaded and is waiting for admin confirmation. 
+                              You will receive an email notification once your payment is confirmed.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-        <CardFooter className="mt-6 flex flex-col items-center text-center text-sm text-gray-500">
-          <p>
-            By subscribing, you agree to our <Link href="/terms" className="text-blue-400 hover:underline">Terms of Service</Link> and <Link href="/privacy" className="text-blue-400 hover:underline">Privacy Policy</Link>.
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Plan Summary */}
+            <Card className="bg-white/10 backdrop-blur-lg border-white/20 shadow-2xl">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Star className="h-5 w-5 text-yellow-400" />
+                  Plan Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Plan:</span>
+                  <span className="text-white font-semibold">{planName}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Price:</span>
+                  <span className="text-green-400 font-bold text-lg">${planPrice}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Trading Pairs:</span>
+                  <span className="text-white font-semibold">
+                    {planFeatures?.unlimitedTradingPairs ? 'Unlimited' : getPlanLimit()}
+                  </span>
+                </div>
+                {planFeatures?.includesTelegramGroup && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">Telegram Group:</span>
+                    <span className="text-green-400 font-semibold">✓ Included</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Security Info */}
+            <Card className="bg-white/10 backdrop-blur-lg border-white/20 shadow-2xl">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-blue-400" />
+                  Security
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 flex-shrink-0"></div>
+                  <p className="text-gray-300 text-sm">End-to-end encrypted payment processing</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 flex-shrink-0"></div>
+                  <p className="text-gray-300 text-sm">Manual verification for maximum security</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 flex-shrink-0"></div>
+                  <p className="text-gray-300 text-sm">24/7 admin support and monitoring</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Instructions */}
+            <Card className="bg-white/10 backdrop-blur-lg border-white/20 shadow-2xl">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Info className="h-5 w-5 text-purple-400" />
+                  Instructions
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 flex-shrink-0"></div>
+                  <p className="text-gray-300 text-sm">Send exactly {paymentData?.amount || planPrice} USDT to the provided address</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 flex-shrink-0"></div>
+                  <p className="text-gray-300 text-sm">Use TRC20 network only</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 flex-shrink-0"></div>
+                  <p className="text-gray-300 text-sm">Upload screenshot after sending</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 flex-shrink-0"></div>
+                  <p className="text-gray-300 text-sm">Confirmation within 24 hours</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-12 text-center">
+          <p className="text-gray-400 text-sm">
+            By subscribing, you agree to our{' '}
+            <Link href="/terms" className="text-gray-400 hover:text-gray-300 underline">
+              Terms of Service
+            </Link>{' '}
+            and{' '}
+            <Link href="/privacy" className="text-gray-400 hover:text-gray-300 underline">
+              Privacy Policy
+            </Link>
           </p>
-          <p className="mt-2">
+          <p className="text-gray-400 text-sm mt-2">
             You can cancel your subscription at any time from your profile page.
           </p>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
 
 export default function PaymentPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-800 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white"></div>
+      </div>
+    }>
       <PaymentContent />
     </Suspense>
   )
