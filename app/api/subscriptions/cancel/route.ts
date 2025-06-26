@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     }
 
     // Forward the request to the backend
-    const response = await fetch('https://www.novia-ai.com/api/subscriptions/cancel', {
+    const response = await fetch('https://api.novia-ai.com/api/subscriptions/cancel', {
       method: 'POST',
       headers: {
         'Authorization': authHeader,

@@ -3,7 +3,7 @@
  */
 
 // API Configuration
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://www.novia-ai.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.novia-ai.com';
 
 // Type Definitions
 interface User {
