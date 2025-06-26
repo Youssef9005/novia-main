@@ -63,6 +63,93 @@ function PaymentContent() {
   const [transactionHash, setTransactionHash] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
   const [senderAddress, setSenderAddress] = useState<string>('');
+
+  // Add state for network, currency, wallets, and wallet address
+  const [network, setNetwork] = useState<string>('');
+  const [currency, setCurrency] = useState<string>('');
+  const [wallets, setWallets] = useState<Array<{
+    _id: string;
+    address: string;
+    network: string;
+    currency: string;
+    isActive: boolean;
+    qrCodeImage?: string;
+  }>>([]);
+  const [loadingWallets, setLoadingWallets] = useState(true);
+  const [selectedWalletId, setSelectedWalletId] = useState<string>('');
+  const [customWalletAddress, setCustomWalletAddress] = useState<string>('');
+  const [currentWalletAddress, setCurrentWalletAddress] = useState<string>('');
+
+  // Get available networks and currencies from wallets
+  const networks = Array.from(new Set(wallets.map(w => w.network))).sort();
+  const currencies = Array.from(new Set(wallets.map(w => w.currency))).sort();
+  
+  // Filter wallets based on selected network and currency
+  const filteredWallets = wallets.filter(wallet => 
+    wallet.network === network && 
+    wallet.currency === currency &&
+    wallet.isActive
+  );
+  
+  // Get the currently selected wallet
+  const currentWallet = selectedWalletId 
+    ? wallets.find(w => w._id === selectedWalletId)
+    : filteredWallets[0] || { address: customWalletAddress };
+  
+  // Update current wallet address when selection changes
+  useEffect(() => {
+    if (currentWallet?.address) {
+      setCurrentWalletAddress(currentWallet.address);
+    } else if (customWalletAddress) {
+      setCurrentWalletAddress(customWalletAddress);
+    } else {
+      setCurrentWalletAddress('');
+    }
+  }, [currentWallet, customWalletAddress]);
+  
+  // Set default network and currency when wallets are loaded
+  useEffect(() => {
+    if (wallets.length > 0 && !network && !currency) {
+      // Set to first available wallet's network and currency
+      const firstWallet = wallets.find(w => w.isActive);
+      if (firstWallet) {
+        setNetwork(firstWallet.network);
+        setCurrency(firstWallet.currency);
+      }
+    }
+  }, [wallets, network, currency]);
+  
+  // Fetch wallets from API
+  const fetchWallets = async () => {
+    try {
+      setLoadingWallets(true);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080'}/api/wallets/active`);
+      const data = await response.json();
+      
+      if (data.status === 'success') {
+        setWallets(data.data.wallets || []);
+      } else {
+        throw new Error(data.message || 'Failed to fetch wallets');
+      }
+    } catch (error) {
+      console.error('Error fetching wallets:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load wallet addresses. Please try again later.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingWallets(false);
+    }
+  };
+  
+  // Load wallets on component mount
+  useEffect(() => {
+    fetchWallets();
+  }, []);
+  
+  // Current wallet address for display
+  const walletAddress = currentWallet?.address || customWalletAddress;
   
   // Function to verify authentication
   const verifyAuth = async () => {
@@ -74,7 +161,7 @@ function PaymentContent() {
       }
 
       // Verify token with backend
-      const response = await fetch('https://api.novia-ai.com/api/users/me', {
+      const response = await fetch('http://localhost:8080/api/users/me', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -287,6 +374,24 @@ function PaymentContent() {
       return;
     }
 
+    if (!currentWalletAddress) {
+      toast({
+        title: 'Error',
+        description: 'Please select or enter a wallet address',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!network || !currency) {
+      toast({
+        title: 'Error',
+        description: 'Please select both network and currency',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       console.log('Creating payment with data:', {
@@ -295,6 +400,9 @@ function PaymentContent() {
         userId,
         selectedPairs,
         senderAddress,
+        network,
+        currency,
+        walletAddress: currentWalletAddress,
       });
 
       const response = await api.payments.createPayment({
@@ -303,15 +411,34 @@ function PaymentContent() {
         userId,
         selectedPairs,
         senderAddress,
+        network,
+        currency,
+        walletAddress: currentWalletAddress,
       });
 
       console.log('Payment response:', response);
 
       if (response.status === 'success' && response.data) {
-        setPaymentData(response.data);
+        // If we have a selected wallet, ensure it's set for the payment confirmation
+        const wallet = selectedWalletId ? wallets.find(w => w._id === selectedWalletId) : null;
+        
+        setPaymentData({
+          ...response.data,
+          // Override with the most up-to-date wallet info if available
+          ...(wallet ? {
+            network: wallet.network,
+            currency: wallet.currency,
+            walletAddress: wallet.address
+          } : {
+            network,
+            currency,
+            walletAddress: currentWalletAddress
+          })
+        });
+        
         toast({
           title: 'Payment Created',
-          description: 'Please send USDT to the provided address and upload screenshot for confirmation.',
+          description: `Please send ${currency} to the provided ${network} address and upload a screenshot for confirmation.`,
           variant: 'default',
         });
       } else {
@@ -470,6 +597,121 @@ function PaymentContent() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* Network & Currency Selection */}
+                <div className="grid grid-cols-1 gap-4">
+                  {/* Network and Currency Selection */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-white font-medium">Network</Label>
+                      <Select 
+                        value={network} 
+                        onValueChange={(value) => {
+                          setNetwork(value);
+                          setSelectedWalletId(''); // Reset selected wallet when network changes
+                        }}
+                        disabled={loadingWallets}
+                      >
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue placeholder={
+                            loadingWallets ? 'Loading networks...' : 'Select Network'
+                          } />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-800 border-white/20">
+                          {networks.map(network => (
+                            <SelectItem key={network} value={network}>
+                              {network}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-white font-medium">Currency</Label>
+                      <Select 
+                        value={currency} 
+                        onValueChange={(value) => {
+                          setCurrency(value);
+                          setSelectedWalletId(''); // Reset selected wallet when currency changes
+                        }}
+                        disabled={loadingWallets}
+                      >
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue placeholder={
+                            loadingWallets ? 'Loading currencies...' : 'Select Currency'
+                          } />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-800 border-white/20">
+                          {currencies.map(curr => (
+                            <SelectItem key={curr} value={curr}>
+                              {curr}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  {/* Wallet Selection */}
+                  <div>
+                    <Label className="text-white font-medium">Wallet Address</Label>
+                    {loadingWallets ? (
+                      <div className="h-10 flex items-center justify-center bg-white/5 rounded-md text-sm text-gray-400">
+                        Loading wallet addresses...
+                      </div>
+                    ) : filteredWallets.length > 0 ? (
+                      <Select 
+                        value={selectedWalletId} 
+                        onValueChange={(value) => {
+                          setSelectedWalletId(value);
+                          setCustomWalletAddress(''); // Clear custom address when selecting a wallet
+                        }}
+                      >
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue placeholder="Select a wallet address" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-800 border-white/20">
+                          {filteredWallets.map(wallet => (
+                            <SelectItem key={wallet._id} value={wallet._id} className="flex flex-col items-start">
+                              <div className="font-mono text-sm">{wallet.address}</div>
+                              <div className="text-xs text-gray-400">{wallet.currency} • {wallet.network}</div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="text-yellow-400 text-sm py-2">
+                        No wallet addresses available for the selected currency and network.
+                      </div>
+                    )}
+                    
+                    <div className="mt-2">
+                      <Label className="text-white font-medium">Or enter custom address</Label>
+                      <Input
+                        value={customWalletAddress}
+                        onChange={e => {
+                          setCustomWalletAddress(e.target.value);
+                          setSelectedWalletId(''); // Clear selected wallet when entering custom address
+                        }}
+                        placeholder="Enter custom wallet address"
+                        className="bg-white/10 border-white/20 text-white mt-1"
+                      />
+                    </div>
+                    
+                    {currentWallet?.qrCodeImage && (
+                      <div className="mt-3 flex flex-col items-center">
+                        <div className="bg-white p-2 rounded-md">
+                          <img 
+                            src={currentWallet.qrCodeImage} 
+                            alt="Wallet QR Code" 
+                            className="w-32 h-32 object-contain"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-400 mt-2">Scan to send {currentWallet.currency} ({currentWallet.network})</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 {/* Trading Pair Selection */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -662,25 +904,67 @@ function PaymentContent() {
                         </div>
                       </div>
 
-                      <div className="space-y-3">
-                        <Label className="text-gray-300 text-sm">USDT TRC20 Address</Label>
-                        <div className="bg-slate-800/50 p-4 rounded-lg font-mono text-sm break-all text-green-400 border border-green-500/30">
-                          {paymentData.walletAddress}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-3">
+                          <div>
+                            <Label className="text-gray-300 text-sm">Network</Label>
+                            <div className="text-green-400 font-mono">{paymentData.network}</div>
+                          </div>
+                          <div>
+                            <Label className="text-gray-300 text-sm">Currency</Label>
+                            <div className="text-green-400 font-mono">{paymentData.currency}</div>
+                          </div>
+                          <div>
+                            <Label className="text-gray-300 text-sm">Wallet Address</Label>
+                            <div className="bg-slate-800/50 p-4 rounded-lg font-mono text-sm break-all text-green-400 border border-green-500/30 mt-1">
+                              {paymentData.walletAddress}
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mt-2 border-green-500/30 text-green-400 hover:bg-green-500/20"
+                              onClick={() => {
+                                navigator.clipboard.writeText(paymentData.walletAddress);
+                                toast({
+                                  title: 'Address Copied',
+                                  description: `${paymentData.currency} address copied to clipboard`,
+                                });
+                              }}
+                            >
+                              Copy Address
+                            </Button>
+                          </div>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-green-500/30 text-green-400 hover:bg-green-500/20"
-                          onClick={() => {
-                            navigator.clipboard.writeText(paymentData.walletAddress);
-                            toast({
-                              title: 'Address Copied',
-                              description: 'USDT address copied to clipboard',
-                            });
-                          }}
-                        >
-                          Copy Address
-                        </Button>
+                        
+                        {/* QR Code Section */}
+                        <div className="flex flex-col items-center justify-center">
+                          {currentWallet?.qrCodeImage ? (
+                            <div className="bg-white p-3 rounded-lg border border-green-500/30">
+                              <img 
+                                src={currentWallet.qrCodeImage} 
+                                alt="Wallet QR Code" 
+                                className="w-40 h-40 object-contain"
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center w-40 h-40 bg-slate-800/50 rounded-lg border border-green-500/30">
+                              <span className="text-gray-400 text-sm text-center">No QR Code Available</span>
+                            </div>
+                          )}
+                          <p className="text-xs text-gray-400 mt-2 text-center">
+                            Scan to send {paymentData.currency} ({paymentData.network})
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="pt-2">
+                        <p className="text-yellow-400 text-sm">
+                          <Info className="inline h-4 w-4 mr-1" />
+                          Please send exactly {paymentData.amount} {paymentData.currency} to the address above.
+                        </p>
+                        <p className="text-gray-400 text-xs mt-1">
+                          Network fees are not included. Ensure you're sending on the {paymentData.network} network.
+                        </p>
                       </div>
                     </div>
 

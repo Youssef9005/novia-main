@@ -3,7 +3,7 @@
  */
 
 // API Configuration
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.novia-ai.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 // Type Definitions
 interface User {
@@ -115,6 +115,9 @@ interface PaymentCreateData {
   userId: string;
   selectedPairs: string[];
   senderAddress?: string;
+  network?: string;
+  currency?: string;
+  walletAddress?: string;
 }
 
 interface ScreenshotUploadData {

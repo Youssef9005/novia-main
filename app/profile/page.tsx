@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { User, Key, CreditCard, Settings, Bell, Loader2, Eye, EyeOff, AlertTriangle, Users } from "lucide-react"
+import { User, Key, CreditCard, Settings, Bell, Loader2, Eye, EyeOff, AlertTriangle, Users, Send } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { api } from '@/lib/api';
@@ -50,6 +50,7 @@ interface UserData {
     status?: string;
     endDate?: string;
     autoRenew?: boolean;
+    paymentId?: string;
   };
 }
 
@@ -730,6 +731,60 @@ export default function ProfilePage() {
                   <p className="text-white text-lg font-semibold">
                     {user.subscription?.autoRenew ? 'Enabled' : 'Disabled'}
                   </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-gray-300">Payment ID</Label>
+                  <div className="flex items-center space-x-2">
+                    <Input 
+                      value={user.subscription?.paymentId || 'Not available'} 
+                      readOnly 
+                      className="bg-gray-800 text-white border-gray-700"
+                    />
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        if (user.subscription?.paymentId) {
+                          navigator.clipboard.writeText(user.subscription.paymentId);
+                          toast({
+                            title: "Copied!",
+                            description: "Payment ID copied to clipboard",
+                          });
+                        }
+                      }}
+                      disabled={!user.subscription?.paymentId}
+                      className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                  <p className="text-sm text-gray-400">Use this ID to activate Telegram notifications</p>
+                </div>
+
+                <div className="space-y-4 mt-6">
+                  <div className="flex items-center space-x-2">
+                    <Bell className="h-5 w-5 text-blue-400" />
+                    <h3 className="text-lg font-semibold text-white">Telegram Notifications</h3>
+                  </div>
+                  
+                  <div className="bg-gray-900 p-4 rounded-lg border border-gray-700">
+                    <h4 className="text-white font-medium mb-2">How to activate Telegram bot:</h4>
+                    <ol className="text-gray-300 space-y-2 ml-4 list-decimal">
+                      <li>Copy your Payment ID from above</li>
+                      <li>Click the "Open Telegram Bot" button below</li>
+                      <li>Start a chat with the bot by clicking "Start"</li>
+                      <li>Enter your Payment ID when prompted by the bot</li>
+                      <li>After verification, you'll start receiving notifications</li>
+                    </ol>
+                  </div>
+
+                  <Button 
+                    onClick={() => window.open('https://t.me/novia_ai_subscription_bot', '_blank')}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center space-x-2"
+                  >
+                    <Send className="h-4 w-4" />
+                    <span>Open Telegram Bot</span>
+                  </Button>
                 </div>
                 
                 <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>

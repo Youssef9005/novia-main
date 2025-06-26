@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     }
     
     // Forward the request to our backend server
-    const response = await fetch('https://api.novia-ai.com/api/users/me', {
+    const response = await fetch('http://localhost:8080/api/users/me', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -50,7 +50,7 @@ export async function PATCH(req: NextRequest) {
     }
     
     // Forward the request to our backend server
-    const response = await fetch('https://api.novia-ai.com/api/users/me', {
+    const response = await fetch('http://localhost:8080/api/users/me', {
       method: 'PATCH',
       headers: {
         'Authorization': `Bearer ${token}`,
