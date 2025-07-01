@@ -12,6 +12,7 @@ interface PlanCardProps {
   features: string[]
   highlighted?: boolean
   assetCount: number
+  assetType?: string[]
   isLoading?: boolean
   originalPrice?: number
   isOnSale?: boolean
@@ -26,6 +27,7 @@ export function PlanCard({
   features,
   highlighted = false,
   assetCount,
+  assetType,
   isLoading = false,
   originalPrice,
   isOnSale = false,
@@ -50,13 +52,13 @@ export function PlanCard({
   // Handle plan selection based on authentication status
   const handlePlanSelection = () => {
     if (isLoading) return;
-    
+    const url = `/payment?plan=${encodeURIComponent(name)}&price=${price}${assetType ? `&assetType=${encodeURIComponent(assetType.join(','))}` : ''}`;
     if (isAuthenticated) {
       // If user is logged in, redirect to payment page with plan details
-      router.push(`/payment?plan=${encodeURIComponent(name)}&price=${price}`)
+      router.push(url)
     } else {
       // If user is not logged in, redirect to registration page
-      router.push(`/register?plan=${encodeURIComponent(name)}&price=${price}`)
+      router.push(`/register?plan=${encodeURIComponent(name)}&price=${price}${assetType ? `&assetType=${encodeURIComponent(assetType.join(','))}` : ''}`)
     }
   }
   
@@ -114,6 +116,18 @@ export function PlanCard({
               Choose {name}
             </Button>
             <span className="text-center text-sm text-gray-500">Select up to {assetCount} assets</span>
+            {assetType && Array.isArray(assetType) && assetType.length > 0 && (
+              <span className="text-center text-xs text-blue-500 font-semibold">
+                Type: {assetType.map(type =>
+                  type === 'crypto' ? 'Crypto' :
+                  type === 'stocks' ? 'Stocks' :
+                  type === 'forex' ? 'Forex' :
+                  type === 'commodities' ? 'Commodities' :
+                  type === 'indices' ? 'Indices' :
+                  type === 'all' ? 'All' : type
+                ).join(', ')}
+              </span>
+            )}
           </CardFooter>
         </>
       )}

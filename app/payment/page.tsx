@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
+import React, { useState, useEffect, Suspense, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { ChevronLeft, CreditCard, Bitcoin, Info, Loader2, Upload, CheckCircle, XCircle, Wallet, Shield, Clock, Star, Zap } from "lucide-react"
@@ -36,6 +36,21 @@ interface PaymentData {
   network: string;
   status: string;
   message: string;
+  payment: {
+    _id: string;
+    orderId: string;
+    amount: number;
+    currency: string;
+    status: string;
+    selectedPairs: string[];
+    manualPayment: {
+      walletAddress: string;
+      network: string;
+      senderAddress?: string;
+      screenshotUrl?: string;
+      originalScreenshotUrl?: string;
+    };
+  };
 }
 
 function PaymentContent() {
@@ -43,6 +58,8 @@ function PaymentContent() {
   const searchParams = useSearchParams()
   const planName = searchParams.get('plan')
   const planPrice = searchParams.get('price')
+  const assetTypeParam = searchParams.get('assetType')
+  const assetTypes = assetTypeParam ? assetTypeParam.split(',') : []
   const [isLoading, setIsLoading] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userId, setUserId] = useState<string>('')
@@ -77,7 +94,6 @@ function PaymentContent() {
   }>>([]);
   const [loadingWallets, setLoadingWallets] = useState(true);
   const [selectedWalletId, setSelectedWalletId] = useState<string>('');
-  const [customWalletAddress, setCustomWalletAddress] = useState<string>('');
   const [currentWalletAddress, setCurrentWalletAddress] = useState<string>('');
 
   // Get available networks and currencies from wallets
@@ -85,27 +101,55 @@ function PaymentContent() {
   const currencies = Array.from(new Set(wallets.map(w => w.currency))).sort();
   
   // Filter wallets based on selected network and currency
-  const filteredWallets = wallets.filter(wallet => 
-    wallet.network === network && 
-    wallet.currency === currency &&
-    wallet.isActive
-  );
+  const filteredWallets = useMemo(() => {
+    if (!wallets.length) return [];
+    
+    console.log('Filtering wallets with network:', network, 'and currency:', currency);
+    
+    const filtered = wallets.filter(wallet => {
+      const matchesNetwork = !network || wallet.network === network;
+      const matchesCurrency = !currency || wallet.currency === currency;
+      
+      console.log('Checking wallet:', {
+        walletNetwork: wallet.network,
+        walletCurrency: wallet.currency,
+        matchesNetwork,
+        matchesCurrency,
+        isActive: wallet.isActive
+      });
+      
+      return matchesNetwork && matchesCurrency && wallet.isActive !== false;
+    });
+    
+    console.log('Filtered wallets result:', filtered);
+    return filtered;
+  }, [wallets, network, currency]);
+  
+  // Debug logs
+  useEffect(() => {
+    console.log('=== WALLET DEBUG ===');
+    console.log('All wallets:', wallets);
+    console.log('Filtered wallets:', filteredWallets);
+    console.log('Selected network:', network);
+    console.log('Selected currency:', currency);
+    console.log('Selected wallet ID:', selectedWalletId);
+    console.log('Current wallet address:', currentWalletAddress);
+    console.log('===================');
+  }, [wallets, filteredWallets, network, currency, selectedWalletId, currentWalletAddress]);
   
   // Get the currently selected wallet
   const currentWallet = selectedWalletId 
     ? wallets.find(w => w._id === selectedWalletId)
-    : filteredWallets[0] || { address: customWalletAddress };
+    : filteredWallets[0];
   
   // Update current wallet address when selection changes
   useEffect(() => {
     if (currentWallet?.address) {
       setCurrentWalletAddress(currentWallet.address);
-    } else if (customWalletAddress) {
-      setCurrentWalletAddress(customWalletAddress);
     } else {
       setCurrentWalletAddress('');
     }
-  }, [currentWallet, customWalletAddress]);
+  }, [currentWallet]);
   
   // Set default network and currency when wallets are loaded
   useEffect(() => {
@@ -119,37 +163,57 @@ function PaymentContent() {
     }
   }, [wallets, network, currency]);
   
-  // Fetch wallets from API
-  const fetchWallets = async () => {
-    try {
-      setLoadingWallets(true);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.novia-ai.com'}/api/wallets/active`);
-      const data = await response.json();
-      
-      if (data.status === 'success') {
-        setWallets(data.data.wallets || []);
-      } else {
-        throw new Error(data.message || 'Failed to fetch wallets');
-      }
-    } catch (error) {
-      console.error('Error fetching wallets:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load wallet addresses. Please try again later.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoadingWallets(false);
-    }
-  };
-  
-  // Load wallets on component mount
+  // Fetch wallets when component mounts
   useEffect(() => {
+    const fetchWallets = async () => {
+      try {
+        setLoadingWallets(true);
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.novia-ai.com'}/api/wallets/active`
+        );
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Fetched wallets data:', data);
+        
+        // Extract wallets from the response
+        const walletsData = data.data?.wallets || [];
+        
+        if (walletsData.length > 0) {
+          console.log('Setting wallets:', walletsData);
+          setWallets(walletsData);
+          
+          // Auto-select first available wallet if none selected
+          const firstWallet = walletsData[0];
+          console.log('Setting first wallet as default:', firstWallet);
+          
+          setNetwork(firstWallet.network);
+          setCurrency(firstWallet.currency);
+          setCurrentWalletAddress(firstWallet.address);
+          setSelectedWalletId(firstWallet._id || '');
+        } else {
+          throw new Error(data.message || 'Invalid response format');
+        }
+      } catch (error) {
+        console.error('Error fetching wallet addresses:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load wallet addresses. Please try again later.',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoadingWallets(false);
+      }
+    };
+
     fetchWallets();
   }, []);
   
   // Current wallet address for display
-  const walletAddress = currentWallet?.address || customWalletAddress;
+  // const walletAddress = currentWallet?.address || customWalletAddress;
   
   // Function to verify authentication
   const verifyAuth = async () => {
@@ -343,12 +407,72 @@ function PaymentContent() {
     }
   };
 
+  // Handle screenshot upload
+  const handleScreenshotUpload = async (paymentId: string) => {
+    if (!screenshotFile) {
+      toast({
+        title: 'Error',
+        description: 'Please select a screenshot to upload',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    const formData = new FormData();
+    formData.append('screenshot', screenshotFile);
+    
+    if (transactionHash) {
+      formData.append('transactionHash', transactionHash);
+    }
+    if (senderAddress) {
+      formData.append('senderAddress', senderAddress);
+    }
+
+    try {
+      setIsUploading(true);
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.novia-ai.com'}/api/payments/${paymentId}/upload-screenshot`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to upload screenshot');
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Screenshot uploaded successfully',
+        variant: 'default',
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: 'Error',
+        description: (error as Error).message || 'Failed to upload screenshot',
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   // Handle payment creation
   const handleCreatePayment = async () => {
     if (!isAuthenticated || !userId) {
       toast({
         title: 'Error',
-        description: 'Please log in again to continue',
+        description: 'Please log in to make a payment',
         variant: 'destructive',
       });
       router.push('/login');
@@ -405,6 +529,7 @@ function PaymentContent() {
         walletAddress: currentWalletAddress,
       });
 
+      // First, create the payment
       const response = await api.payments.createPayment({
         planName,
         planPrice: parseFloat(planPrice),
@@ -419,26 +544,58 @@ function PaymentContent() {
       console.log('Payment response:', response);
 
       if (response.status === 'success' && response.data) {
-        // If we have a selected wallet, ensure it's set for the payment confirmation
+        // Get the payment data from the response
+        const paymentResponse = response.data.payment || response.data;
         const wallet = selectedWalletId ? wallets.find(w => w._id === selectedWalletId) : null;
         
-        setPaymentData({
-          ...response.data,
-          // Override with the most up-to-date wallet info if available
-          ...(wallet ? {
-            network: wallet.network,
-            currency: wallet.currency,
-            walletAddress: wallet.address
-          } : {
-            network,
-            currency,
-            walletAddress: currentWalletAddress
-          })
-        });
+        // Create the payment data with all required fields
+        const paymentData: PaymentData = {
+          paymentId: paymentResponse._id,
+          orderId: paymentResponse.orderId,
+          amount: paymentResponse.amount,
+          currency: paymentResponse.currency,
+          walletAddress: wallet?.address || currentWalletAddress,
+          network: wallet?.network || network,
+          status: paymentResponse.status || 'pending',
+          message: 'Payment created successfully. Please upload a screenshot of your transaction.',
+          payment: {
+            _id: paymentResponse._id,
+            orderId: paymentResponse.orderId,
+            amount: paymentResponse.amount,
+            currency: paymentResponse.currency,
+            status: paymentResponse.status || 'pending',
+            selectedPairs: paymentResponse.selectedPairs || selectedPairs,
+            manualPayment: {
+              walletAddress: paymentResponse.manualPayment?.walletAddress || 
+                           wallet?.address || 
+                           currentWalletAddress,
+              network: paymentResponse.manualPayment?.network || 
+                      wallet?.network || 
+                      network,
+              senderAddress: paymentResponse.manualPayment?.senderAddress || senderAddress || '',
+              screenshotUrl: paymentResponse.manualPayment?.screenshotUrl || '',
+              originalScreenshotUrl: paymentResponse.manualPayment?.originalScreenshotUrl || ''
+            }
+          }
+        };
         
+        // If we have a screenshot file, upload it
+        if (screenshotFile && paymentData.paymentId) {
+          const uploadSuccess = await handleScreenshotUpload(paymentData.paymentId);
+          if (uploadSuccess) {
+            paymentData.status = 'waiting_confirmation';
+            paymentData.payment.status = 'waiting_confirmation';
+            paymentData.message = 'Payment and screenshot received. Your payment is being processed.';
+          }
+        }
+        
+        // Update the state with the final payment data
+        setPaymentData(paymentData);
+        
+        // Show success message
         toast({
-          title: 'Payment Created',
-          description: `Please send ${currency} to the provided ${network} address and upload a screenshot for confirmation.`,
+          title: paymentData.status === 'waiting_confirmation' ? 'Payment Submitted' : 'Payment Created',
+          description: paymentData.message,
           variant: 'default',
         });
       } else {
@@ -469,19 +626,23 @@ function PaymentContent() {
 
     setIsUploading(true);
     try {
-      // In a real app, you would upload the file to a cloud service first
-      // For now, we'll use the data URL as the screenshot URL
-      const response = await api.payments.uploadScreenshot(paymentData.paymentId, {
-        screenshotUrl: screenshotUrl,
-        transactionHash: transactionHash || undefined,
-        senderAddress: senderAddress || undefined,
-      });
-
+      // Create FormData to handle file upload
+      const formData = new FormData();
+      formData.append('screenshot', screenshotFile);
+      if (senderAddress) {
+        formData.append('senderAddress', senderAddress);
+      }
+      
+      // Upload the screenshot file
+      const response = await api.payments.uploadScreenshot(
+        paymentData.paymentId,
+        formData
+      );
+      
       if (response.status === 'success') {
         toast({
-          title: 'Screenshot Uploaded',
-          description: 'Your payment is now waiting for admin confirmation.',
-          variant: 'default',
+          title: 'Success',
+          description: 'Screenshot uploaded successfully. Your payment is being verified.',
         });
         
         // Update payment data
@@ -599,58 +760,113 @@ function PaymentContent() {
               <CardContent className="space-y-6">
                 {/* Network & Currency Selection */}
                 <div className="grid grid-cols-1 gap-4">
-                  {/* Network and Currency Selection */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-white font-medium">Network</Label>
-                      <Select 
-                        value={network} 
-                        onValueChange={(value) => {
-                          setNetwork(value);
-                          setSelectedWalletId(''); // Reset selected wallet when network changes
-                        }}
-                        disabled={loadingWallets}
-                      >
-                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                          <SelectValue placeholder={
-                            loadingWallets ? 'Loading networks...' : 'Select Network'
-                          } />
-                        </SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-white/20">
-                          {networks.map(network => (
-                            <SelectItem key={network} value={network}>
-                              {network}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-white font-medium">Currency</Label>
-                      <Select 
-                        value={currency} 
-                        onValueChange={(value) => {
-                          setCurrency(value);
-                          setSelectedWalletId(''); // Reset selected wallet when currency changes
-                        }}
-                        disabled={loadingWallets}
-                      >
-                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                          <SelectValue placeholder={
-                            loadingWallets ? 'Loading currencies...' : 'Select Currency'
-                          } />
-                        </SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-white/20">
-                          {currencies.map(curr => (
-                            <SelectItem key={curr} value={curr}>
-                              {curr}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-4">
+                    {loadingWallets ? (
+                      <div className="flex justify-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin" />
+                      </div>
+                    ) : wallets.length === 0 ? (
+                      <Alert>
+                        <Info className="h-4 w-4" />
+                        <AlertTitle>No wallet addresses available</AlertTitle>
+                        <AlertDescription>
+                          Please contact support for payment instructions.
+                        </AlertDescription>
+                      </Alert>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="network">Network</Label>
+                            <Select 
+                              value={network} 
+                              onValueChange={setNetwork}
+                              disabled={wallets.length === 0}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select network" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {networks.map((net) => (
+                                  <SelectItem key={net} value={net}>
+                                    {net}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="currency">Currency</Label>
+                            <Select 
+                              value={currency} 
+                              onValueChange={setCurrency}
+                              disabled={wallets.length === 0}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select currency" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {currencies.map((curr) => (
+                                  <SelectItem key={curr} value={curr}>
+                                    {curr}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        {filteredWallets.length > 0 ? (
+                          <div className="space-y-2">
+                            <Label>Select Wallet Address</Label>
+                            <div className="space-y-2">
+                              {filteredWallets.map((wallet) => (
+                                <div
+                                  key={wallet._id}
+                                  className={`p-4 border rounded-md cursor-pointer hover:bg-accent ${
+                                    selectedWalletId === wallet._id ? 'border-primary bg-accent' : ''
+                                  }`}
+                                  onClick={() => {
+                                    setSelectedWalletId(wallet._id);
+                                    setCurrentWalletAddress(wallet.address);
+                                  }}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <p className="font-medium">{wallet.currency} ({wallet.network})</p>
+                                      <p className="text-sm text-muted-foreground break-all">
+                                        {wallet.address}
+                                      </p>
+                                    </div>
+                                    {selectedWalletId === wallet._id && (
+                                      <CheckCircle className="h-5 w-5 text-green-500" />
+                                    )}
+                                  </div>
+                                  {wallet.qrCodeImage && (
+                                    <div className="mt-2 flex justify-center">
+                                      <img 
+                                        src={wallet.qrCodeImage} 
+                                        alt="QR Code" 
+                                        className="h-24 w-24 object-contain"
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <Alert>
+                            <Info className="h-4 w-4" />
+                            <AlertTitle>No wallets available for selected filters</AlertTitle>
+                            <AlertDescription>
+                              Please select different network or currency.
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                      </>
+                    )}
                   </div>
-                  
                   {/* Wallet Selection */}
                   <div>
                     <Label className="text-white font-medium">Wallet Address</Label>
@@ -663,7 +879,6 @@ function PaymentContent() {
                         value={selectedWalletId} 
                         onValueChange={(value) => {
                           setSelectedWalletId(value);
-                          setCustomWalletAddress(''); // Clear custom address when selecting a wallet
                         }}
                       >
                         <SelectTrigger className="bg-white/10 border-white/20 text-white">
@@ -683,19 +898,6 @@ function PaymentContent() {
                         No wallet addresses available for the selected currency and network.
                       </div>
                     )}
-                    
-                    <div className="mt-2">
-                      <Label className="text-white font-medium">Or enter custom address</Label>
-                      <Input
-                        value={customWalletAddress}
-                        onChange={e => {
-                          setCustomWalletAddress(e.target.value);
-                          setSelectedWalletId(''); // Clear selected wallet when entering custom address
-                        }}
-                        placeholder="Enter custom wallet address"
-                        className="bg-white/10 border-white/20 text-white mt-1"
-                      />
-                    </div>
                     
                     {currentWallet?.qrCodeImage && (
                       <div className="mt-3 flex flex-col items-center">
@@ -719,101 +921,106 @@ function PaymentContent() {
                     Select Trading Pairs
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-white font-medium">Forex Pairs</Label>
-                      <Select onValueChange={handlePairSelect}>
-                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                          <SelectValue placeholder="Select Forex pairs" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-white/20">
-                          {tradingPairs.forex && tradingPairs.forex.length > 0 ? (
-                            tradingPairs.forex.map((pair) => (
-                              <SelectItem 
-                                key={pair.symbol} 
-                                value={pair.symbol}
-                                className={selectedPairs.includes(pair.symbol) ? 'bg-gray-800/20 text-gray-300' : 'text-white hover:bg-slate-700'}
-                              >
-                                {pair.symbol}
-                              </SelectItem>
-                            ))
-                          ) : (
-                            <SelectItem value="no-forex" disabled>No Forex pairs available</SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {parseFloat(planPrice || '0') > 100 && (
-                      <>
-                        <div className="space-y-2">
-                          <Label className="text-white font-medium">Indices</Label>
-                          <Select onValueChange={handlePairSelect}>
-                            <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                              <SelectValue placeholder="Select Indices" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-slate-800 border-white/20">
-                              {tradingPairs.indices && tradingPairs.indices.length > 0 ? (
-                                tradingPairs.indices.map((pair) => (
-                                  <SelectItem 
-                                    key={pair.symbol} 
-                                    value={pair.symbol}
-                                    className={selectedPairs.includes(pair.symbol) ? 'bg-gray-800/20 text-gray-300' : 'text-white hover:bg-slate-700'}
-                                  >
-                                    {pair.symbol}
-                                  </SelectItem>
-                                ))
-                              ) : (
-                                <SelectItem value="no-indices" disabled>No Indices available</SelectItem>
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-white font-medium">Commodities</Label>
-                          <Select onValueChange={handlePairSelect}>
-                            <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                              <SelectValue placeholder="Select Commodities" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-slate-800 border-white/20">
-                              {tradingPairs.commodities && tradingPairs.commodities.length > 0 ? (
-                                tradingPairs.commodities.map((pair) => (
-                                  <SelectItem 
-                                    key={pair.symbol} 
-                                    value={pair.symbol}
-                                    className={selectedPairs.includes(pair.symbol) ? 'bg-gray-800/20 text-gray-300' : 'text-white hover:bg-slate-700'}
-                                  >
-                                    {pair.symbol}
-                                  </SelectItem>
-                                ))
-                              ) : (
-                                <SelectItem value="no-commodities" disabled>No Commodities available</SelectItem>
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-white font-medium">Cryptocurrencies</Label>
-                          <Select onValueChange={handlePairSelect}>
-                            <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                              <SelectValue placeholder="Select Cryptocurrencies" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-slate-800 border-white/20">
-                              {tradingPairs.crypto && tradingPairs.crypto.length > 0 ? (
-                                tradingPairs.crypto.map((pair) => (
-                                  <SelectItem 
-                                    key={pair.symbol} 
-                                    value={pair.symbol}
-                                    className={selectedPairs.includes(pair.symbol) ? 'bg-gray-800/20 text-gray-300' : 'text-white hover:bg-slate-700'}
-                                  >
-                                    {pair.symbol}
-                                  </SelectItem>
-                                ))
-                              ) : (
-                                <SelectItem value="no-crypto" disabled>No Cryptocurrencies available</SelectItem>
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </>
+                    {/* Show all selected asset types */}
+                    {assetTypes.includes('forex') && (
+                      <div className="space-y-2">
+                        <Label className="text-white font-medium">Forex Pairs</Label>
+                        <Select onValueChange={handlePairSelect}>
+                          <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                            <SelectValue placeholder="Select Forex pairs" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-slate-800 border-white/20">
+                            {tradingPairs.forex && tradingPairs.forex.length > 0 ? (
+                              tradingPairs.forex.map((pair) => (
+                                <SelectItem 
+                                  key={pair.symbol} 
+                                  value={pair.symbol}
+                                  className={selectedPairs.includes(pair.symbol) ? 'bg-gray-800/20 text-gray-300' : 'text-white hover:bg-slate-700'}
+                                >
+                                  {pair.symbol}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="no-forex" disabled>No Forex pairs available</SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {assetTypes.includes('indices') && (
+                      <div className="space-y-2">
+                        <Label className="text-white font-medium">Indices</Label>
+                        <Select onValueChange={handlePairSelect}>
+                          <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                            <SelectValue placeholder="Select Indices" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-slate-800 border-white/20">
+                            {tradingPairs.indices && tradingPairs.indices.length > 0 ? (
+                              tradingPairs.indices.map((pair) => (
+                                <SelectItem 
+                                  key={pair.symbol} 
+                                  value={pair.symbol}
+                                  className={selectedPairs.includes(pair.symbol) ? 'bg-gray-800/20 text-gray-300' : 'text-white hover:bg-slate-700'}
+                                >
+                                  {pair.symbol}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="no-indices" disabled>No Indices available</SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {assetTypes.includes('commodities') && (
+                      <div className="space-y-2">
+                        <Label className="text-white font-medium">Commodities</Label>
+                        <Select onValueChange={handlePairSelect}>
+                          <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                            <SelectValue placeholder="Select Commodities" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-slate-800 border-white/20">
+                            {tradingPairs.commodities && tradingPairs.commodities.length > 0 ? (
+                              tradingPairs.commodities.map((pair) => (
+                                <SelectItem 
+                                  key={pair.symbol} 
+                                  value={pair.symbol}
+                                  className={selectedPairs.includes(pair.symbol) ? 'bg-gray-800/20 text-gray-300' : 'text-white hover:bg-slate-700'}
+                                >
+                                  {pair.symbol}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="no-commodities" disabled>No Commodities available</SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {assetTypes.includes('crypto') && (
+                      <div className="space-y-2">
+                        <Label className="text-white font-medium">Cryptocurrencies</Label>
+                        <Select onValueChange={handlePairSelect}>
+                          <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                            <SelectValue placeholder="Select Cryptocurrencies" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-slate-800 border-white/20">
+                            {tradingPairs.crypto && tradingPairs.crypto.length > 0 ? (
+                              tradingPairs.crypto.map((pair) => (
+                                <SelectItem 
+                                  key={pair.symbol} 
+                                  value={pair.symbol}
+                                  className={selectedPairs.includes(pair.symbol) ? 'bg-gray-800/20 text-gray-300' : 'text-white hover:bg-slate-700'}
+                                >
+                                  {pair.symbol}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="no-crypto" disabled>No Cryptocurrencies available</SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     )}
                   </div>
 

@@ -655,6 +655,21 @@ export const api = {
 
   payments: {
     createPayment: async (data: PaymentCreateData): Promise<ApiResponse<{
+      payment: {
+        _id: string;
+        orderId: string;
+        amount: number;
+        currency: string;
+        status: string;
+        selectedPairs: string[];
+        manualPayment: {
+          walletAddress: string;
+          network: string;
+          senderAddress?: string;
+          screenshotUrl?: string;
+          originalScreenshotUrl?: string;
+        };
+      };
       paymentId: string;
       orderId: string;
       amount: number;
@@ -690,7 +705,7 @@ export const api = {
       }
     },
     
-    uploadScreenshot: async (paymentId: string, data: ScreenshotUploadData): Promise<ApiResponse<{
+    uploadScreenshot: async (paymentId: string, formData: FormData): Promise<ApiResponse<{
       paymentId: string;
       status: string;
       message: string;
@@ -701,13 +716,13 @@ export const api = {
           throw new Error('Authentication token is missing');
         }
 
+        // Don't set Content-Type header - let the browser set it with the correct boundary
         const response = await fetch(`${API_URL}/api/payments/${paymentId}/upload-screenshot`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify(data)
+          body: formData
         });
 
         const responseData = await response.json();

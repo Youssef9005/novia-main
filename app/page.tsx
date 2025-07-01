@@ -25,6 +25,7 @@ interface Plan {
   saleDescription?: string;
   isActive: boolean;
   assetCount: number;
+  assetType?: string;
 }
 
 // Dynamically import components with 3D content to avoid SSR issues
@@ -112,6 +113,7 @@ export default function Home() {
             features={plan.features}
             highlighted={plan.title === "Pro"} // Adjust highlight logic as needed
             assetCount={plan.assetCount}
+            assetType={plan.assetType}
             originalPrice={plan.originalPrice}
             isOnSale={plan.isOnSale}
             saleEndsAt={plan.saleEndsAt}
