@@ -12,12 +12,13 @@ interface PlanCardProps {
   features: string[]
   highlighted?: boolean
   assetCount: number
-  assetType?: string[]
+  assetType?: string | string[]
   isLoading?: boolean
   originalPrice?: number
   isOnSale?: boolean
   saleEndsAt?: string
   saleDescription?: string
+  maxTradingPairs?: number
 }
 
 export function PlanCard({
@@ -32,7 +33,8 @@ export function PlanCard({
   originalPrice,
   isOnSale = false,
   saleEndsAt,
-  saleDescription
+  saleDescription,
+  maxTradingPairs = 1
 }: PlanCardProps) {
   const router = useRouter()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -52,13 +54,20 @@ export function PlanCard({
   // Handle plan selection based on authentication status
   const handlePlanSelection = () => {
     if (isLoading) return;
-    const url = `/payment?plan=${encodeURIComponent(name)}&price=${price}${assetType ? `&assetType=${encodeURIComponent(assetType.join(','))}` : ''}`;
+    
+    // Handle assetType whether it's a string or array of strings
+    const assetTypeParam = assetType 
+      ? `&assetType=${encodeURIComponent(Array.isArray(assetType) ? assetType.join(',') : assetType)}` 
+      : '';
+      
+    const url = `/payment?plan=${encodeURIComponent(name)}&price=${price}${assetTypeParam}`;
+    
     if (isAuthenticated) {
       // If user is logged in, redirect to payment page with plan details
-      router.push(url)
+      router.push(url);
     } else {
       // If user is not logged in, redirect to registration page
-      router.push(`/register?plan=${encodeURIComponent(name)}&price=${price}${assetType ? `&assetType=${encodeURIComponent(assetType.join(','))}` : ''}`)
+      router.push(`/register?plan=${encodeURIComponent(name)}&price=${price}${assetTypeParam}`);
     }
   }
   
@@ -80,15 +89,33 @@ export function PlanCard({
             </div>
           )}
           <CardHeader>
-            <CardTitle className="text-2xl">{name}</CardTitle>
-            <div className="mt-4 flex items-baseline text-5xl font-extrabold">
-              {isOnSale && originalPrice && (
-                <span className="text-xl line-through text-gray-400 mr-2">${originalPrice}</span>
-              )}
-              ${price}
-              <span className="ml-1 text-xl font-normal text-gray-400">/mo</span>
+            <div className="flex justify-between items-start">
+              <div>
+                <CardTitle className="text-2xl">{name}</CardTitle>
+                <div className="mt-1">
+                  {maxTradingPairs ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                      {maxTradingPairs === 1 ? '1 Trading Pair' : `${maxTradingPairs} Trading Pairs`}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                      <Check className="h-3 w-3 mr-1" />
+                      Unlimited Trading Pairs
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="text-right">
+                {isOnSale && originalPrice && (
+                  <span className="text-sm line-through text-gray-400">${originalPrice}</span>
+                )}
+                <div className="text-4xl font-extrabold">
+                  ${price}
+                  <span className="ml-1 text-lg font-normal text-gray-400">/mo</span>
+                </div>
+              </div>
             </div>
-            <CardDescription className="mt-4">{description}</CardDescription>
+            <CardDescription className="mt-2">{description}</CardDescription>
             {isOnSale && saleDescription && (
               <p className="mt-2 text-sm text-yellow-500">{saleDescription}</p>
             )}
@@ -115,7 +142,7 @@ export function PlanCard({
             >
               Choose {name}
             </Button>
-            <span className="text-center text-sm text-gray-500">Select up to {assetCount} assets</span>
+            <span className="text-center text-sm text-gray-500">Select up to {maxTradingPairs} {maxTradingPairs === 1 ? 'asset' : 'assets'}</span>
             {assetType && Array.isArray(assetType) && assetType.length > 0 && (
               <span className="text-center text-xs text-blue-500 font-semibold">
                 Type: {assetType.map(type =>

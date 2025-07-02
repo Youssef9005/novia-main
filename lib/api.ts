@@ -42,6 +42,15 @@ interface SubscriptionPlan {
   saleDescription?: string;
   isActive: boolean;
   assetCount: number;
+  assetType?: string | string[];
+  maxTradingPairs?: number;
+  unlimitedTradingPairs?: boolean;
+  includesTelegramGroup?: boolean;
+  duration?: number;
+  isPopular?: boolean;
+  isRecommended?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface Notification {

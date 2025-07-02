@@ -12,7 +12,7 @@ import Image from "next/image";
 import { api } from "@/lib/api"; // Import the api utility
 import { toast } from "react-hot-toast";
 
-// Define Plan interface
+// Define Plan interface to match SubscriptionPlan from API
 interface Plan {
   _id: string;
   title: string;
@@ -25,7 +25,15 @@ interface Plan {
   saleDescription?: string;
   isActive: boolean;
   assetCount: number;
-  assetType?: string;
+  assetType?: string | string[];
+  maxTradingPairs?: number;
+  unlimitedTradingPairs?: boolean;
+  includesTelegramGroup?: boolean;
+  duration?: number;
+  isPopular?: boolean;
+  isRecommended?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Dynamically import components with 3D content to avoid SSR issues
@@ -57,8 +65,31 @@ export default function Home() {
         if (response.status === 'success' && Array.isArray(response.data?.plans)) {
           // Filter for active plans and sort by price
           const activePlans = response.data.plans
-            .filter((plan: Plan) => plan.isActive)
-            .sort((a: Plan, b: Plan) => a.price - b.price);
+            .filter((plan: any) => plan.isActive)
+            .sort((a: any, b: any) => a.price - b.price)
+            .map((plan: any): Plan => ({
+              _id: plan._id,
+              title: plan.title,
+              description: plan.description,
+              price: plan.price,
+              originalPrice: plan.originalPrice,
+              features: plan.features || [],
+              isOnSale: plan.isOnSale || false,
+              saleEndsAt: plan.saleEndsAt,
+              saleDescription: plan.saleDescription,
+              isActive: plan.isActive || false,
+              assetCount: plan.assetCount || 0,
+              assetType: Array.isArray(plan.assetType) ? plan.assetType[0] : plan.assetType, // Take first if array
+              maxTradingPairs: plan.maxTradingPairs,
+              unlimitedTradingPairs: plan.unlimitedTradingPairs,
+              includesTelegramGroup: plan.includesTelegramGroup,
+              duration: plan.duration,
+              isPopular: plan.isPopular,
+              isRecommended: plan.isRecommended,
+              createdAt: plan.createdAt,
+              updatedAt: plan.updatedAt
+            }));
+          
           setPlans(activePlans);
         } else {
           console.error('Invalid response format:', response);
@@ -118,6 +149,7 @@ export default function Home() {
             isOnSale={plan.isOnSale}
             saleEndsAt={plan.saleEndsAt}
             saleDescription={plan.saleDescription}
+            maxTradingPairs={plan.maxTradingPairs}
           />
         ))}
       </div>

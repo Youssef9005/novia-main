@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, CreditCard, Bitcoin, Info, Loader2, Upload, CheckCircle, XCircle, Wallet, Shield, Clock, Star, Zap } from "lucide-react"
+import { ChevronLeft, CreditCard, Bitcoin, Info, Loader2, Check, CheckCircle, XCircle, Wallet, Shield, Clock, Star, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -27,6 +27,29 @@ interface GroupedPairs {
   crypto: TradingPair[];
 }
 
+interface SubscriptionPlan {
+  _id: string;
+  title: string;
+  description: string;
+  price: number;
+  originalPrice?: number;
+  features: string[];
+  isOnSale: boolean;
+  saleEndsAt?: string;
+  saleDescription?: string;
+  isActive: boolean;
+  assetCount: number;
+  assetType?: string | string[];
+  maxTradingPairs?: number;
+  unlimitedTradingPairs?: boolean;
+  includesTelegramGroup?: boolean;
+  duration?: number;
+  isPopular?: boolean;
+  isRecommended?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 interface PaymentData {
   paymentId: string;
   orderId: string;
@@ -46,9 +69,6 @@ interface PaymentData {
     manualPayment: {
       walletAddress: string;
       network: string;
-      senderAddress?: string;
-      screenshotUrl?: string;
-      originalScreenshotUrl?: string;
     };
   };
 }
@@ -74,12 +94,7 @@ function PaymentContent() {
   } | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   
-  // Screenshot upload states
-  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
-  const [screenshotUrl, setScreenshotUrl] = useState<string>('');
-  const [transactionHash, setTransactionHash] = useState<string>('');
-  const [isUploading, setIsUploading] = useState(false);
-  const [senderAddress, setSenderAddress] = useState<string>('');
+
 
   // Add state for network, currency, wallets, and wallet address
   const [network, setNetwork] = useState<string>('');
@@ -226,7 +241,7 @@ function PaymentContent() {
 
       // Verify token with backend
       const response = await fetch('https://api.novia-ai.com/api/users/me', {
-        headers: {
+        headers: { 
           'Authorization': `Bearer ${token}`
         }
       });
@@ -276,23 +291,46 @@ function PaymentContent() {
   // Function to fetch plan features
   const fetchPlanFeatures = async () => {
     try {
-      const price = parseFloat(planPrice || '0');
-      let maxPairs = 5; // Default for Basic plan
+      let maxPairs = 5; // Default fallback
       let isUnlimited = false;
       let includesGroup = false;
 
-      if (price >= 400) { // Expert/Professional plan
-        maxPairs = 0; // Unlimited
-        isUnlimited = true;
-        includesGroup = true;
-      } else if (price >= 200) { // Pro plan
-        maxPairs = 10;
-        isUnlimited = false;
-        includesGroup = false;
-      } else if (price >= 150) { // Standard plan
-        maxPairs = 10;
-        isUnlimited = false;
-        includesGroup = false;
+      // Get plan data from the backend if plan name is available
+      if (planName) {
+        try {
+          const response = await api.subscriptions.getPlans();
+          if (response.status === 'success' && response.data?.plans) {
+            // Find the plan by name
+            const plan = response.data.plans.find((p: any) => p.title === planName);
+            
+            if (plan) {
+              // Use maxTradingPairs if available, otherwise use assetCount
+              if (typeof plan.maxTradingPairs === 'number') {
+                maxPairs = plan.maxTradingPairs;
+              } else if (typeof plan.assetCount === 'number') {
+                maxPairs = plan.assetCount;
+              }
+              
+              // Check for unlimited trading pairs
+              if (plan.unlimitedTradingPairs) {
+                isUnlimited = true;
+                maxPairs = 0; // 0 means unlimited
+              }
+              
+              // Check for Telegram group access
+              if (plan.includesTelegramGroup) {
+                includesGroup = true;
+              }
+              
+              console.log('Plan features loaded:', { maxPairs, isUnlimited, includesGroup });
+            } else {
+              console.warn('Plan not found:', planName);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching plan details:', error);
+          // Fallback to default values if there's an error
+        }
       }
 
       setPlanFeatures({
@@ -374,98 +412,7 @@ function PaymentContent() {
     });
   };
 
-  // Handle file upload
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        toast({
-          title: 'File too large',
-          description: 'Please select a file smaller than 5MB',
-          variant: 'destructive',
-        });
-        return;
-      }
-      
-      if (!file.type.startsWith('image/')) {
-        toast({
-          title: 'Invalid file type',
-          description: 'Please select an image file',
-          variant: 'destructive',
-        });
-        return;
-      }
-      
-      setScreenshotFile(file);
-      
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setScreenshotUrl(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
-  // Handle screenshot upload
-  const handleScreenshotUpload = async (paymentId: string) => {
-    if (!screenshotFile) {
-      toast({
-        title: 'Error',
-        description: 'Please select a screenshot to upload',
-        variant: 'destructive',
-      });
-      return false;
-    }
-
-    const formData = new FormData();
-    formData.append('screenshot', screenshotFile);
-    
-    if (transactionHash) {
-      formData.append('transactionHash', transactionHash);
-    }
-    if (senderAddress) {
-      formData.append('senderAddress', senderAddress);
-    }
-
-    try {
-      setIsUploading(true);
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.novia-ai.com'}/api/payments/${paymentId}/upload-screenshot`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-          body: formData,
-        }
-      );
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to upload screenshot');
-      }
-
-      toast({
-        title: 'Success',
-        description: 'Screenshot uploaded successfully',
-        variant: 'default',
-      });
-      
-      return true;
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast({
-        title: 'Error',
-        description: (error as Error).message || 'Failed to upload screenshot',
-        variant: 'destructive',
-      });
-      return false;
-    } finally {
-      setIsUploading(false);
-    }
-  };
 
   // Handle payment creation
   const handleCreatePayment = async () => {
@@ -523,7 +470,6 @@ function PaymentContent() {
         planPrice: parseFloat(planPrice),
         userId,
         selectedPairs,
-        senderAddress,
         network,
         currency,
         walletAddress: currentWalletAddress,
@@ -531,11 +477,10 @@ function PaymentContent() {
 
       // First, create the payment
       const response = await api.payments.createPayment({
+        userId,
         planName,
         planPrice: parseFloat(planPrice),
-        userId,
         selectedPairs,
-        senderAddress,
         network,
         currency,
         walletAddress: currentWalletAddress,
@@ -554,41 +499,29 @@ function PaymentContent() {
           orderId: paymentResponse.orderId,
           amount: paymentResponse.amount,
           currency: paymentResponse.currency,
+          status: paymentResponse.status || 'pending',
           walletAddress: wallet?.address || currentWalletAddress,
           network: wallet?.network || network,
-          status: paymentResponse.status || 'pending',
-          message: 'Payment created successfully. Please upload a screenshot of your transaction.',
+          message: 'Payment created successfully. Please wait for confirmation.',
           payment: {
             _id: paymentResponse._id,
             orderId: paymentResponse.orderId,
             amount: paymentResponse.amount,
             currency: paymentResponse.currency,
             status: paymentResponse.status || 'pending',
-            selectedPairs: paymentResponse.selectedPairs || selectedPairs,
+            selectedPairs: selectedPairs, // Add selectedPairs to match PaymentData type
             manualPayment: {
-              walletAddress: paymentResponse.manualPayment?.walletAddress || 
-                           wallet?.address || 
-                           currentWalletAddress,
-              network: paymentResponse.manualPayment?.network || 
-                      wallet?.network || 
-                      network,
-              senderAddress: paymentResponse.manualPayment?.senderAddress || senderAddress || '',
-              screenshotUrl: paymentResponse.manualPayment?.screenshotUrl || '',
-              originalScreenshotUrl: paymentResponse.manualPayment?.originalScreenshotUrl || ''
+              walletAddress: wallet?.address || 
+                            paymentResponse.manualPayment?.walletAddress || 
+                            currentWalletAddress,
+              network: wallet?.network || 
+                      paymentResponse.manualPayment?.network || 
+                      network
             }
           }
         };
         
-        // If we have a screenshot file, upload it
-        if (screenshotFile && paymentData.paymentId) {
-          const uploadSuccess = await handleScreenshotUpload(paymentData.paymentId);
-          if (uploadSuccess) {
-            paymentData.status = 'waiting_confirmation';
-            paymentData.payment.status = 'waiting_confirmation';
-            paymentData.message = 'Payment and screenshot received. Your payment is being processed.';
-          }
-        }
-        
+
         // Update the state with the final payment data
         setPaymentData(paymentData);
         
@@ -613,54 +546,7 @@ function PaymentContent() {
     }
   };
 
-  // Handle screenshot upload
-  const handleUploadScreenshot = async () => {
-    if (!paymentData || !screenshotFile) {
-      toast({
-        title: 'Error',
-        description: 'Please select a screenshot file',
-        variant: 'destructive',
-      });
-      return;
-    }
 
-    setIsUploading(true);
-    try {
-      // Create FormData to handle file upload
-      const formData = new FormData();
-      formData.append('screenshot', screenshotFile);
-      if (senderAddress) {
-        formData.append('senderAddress', senderAddress);
-      }
-      
-      // Upload the screenshot file
-      const response = await api.payments.uploadScreenshot(
-        paymentData.paymentId,
-        formData
-      );
-      
-      if (response.status === 'success') {
-        toast({
-          title: 'Success',
-          description: 'Screenshot uploaded successfully. Your payment is being verified.',
-        });
-        
-        // Update payment data
-        setPaymentData(prev => prev ? { ...prev, status: 'waiting_confirmation' } : null);
-      } else {
-        throw new Error(response.message || 'Failed to upload screenshot');
-      }
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast({
-        title: 'Error',
-        description: (error as Error).message || 'Failed to upload screenshot. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsUploading(false);
-    }
-  };
 
   // Loading states
   if (isCheckingAuth) {
@@ -747,14 +633,32 @@ function PaymentContent() {
                   {planName} Plan
                 </CardTitle>
                 <CardDescription className="text-gray-300">
-                  {planFeatures?.unlimitedTradingPairs 
-                    ? 'Unlimited trading pairs with your premium plan'
-                    : `Choose up to ${getPlanLimit()} trading pairs with your ${planName} plan`}
-                  {planFeatures?.includesTelegramGroup && (
-                    <span className="block mt-2 text-green-400 font-semibold">
-                      ✨ Includes Premium Telegram Group Access
-                    </span>
-                  )}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-center gap-2">
+                      {planFeatures?.unlimitedTradingPairs ? (
+                        <span className="bg-green-500/20 text-green-400 text-sm font-medium px-3 py-1 rounded-full flex items-center">
+                          <Check className="h-3 w-3 mr-1" />
+                          Unlimited Trading Pairs
+                        </span>
+                      ) : (
+                        <span className="bg-blue-500/20 text-blue-400 text-sm font-medium px-3 py-1 rounded-full">
+                          {getPlanLimit()} Trading Pairs Included
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      {planFeatures?.unlimitedTradingPairs 
+                        ? 'Access to all available trading pairs with your premium plan.'
+                        : `You can select up to ${getPlanLimit()} trading pairs with your ${planName} plan.`}
+                    </div>
+                    {planFeatures?.includesTelegramGroup && (
+                      <div className="mt-2">
+                        <span className="inline-flex items-center text-green-400 font-semibold bg-green-500/20 px-3 py-1 rounded-full">
+                          ✨ Includes Premium Telegram Group Access
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -1024,30 +928,30 @@ function PaymentContent() {
                     )}
                   </div>
 
-                  {selectedPairs.length > 0 && (
-                    <div className="mt-4">
-                      <Label className="text-white font-medium">
-                        Selected Pairs {!planFeatures?.unlimitedTradingPairs && 
-                          `(${selectedPairs.length}/${getPlanLimit()})`}:
-                      </Label>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {selectedPairs.map((pair) => (
-                          <div
-                            key={pair}
-                            className="bg-gray-800/50 border border-gray-600/30 text-gray-300 px-3 py-1 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm"
-                          >
-                            {pair}
-                            <button
-                              onClick={() => handlePairSelect(pair)}
-                              className="hover:text-red-400 transition-colors"
+                    {selectedPairs.length > 0 && (
+                      <div className="mt-4">
+                        <Label className="text-white font-medium">
+                          Selected Pairs {!planFeatures?.unlimitedTradingPairs && 
+                            `(${selectedPairs.length}/${getPlanLimit()})`}:
+                        </Label>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {selectedPairs.map((pair) => (
+                            <div
+                              key={pair}
+                              className="bg-gray-800/50 border border-gray-600/30 text-gray-300 px-3 py-1 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm"
                             >
-                              ×
-                            </button>
-                          </div>
-                        ))}
+                              {pair}
+                              <button
+                                onClick={() => handlePairSelect(pair)}
+                                className="hover:text-red-400 transition-colors"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                 </div>
 
                 {/* Payment Section */}
@@ -1175,163 +1079,7 @@ function PaymentContent() {
                       </div>
                     </div>
 
-                    {/* Screenshot Upload */}
-                    {paymentData.status === 'pending' && (
-                      <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-xl p-6 backdrop-blur-sm">
-                        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                          <Upload className="h-5 w-5 text-blue-400" />
-                          Upload Payment Screenshot
-                        </h3>
-                        <div className="space-y-4">
-                          <div>
-                            <Label htmlFor="senderAddress" className="text-gray-300 text-sm">Sender Address (Optional)</Label>
-                            <Input
-                              id="senderAddress"
-                              type="text"
-                              placeholder="Enter your USDT sender address for verification"
-                              value={senderAddress}
-                              onChange={(e) => setSenderAddress(e.target.value)}
-                              className="mt-1 bg-white/10 border-white/20 text-white placeholder-gray-400"
-                            />
-                            <p className="text-xs text-gray-400 mt-1">
-                              This helps us verify your payment more quickly
-                            </p>
-                          </div>
 
-                          <div>
-                            <Label htmlFor="screenshot" className="text-gray-300 text-sm">Payment Screenshot</Label>
-                            <div className="mt-1 relative">
-                              <Input
-                                id="screenshot"
-                                type="file"
-                                accept="image/*"
-                                onChange={handleFileChange}
-                                className="bg-white/10 border-white/20 text-white file:bg-gray-800 file:border-0 file:text-white file:rounded-lg file:px-4 file:py-2 file:mr-4 file:hover:bg-gray-700 file:cursor-pointer file:relative file:top-0 file:leading-none file:align-middle file:inline-flex file:items-center file:justify-center file:h-10 file:min-h-0 file:my-0 file:box-border file:appearance-none file:bg-gray-800 file:text-white file:rounded-lg file:px-4 file:py-2 file:mr-4 file:hover:bg-gray-700 file:transition-colors file:duration-200 file:font-medium file:text-sm file:border file:border-gray-600 file:hover:border-gray-500"
-                                style={{
-                                  '--tw-file-padding-y': '0.5rem',
-                                  '--tw-file-padding-x': '1rem',
-                                  '--tw-file-line-height': '1.25rem',
-                                  '--tw-file-font-size': '0.875rem',
-                                  '--tw-file-font-weight': '500',
-                                  '--tw-file-border-radius': '0.5rem',
-                                  '--tw-file-border-width': '1px',
-                                  '--tw-file-border-color': 'rgb(75 85 99)',
-                                  '--tw-file-bg-opacity': '1',
-                                  '--tw-file-bg': 'rgb(31 41 55)',
-                                  '--tw-file-text-opacity': '1',
-                                  '--tw-file-text': 'rgb(255 255 255)',
-                                  '--tw-file-hover-bg': 'rgb(55 65 81)',
-                                  '--tw-file-hover-border-color': 'rgb(107 114 128)',
-                                  '--tw-file-transition-property': 'color, background-color, border-color, text-decoration-color, fill, stroke',
-                                  '--tw-file-transition-timing-function': 'cubic-bezier(0.4, 0, 0.2, 1)',
-                                  '--tw-file-transition-duration': '150ms'
-                                } as React.CSSProperties}
-                              />
-                              <style jsx>{`
-                                input[type="file"]::-webkit-file-upload-button {
-                                  background-color: rgb(31 41 55) !important;
-                                  color: white !important;
-                                  border: 1px solid rgb(75 85 99) !important;
-                                  border-radius: 0.5rem !important;
-                                  padding: 0.5rem 1rem !important;
-                                  margin-right: 1rem !important;
-                                  cursor: pointer !important;
-                                  font-size: 0.875rem !important;
-                                  font-weight: 500 !important;
-                                  line-height: 1.25rem !important;
-                                  transition: all 150ms !important;
-                                  vertical-align: middle !important;
-                                  display: inline-flex !important;
-                                  align-items: center !important;
-                                  justify-content: center !important;
-                                  height: 2.5rem !important;
-                                  min-height: 0 !important;
-                                  margin: 0 !important;
-                                  position: relative !important;
-                                  top: 0 !important;
-                                }
-                                input[type="file"]::-webkit-file-upload-button:hover {
-                                  background-color: rgb(55 65 81) !important;
-                                  border-color: rgb(107 114 128) !important;
-                                }
-                                input[type="file"]::-moz-file-upload-button {
-                                  background-color: rgb(31 41 55) !important;
-                                  color: white !important;
-                                  border: 1px solid rgb(75 85 99) !important;
-                                  border-radius: 0.5rem !important;
-                                  padding: 0.5rem 1rem !important;
-                                  margin-right: 1rem !important;
-                                  cursor: pointer !important;
-                                  font-size: 0.875rem !important;
-                                  font-weight: 500 !important;
-                                  line-height: 1.25rem !important;
-                                  transition: all 150ms !important;
-                                  vertical-align: middle !important;
-                                  display: inline-flex !important;
-                                  align-items: center !important;
-                                  justify-content: center !important;
-                                  height: 2.5rem !important;
-                                  min-height: 0 !important;
-                                  margin: 0 !important;
-                                  position: relative !important;
-                                  top: 0 !important;
-                                }
-                                input[type="file"]::-moz-file-upload-button:hover {
-                                  background-color: rgb(55 65 81) !important;
-                                  border-color: rgb(107 114 128) !important;
-                                }
-                              `}</style>
-                            </div>
-                            <p className="text-xs text-gray-400 mt-1">
-                              Upload a screenshot of your USDT transfer (max 5MB)
-                            </p>
-                          </div>
-
-                          {screenshotUrl && (
-                            <div>
-                              <Label className="text-gray-300 text-sm">Preview</Label>
-                              <div className="mt-2">
-                                <img
-                                  src={screenshotUrl}
-                                  alt="Payment screenshot"
-                                  className="max-w-full h-auto max-h-64 rounded-lg border border-white/20"
-                                />
-                              </div>
-                            </div>
-                          )}
-
-                          <div>
-                            <Label htmlFor="transactionHash" className="text-gray-300 text-sm">Transaction Hash (Optional)</Label>
-                            <Input
-                              id="transactionHash"
-                              type="text"
-                              placeholder="Enter transaction hash if available"
-                              value={transactionHash}
-                              onChange={(e) => setTransactionHash(e.target.value)}
-                              className="mt-1 bg-white/10 border-white/20 text-white placeholder-gray-400"
-                            />
-                          </div>
-
-                          <Button
-                            onClick={handleUploadScreenshot}
-                            disabled={!screenshotFile || isUploading}
-                            className="w-full bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:transform-none"
-                          >
-                            {isUploading ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Uploading...
-                              </>
-                            ) : (
-                              <>
-                                <Upload className="mr-2 h-4 w-4" />
-                                Upload Screenshot
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
 
                     {/* Payment Status */}
                     {paymentData.status === 'waiting_confirmation' && (
@@ -1341,7 +1089,7 @@ function PaymentContent() {
                           <div>
                             <h3 className="text-lg font-bold text-white">Payment Submitted</h3>
                             <p className="text-gray-300">
-                              Your payment screenshot has been uploaded and is waiting for admin confirmation. 
+                              Your payment is being processed. Please wait for confirmation.
                               You will receive an email notification once your payment is confirmed.
                             </p>
                           </div>
@@ -1431,7 +1179,7 @@ function PaymentContent() {
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 flex-shrink-0"></div>
-                  <p className="text-gray-300 text-sm">Upload screenshot after sending</p>
+                  <p className="text-gray-300 text-sm">Please wait for confirmation</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 flex-shrink-0"></div>

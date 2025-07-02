@@ -73,6 +73,22 @@ const cryptoAssets = [
   'SOLUSDT', 'BNBUSDT', 'BTCUSDT', 'SHBUSDT', 'ETHUSDT', 'XRPUSDT'
 ];
 
+// دالة جديدة تحدد الحد الأقصى للأصول حسب الخطة
+function getMaxAssets(plan: string): number {
+  switch (plan?.toLowerCase()) {
+    case 'basic':
+      return 5;
+    case 'standard':
+    case 'pro':
+      return 10;
+    case 'expert':
+    case 'professional':
+      return 0; // 0 يعني غير محدود
+    default:
+      return 5;
+  }
+}
+
 export default function ProfilePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -180,15 +196,16 @@ export default function ProfilePage() {
     setUser(prevUser => {
       const currentAssets = prevUser.assets || [];
       const isSelected = currentAssets.includes(asset);
+      const maxAssets = getMaxAssets(prevUser.plan);
 
       if (isSelected) {
         return { ...prevUser, assets: currentAssets.filter(a => a !== asset) };
-      } else if (currentAssets.length < 5) {
+      } else if (maxAssets === 0 || currentAssets.length < maxAssets) {
         return { ...prevUser, assets: [...currentAssets, asset] };
       } else {
         toast({
           title: "Limit Reached",
-          description: "You can select a maximum of 5 assets.",
+          description: `You can select a maximum of ${maxAssets} assets.`,
           variant: "destructive",
         });
         return prevUser;
@@ -898,7 +915,11 @@ export default function ProfilePage() {
             <Card className="border-gray-800 bg-gray-950/80 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="text-white">Asset Preferences</CardTitle>
-                <CardDescription className="text-gray-400">Select up to 5 assets to receive detailed updates via email.</CardDescription>
+                <CardDescription className="text-gray-400">
+                  {getMaxAssets(user.plan) === 0
+                    ? "Select as many assets as you want to receive detailed updates via email."
+                    : `Select up to ${getMaxAssets(user.plan)} assets to receive detailed updates via email.`}
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
@@ -910,7 +931,7 @@ export default function ProfilePage() {
                           id={`forex-${asset}`}
                           checked={user.assets.includes(asset)}
                           onCheckedChange={() => handleAssetChange(asset)}
-                          disabled={user.assets.length >= 5 && !user.assets.includes(asset)}
+                          disabled={getMaxAssets(user.plan) !== 0 && user.assets.length >= getMaxAssets(user.plan) && !user.assets.includes(asset)}
                           className="border-gray-600 data-[state=checked]:bg-yellow-600 data-[state=checked]:text-black"
                         />
                         <Label htmlFor={`forex-${asset}`} className="text-gray-300 cursor-pointer">
@@ -930,7 +951,7 @@ export default function ProfilePage() {
                           id={`stock-${asset}`}
                           checked={user.assets.includes(asset)}
                           onCheckedChange={() => handleAssetChange(asset)}
-                          disabled={user.assets.length >= 5 && !user.assets.includes(asset)}
+                          disabled={getMaxAssets(user.plan) !== 0 && user.assets.length >= getMaxAssets(user.plan) && !user.assets.includes(asset)}
                           className="border-gray-600 data-[state=checked]:bg-yellow-600 data-[state=checked]:text-black"
                         />
                         <Label htmlFor={`stock-${asset}`} className="text-gray-300 cursor-pointer">
@@ -950,7 +971,7 @@ export default function ProfilePage() {
                           id={`commodity-${asset}`}
                           checked={user.assets.includes(asset)}
                           onCheckedChange={() => handleAssetChange(asset)}
-                          disabled={user.assets.length >= 5 && !user.assets.includes(asset)}
+                          disabled={getMaxAssets(user.plan) !== 0 && user.assets.length >= getMaxAssets(user.plan) && !user.assets.includes(asset)}
                           className="border-gray-600 data-[state=checked]:bg-yellow-600 data-[state=checked]:text-black"
                         />
                         <Label htmlFor={`commodity-${asset}`} className="text-gray-300 cursor-pointer">
@@ -970,7 +991,7 @@ export default function ProfilePage() {
                           id={`crypto-${asset}`}
                           checked={user.assets.includes(asset)}
                           onCheckedChange={() => handleAssetChange(asset)}
-                          disabled={user.assets.length >= 5 && !user.assets.includes(asset)}
+                          disabled={getMaxAssets(user.plan) !== 0 && user.assets.length >= getMaxAssets(user.plan) && !user.assets.includes(asset)}
                           className="border-gray-600 data-[state=checked]:bg-yellow-600 data-[state=checked]:text-black"
                         />
                         <Label htmlFor={`crypto-${asset}`} className="text-gray-300 cursor-pointer">
