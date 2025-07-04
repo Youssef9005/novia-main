@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, CreditCard, Bitcoin, Info, Loader2, Check, CheckCircle, XCircle, Wallet, Shield, Clock, Star, Zap } from "lucide-react"
+import { ChevronLeft, CreditCard, Bitcoin, Info, Loader2, Check, CheckCircle, XCircle, Wallet, Shield, Clock, Star, Zap, Image as ImageIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
 import { api } from "@/lib/api"
+import { ImageUpload } from "@/components/ui/image-upload"
 
 interface TradingPair {
   symbol: string;
@@ -93,6 +94,12 @@ function PaymentContent() {
     includesTelegramGroup: boolean;
   } | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [planImages, setPlanImages] = useState<Array<{
+    url: string;
+    filename: string;
+    originalName: string;
+    uploadedAt: string;
+  }>>([]);
   
 
 
@@ -475,6 +482,9 @@ function PaymentContent() {
         walletAddress: currentWalletAddress,
       });
 
+      // Filter out blob URLs and only send actual uploaded images
+      const validPlanImages = planImages.filter(img => !img.url.startsWith('blob:'));
+      
       // First, create the payment
       const response = await api.payments.createPayment({
         userId,
@@ -484,6 +494,7 @@ function PaymentContent() {
         network,
         currency,
         walletAddress: currentWalletAddress,
+        planImages: validPlanImages, // Only send actual uploaded images
       });
 
       console.log('Payment response:', response);
@@ -632,6 +643,31 @@ function PaymentContent() {
                   <Zap className="h-6 w-6 text-yellow-400" />
                   {planName} Plan
                 </CardTitle>
+                
+                {/* Plan Images Display */}
+                {planImages.length > 0 && (
+                  <div className="mb-4">
+                    <div className="flex gap-2 justify-center overflow-x-auto pb-2">
+                      {planImages.slice(0, 5).map((image, index) => (
+                        <div key={image.filename} className="relative flex-shrink-0">
+                          <img
+                            src={image.url}
+                            alt={image.originalName}
+                            className="w-20 h-20 object-cover rounded-lg border-2 border-white/20"
+                          />
+                          {index === 4 && planImages.length > 5 && (
+                            <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
+                              <span className="text-white text-xs font-medium">
+                                +{planImages.length - 5}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 <CardDescription className="text-gray-300">
                   <div className="space-y-2">
                     <div className="flex items-center justify-center gap-2">
@@ -954,6 +990,20 @@ function PaymentContent() {
                     )}
                 </div>
 
+                {/* Image Upload Section */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                    <ImageIcon className="h-5 w-5 text-purple-400" />
+                    Add Plan Images (Optional)
+                  </h3>
+                  <ImageUpload
+                    images={planImages}
+                    onImagesChange={setPlanImages}
+                    maxImages={5}
+                    className="bg-white/5 p-4 rounded-lg"
+                  />
+                </div>
+
                 {/* Payment Section */}
                 {!paymentData ? (
                   <div className="mt-6">
@@ -1131,6 +1181,36 @@ function PaymentContent() {
                   <div className="flex justify-between items-center">
                     <span className="text-gray-300">Telegram Group:</span>
                     <span className="text-green-400 font-semibold">✓ Included</span>
+                  </div>
+                )}
+                
+                {/* Plan Images Summary */}
+                {planImages.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-300">Images:</span>
+                      <span className="text-white font-semibold">{planImages.length} uploaded</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {planImages.slice(0, 3).map((image) => (
+                        <div key={image.filename} className="relative">
+                          <img
+                            src={image.url}
+                            alt={image.originalName}
+                            className="w-full h-16 object-cover rounded-md border border-white/20"
+                          />
+                        </div>
+                      ))}
+                      {planImages.length > 3 && (
+                        <div className="relative">
+                          <div className="w-full h-16 bg-gray-700/50 rounded-md border border-white/20 flex items-center justify-center">
+                            <span className="text-white text-xs font-medium">
+                              +{planImages.length - 3}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </CardContent>

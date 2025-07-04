@@ -127,6 +127,12 @@ interface PaymentCreateData {
   network?: string;
   currency?: string;
   walletAddress?: string;
+  planImages?: Array<{
+    url: string;
+    filename: string;
+    originalName: string;
+    uploadedAt: string;
+  }>;
 }
 
 interface ScreenshotUploadData {

@@ -83,6 +83,21 @@ export function PlanCard({
         </div>
       ) : (
         <>
+          {/* Plan Image */}
+          {Array.isArray((features as any)?.images) && (features as any).images.length > 0 ? (
+            <div className="w-full h-32 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-t-md overflow-hidden">
+              <img
+                src={(features as any).images[0].url}
+                alt={name + " plan image"}
+                className="object-cover w-full h-full"
+                style={{ maxHeight: 128 }}
+              />
+            </div>
+          ) : (
+            <div className="w-full h-32 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-t-md overflow-hidden">
+              <span className="text-gray-400 text-xs">No Image</span>
+            </div>
+          )}
           {highlighted && (
             <div className="absolute -top-5 left-0 right-0 mx-auto w-fit rounded-full bg-blue-500 px-3 py-1 text-xs font-medium">
               Popular
@@ -92,17 +107,45 @@ export function PlanCard({
             <div className="flex justify-between items-start">
               <div>
                 <CardTitle className="text-2xl">{name}</CardTitle>
-                <div className="mt-1">
-                  {maxTradingPairs ? (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                      {maxTradingPairs === 1 ? '1 Trading Pair' : `${maxTradingPairs} Trading Pairs`}
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                      <Check className="h-3 w-3 mr-1" />
-                      Unlimited Trading Pairs
-                    </span>
-                  )}
+                {/* Always show asset type badges under the plan name */}
+                {(() => {
+                  let types: string[] = [];
+                  if (Array.isArray(assetType)) {
+                    types = assetType;
+                  } else if (assetType) {
+                    types = [assetType];
+                  }
+                  return (
+                    <div className="flex flex-wrap gap-1 mt-2 mb-1">
+                      {types.map((type, index) => (
+                        <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                          {type === 'crypto' ? 'Crypto' :
+                           type === 'stocks' ? 'Stocks' :
+                           type === 'forex' ? 'Forex' :
+                           type === 'commodities' ? 'Commodities' :
+                           type === 'indices' ? 'Indices' :
+                           type === 'all' ? 'All Assets' : type}
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })()}
+                <div className="mt-2 space-y-1">
+                  {/* Trading Pairs Count Badge */}
+                  <div>
+                    {typeof maxTradingPairs !== 'undefined' && (
+                      maxTradingPairs > 0 ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                          {maxTradingPairs === 1 ? '1 Trading Pair' : `${maxTradingPairs} Trading Pairs`}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                          <Check className="h-3 w-3 mr-1" />
+                          Unlimited Trading Pairs
+                        </span>
+                      )
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="text-right">
@@ -115,7 +158,16 @@ export function PlanCard({
                 </div>
               </div>
             </div>
-            <CardDescription className="mt-2">{description}</CardDescription>
+            <CardDescription className="mt-2">
+              {description}
+              {typeof maxTradingPairs !== 'undefined' && (
+                <div className="mt-1 text-xs text-gray-500">
+                  {maxTradingPairs === 0
+                    ? 'Unlimited asset selection allowed.'
+                    : `Select up to ${maxTradingPairs} asset${maxTradingPairs > 1 ? 's' : ''}.`}
+                </div>
+              )}
+            </CardDescription>
             {isOnSale && saleDescription && (
               <p className="mt-2 text-sm text-yellow-500">{saleDescription}</p>
             )}
@@ -142,19 +194,12 @@ export function PlanCard({
             >
               Choose {name}
             </Button>
-            <span className="text-center text-sm text-gray-500">Select up to {maxTradingPairs} {maxTradingPairs === 1 ? 'asset' : 'assets'}</span>
-            {assetType && Array.isArray(assetType) && assetType.length > 0 && (
-              <span className="text-center text-xs text-blue-500 font-semibold">
-                Type: {assetType.map(type =>
-                  type === 'crypto' ? 'Crypto' :
-                  type === 'stocks' ? 'Stocks' :
-                  type === 'forex' ? 'Forex' :
-                  type === 'commodities' ? 'Commodities' :
-                  type === 'indices' ? 'Indices' :
-                  type === 'all' ? 'All' : type
-                ).join(', ')}
-              </span>
-            )}
+            <span className="text-center text-sm text-gray-500">
+              {maxTradingPairs && maxTradingPairs > 0 
+                ? `Select up to ${maxTradingPairs} ${maxTradingPairs === 1 ? 'asset' : 'assets'}`
+                : 'Select unlimited assets'
+              }
+            </span>
           </CardFooter>
         </>
       )}

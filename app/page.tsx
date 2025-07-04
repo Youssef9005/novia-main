@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { ArrowUpRight } from "lucide-react"
+import { ArrowUpRight, MessageCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PlanCard } from "@/components/plan-card"
 import { FeatureSection } from "@/components/feature-section"
@@ -79,7 +79,7 @@ export default function Home() {
               saleDescription: plan.saleDescription,
               isActive: plan.isActive || false,
               assetCount: plan.assetCount || 0,
-              assetType: Array.isArray(plan.assetType) ? plan.assetType[0] : plan.assetType, // Take first if array
+              assetType: Array.isArray(plan.assetType) ? plan.assetType : (plan.assetType ? [plan.assetType] : []), // always array
               maxTradingPairs: plan.maxTradingPairs,
               unlimitedTradingPairs: plan.unlimitedTradingPairs,
               includesTelegramGroup: plan.includesTelegramGroup,
@@ -237,6 +237,19 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        {/* WhatsApp Floating Button */}
+        <div className="fixed bottom-6 right-6 z-50">
+          <a
+            href="https://wa.me/905344869220"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center w-14 h-14 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-110"
+            aria-label="تواصل معنا على واتساب"
+          >
+            <MessageCircle className="w-6 h-6" />
+          </a>
+        </div>
       </div>
     </div>
   )
