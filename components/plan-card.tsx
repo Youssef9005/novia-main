@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 
+
 interface PlanCardProps {
   name: string
   price: number
