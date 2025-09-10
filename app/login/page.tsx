@@ -10,8 +10,10 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import Image from "next/image"
+import { useTranslation } from "react-i18next"
 
 export default function LoginPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -66,21 +68,21 @@ export default function LoginPage() {
         <Button variant="ghost" size="sm" asChild>
           <Link href="/">
             <ChevronLeft className="mr-2 h-4 w-4" />
-            Back
+            {t('loginPage.back')}
           </Link>
         </Button>
       </div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md flex items-center flex-col">
         <Image src={"./logo.jpeg"} alt="Website Logo" width={100} height={100} className="rounded-full border border-gray-800 p-2" />
-        <h2 className="mt-6 text-center text-2xl font-bold leading-9 tracking-tight">Sign in to your account</h2>
+        <h2 className="mt-6 text-center text-2xl font-bold leading-9 tracking-tight">{t('loginPage.signInToAccount')}</h2>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <Card className="border-gray-800 bg-gray-950/80 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle className="text-xl">Welcome back</CardTitle>
-            <CardDescription>Enter your credentials to access your account</CardDescription>
+            <CardTitle className="text-xl">{t('loginPage.welcomeBack')}</CardTitle>
+            <CardDescription>{t('loginPage.enterCredentials')}</CardDescription>
           </CardHeader>
           <CardContent>
             {error && (
@@ -90,11 +92,11 @@ export default function LoginPage() {
             )}
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="space-y-1">
-                <Label htmlFor="email">Email address</Label>
+                <Label htmlFor="email">{t('loginPage.emailAddress')}</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="name@example.com"
+                  placeholder={t('loginPage.emailPlaceholder')}
                   required
                   className="bg-gray-900 border-gray-800"
                   value={email}
@@ -104,9 +106,9 @@ export default function LoginPage() {
               </div>
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">{t('loginPage.password')}</Label>
                   <Link href="/forgot-password" className="text-sm font-medium text-blue-500 hover:text-blue-400">
-                    Forgot password?
+                    {t('loginPage.forgotPassword')}
                   </Link>
                 </div>
                 <div className="relative">
@@ -129,15 +131,15 @@ export default function LoginPage() {
                 </div>
               </div>
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? 'Signing in...' : 'Sign in'}
+                {isLoading ? t('loginPage.signingIn') : t('loginPage.signIn')}
               </Button>
             </form>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <div className="text-center text-sm">
-              Don&apos;t have an account?{" "}
+              {t('loginPage.noAccount')}{" "}
               <Link href="/register" className="font-medium text-blue-500 hover:text-blue-400">
-                Sign up
+                {t('loginPage.signUp')}
               </Link>
             </div>
           </CardFooter>

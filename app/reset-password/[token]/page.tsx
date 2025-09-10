@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useParams } from "next/navigation"
 import Link from "next/link"
+import { useTranslation } from "react-i18next"
 import { ChevronLeft, Loader2, CheckCircle, XCircle, Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,6 +13,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function ResetPasswordPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const params = useParams()
   const [isLoading, setIsLoading] = useState(false)
@@ -31,7 +33,7 @@ export default function ResetPasswordPage() {
     const token = params.token as string
     
     if (!token) {
-      setError("Invalid password reset link")
+      setError(t('resetPasswordPage.invalidResetLink'))
       setTokenValid(false)
     } else {
       // We'll assume the token is valid until the user tries to use it
@@ -56,13 +58,13 @@ export default function ResetPasswordPage() {
     
     // Basic validation
     if (formData.password !== formData.passwordConfirm) {
-      setError("Passwords do not match")
+      setError(t('resetPasswordPage.passwordsDoNotMatch'))
       setIsLoading(false)
       return
     }
     
     if (formData.password.length < 8) {
-      setError("Password must be at least 8 characters long")
+      setError(t('resetPasswordPage.passwordTooShort'))
       setIsLoading(false)
       return
     }
@@ -108,7 +110,7 @@ export default function ResetPasswordPage() {
         <Button variant="ghost" size="sm" asChild>
           <Link href="/login">
             <ChevronLeft className="mr-2 h-4 w-4" />
-            Back to Login
+            {t('resetPasswordPage.backToLogin')}
           </Link>
         </Button>
       </div>
@@ -117,10 +119,10 @@ export default function ResetPasswordPage() {
         <Card className="border-gray-800 bg-gray-950/80 backdrop-blur-sm">
           <CardHeader className="space-y-1 text-center">
             <CardTitle className="text-2xl font-bold tracking-tight">
-              Reset Your Password
+              {t('resetPasswordPage.resetYourPassword')}
             </CardTitle>
             <CardDescription className="text-gray-400">
-              Enter your new password below
+              {t('resetPasswordPage.enterNewPassword')}
             </CardDescription>
           </CardHeader>
           
@@ -128,17 +130,17 @@ export default function ResetPasswordPage() {
             {validatingToken ? (
               <div className="flex flex-col items-center justify-center py-6">
                 <Loader2 className="h-8 w-8 animate-spin text-indigo-500 mb-4" />
-                <p className="text-center text-gray-300">Validating your reset link...</p>
+                <p className="text-center text-gray-300">{t('resetPasswordPage.validatingLink')}</p>
               </div>
             ) : resetComplete ? (
               <div className="flex flex-col items-center justify-center py-6">
                 <CheckCircle className="h-12 w-12 text-green-500 mb-4" />
-                <h3 className="text-xl font-medium mb-2">Password Reset Complete</h3>
+                <h3 className="text-xl font-medium mb-2">{t('resetPasswordPage.passwordResetComplete')}</h3>
                 <p className="text-center text-gray-300 mb-6">
-                  Your password has been successfully updated. You can now log in with your new password.
+                  {t('resetPasswordPage.passwordUpdatedSuccess')}
                 </p>
                 <Button asChild className="w-full">
-                  <Link href="/login">Go to Login</Link>
+                  <Link href="/login">{t('resetPasswordPage.goToLogin')}</Link>
                 </Button>
               </div>
             ) : tokenValid ? (
@@ -151,12 +153,12 @@ export default function ResetPasswordPage() {
                 
                 <form className="space-y-4" onSubmit={handleSubmit}>
                   <div className="space-y-1">
-                    <Label htmlFor="password">New Password</Label>
+                    <Label htmlFor="password">{t('resetPasswordPage.newPassword')}</Label>
                     <div className="relative">
                       <Input
                         id="password"
                         type={showPassword ? "text" : "password"}
-                        placeholder="••••••••"
+                        placeholder={t('resetPasswordPage.passwordPlaceholder')}
                         className="bg-gray-900 border-gray-800 pr-10"
                         value={formData.password}
                         onChange={handleChange}
@@ -177,17 +179,17 @@ export default function ResetPasswordPage() {
                       </button>
                     </div>
                     <p className="text-xs text-gray-400 mt-1">
-                      Password must be at least 8 characters long
+                      {t('resetPasswordPage.passwordRequirement')}
                     </p>
                   </div>
                   
                   <div className="space-y-1">
-                    <Label htmlFor="passwordConfirm">Confirm New Password</Label>
+                    <Label htmlFor="passwordConfirm">{t('resetPasswordPage.confirmNewPassword')}</Label>
                     <div className="relative">
                       <Input
                         id="passwordConfirm"
                         type={showConfirmPassword ? "text" : "password"}
-                        placeholder="••••••••"
+                        placeholder={t('resetPasswordPage.passwordPlaceholder')}
                         className="bg-gray-900 border-gray-800 pr-10"
                         value={formData.passwordConfirm}
                         onChange={handleChange}
@@ -212,10 +214,10 @@ export default function ResetPasswordPage() {
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Resetting Password...
+                        {t('resetPasswordPage.resettingPassword')}
                       </>
                     ) : (
-                      'Reset Password'
+                      t('resetPasswordPage.resetPassword')
                     )}
                   </Button>
                 </form>
@@ -223,12 +225,12 @@ export default function ResetPasswordPage() {
             ) : (
               <div className="flex flex-col items-center justify-center py-6">
                 <XCircle className="h-12 w-12 text-red-500 mb-4" />
-                <h3 className="text-xl font-medium mb-2">Invalid or Expired Link</h3>
+                <h3 className="text-xl font-medium mb-2">{t('resetPasswordPage.invalidOrExpiredLink')}</h3>
                 <p className="text-center text-gray-300 mb-6">
-                  {error || "This password reset link is invalid or has expired. Please request a new password reset link."}
+                  {error || t('resetPasswordPage.linkExpiredMessage')}
                 </p>
                 <Button asChild className="w-full">
-                  <Link href="/forgot-password">Request New Link</Link>
+                  <Link href="/forgot-password">{t('resetPasswordPage.requestNewLink')}</Link>
                 </Button>
               </div>
             )}
@@ -238,7 +240,7 @@ export default function ResetPasswordPage() {
             <CardFooter className="flex justify-center">
               <div className="text-center text-sm">
                 <Link href="/login" className="text-indigo-500 hover:text-indigo-400">
-                  Remember your password? Sign in
+                  {t('resetPasswordPage.rememberPassword')}
                 </Link>
               </div>
             </CardFooter>

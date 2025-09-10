@@ -1,9 +1,12 @@
+"use client"
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/use-toast";
 import { api } from "@/lib/api";
+import { useTranslation } from "react-i18next";
 
 interface PlanCardProps {
   plan: {
@@ -22,6 +25,7 @@ interface PlanCardProps {
 
 export function PlanCard({ plan, highlighted = false }: PlanCardProps) {
   const router = useRouter();
+  const { t } = useTranslation();
 
   const handleSubscribe = async () => {
     try {
@@ -31,17 +35,17 @@ export function PlanCard({ plan, highlighted = false }: PlanCardProps) {
         return;
       }
 
-      await api.subscriptions.subscribe(plan._id);
+      await api.subscriptions.subscribe({ planId: plan._id });
       
       toast({
-        title: "Success",
-        description: "Successfully subscribed to the plan",
+        title: t('planCard.success'),
+        description: t('planCard.subscriptionSuccess'),
       });
       router.push('/profile');
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message || "Failed to subscribe to the plan",
+        title: t('planCard.error'),
+        description: error.message || t('planCard.subscriptionError'),
         variant: "destructive"
       });
     }
@@ -61,7 +65,7 @@ export function PlanCard({ plan, highlighted = false }: PlanCardProps) {
               <span className="text-lg text-muted-foreground line-through">${plan.originalPrice}</span>
               {plan.saleEndsAt && (
                 <span className="text-sm text-muted-foreground">
-                  (Sale ends {new Date(plan.saleEndsAt).toLocaleDateString()})
+                  ({t('planCard.saleEnds', { date: new Date(plan.saleEndsAt).toLocaleDateString() })})
                 </span>
               )}
             </div>
@@ -87,7 +91,7 @@ export function PlanCard({ plan, highlighted = false }: PlanCardProps) {
           variant={highlighted ? "default" : "outline"}
           onClick={handleSubscribe}
         >
-          Subscribe Now
+          {t('planCard.subscribeNow')}
         </Button>
       </CardFooter>
     </Card>

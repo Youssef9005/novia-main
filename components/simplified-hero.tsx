@@ -5,8 +5,10 @@ import { motion } from "framer-motion"
 import { ArrowRight, TrendingUp, BarChart4, LineChart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 
 export function SimplifiedHero() {
+  const { t } = useTranslation()
   const [hover, setHover] = useState(false)
 
   return (
@@ -24,9 +26,9 @@ export function SimplifiedHero() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <span className="block">Expert Market</span>
+              <span className="block">{t('simplifiedHero.expertMarket')}</span>
               <span className="block mt-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
-                Analysis
+                {t('simplifiedHero.analysis')}
               </span>
             </motion.h1>
 
@@ -36,8 +38,7 @@ export function SimplifiedHero() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
-              Subscribe to receive professional trading insights on your selected assets. Choose your plan, select your
-              assets, and start making informed trading decisions.
+              {t('simplifiedHero.description')}
             </motion.p>
 
             <motion.div
@@ -54,7 +55,7 @@ export function SimplifiedHero() {
                 onMouseLeave={() => setHover(false)}
               >
                 <Link href="/register">
-                  Get Started
+                  {t('simplifiedHero.getStarted')}
                   <motion.div animate={{ x: hover ? 4 : 0 }} transition={{ duration: 0.2 }}>
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </motion.div>
@@ -62,7 +63,7 @@ export function SimplifiedHero() {
               </Button>
 
               <Button variant="outline" size="lg" className="w-full sm:w-auto" asChild>
-                <Link href="/#pricing">View Pricing</Link>
+                <Link href="/#pricing">{t('simplifiedHero.viewPricing')}</Link>
               </Button>
             </motion.div>
 
@@ -76,19 +77,19 @@ export function SimplifiedHero() {
                 <div className="rounded-full bg-blue-500/10 p-2">
                   <TrendingUp className="h-5 w-5 text-blue-500" />
                 </div>
-                <span className="text-sm text-gray-400">Real-time Analysis</span>
+                <span className="text-sm text-gray-400">{t('simplifiedHero.realtimeAnalysis')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="rounded-full bg-emerald-500/10 p-2">
                   <BarChart4 className="h-5 w-5 text-emerald-500" />
                 </div>
-                <span className="text-sm text-gray-400">Expert Insights</span>
+                <span className="text-sm text-gray-400">{t('simplifiedHero.expertInsights')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="rounded-full bg-purple-500/10 p-2">
                   <LineChart className="h-5 w-5 text-purple-500" />
                 </div>
-                <span className="text-sm text-gray-400">Multiple Assets</span>
+                <span className="text-sm text-gray-400">{t('simplifiedHero.multipleAssets')}</span>
               </div>
             </motion.div>
           </motion.div>
@@ -113,7 +114,7 @@ export function SimplifiedHero() {
               >
                 <div className="flex justify-between items-center mb-6">
                   <div>
-                    <h3 className="text-lg font-bold">Market Analysis</h3>
+                    <h3 className="text-lg font-bold">{t('simplifiedHero.marketAnalysis')}</h3>
                     <p className="text-sm text-gray-400">Gold (XAU/USD)</p>
                   </div>
                   <div className="text-emerald-500 font-bold">+1.2%</div>
@@ -158,18 +159,18 @@ export function SimplifiedHero() {
 
                 <div className="space-y-4">
                   <div className="p-3 bg-gray-800/50 rounded-lg">
-                    <h4 className="text-sm font-medium mb-1">Key Support Level</h4>
-                    <p className="text-xs text-gray-400">$1,920.30 - Strong buying pressure expected</p>
+                    <h4 className="text-sm font-medium mb-1">{t('simplifiedHero.keySupportLevel')}</h4>
+                    <p className="text-xs text-gray-400">{t('simplifiedHero.supportLevelDescription')}</p>
                   </div>
 
                   <div className="p-3 bg-gray-800/50 rounded-lg">
-                    <h4 className="text-sm font-medium mb-1">Key Resistance Level</h4>
-                    <p className="text-xs text-gray-400">$1,965.80 - Watch for breakout opportunity</p>
+                    <h4 className="text-sm font-medium mb-1">{t('simplifiedHero.keyResistanceLevel')}</h4>
+                    <p className="text-xs text-gray-400">{t('simplifiedHero.resistanceLevelDescription')}</p>
                   </div>
 
                   <div className="p-3 bg-gray-800/50 rounded-lg">
-                    <h4 className="text-sm font-medium mb-1">Trading Recommendation</h4>
-                    <p className="text-xs text-gray-400">Buy on dips near $1,925 with stop loss at $1,915</p>
+                    <h4 className="text-sm font-medium mb-1">{t('simplifiedHero.tradingRecommendation')}</h4>
+                    <p className="text-xs text-gray-400">{t('simplifiedHero.tradingRecommendationDescription')}</p>
                   </div>
                 </div>
               </motion.div>

@@ -10,8 +10,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
+import { LanguageSwitcher } from "@/components/language-switcher"
+import { useTranslation } from "react-i18next"
 
 export function Navbar() {
+  const { t } = useTranslation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userName, setUserName] = useState("")
@@ -62,10 +65,10 @@ export function Navbar() {
   }
 
   const navItems = [
-    { name: "Home", href: "/" },
-    { name: "About", href: "/about" },
-    { name: "Contact", href: "/contact" },
-    { name: "Pricing", href: "/#pricing" },
+    { name: t('navbar.home'), href: "/" },
+    { name: t('navbar.about'), href: "/about" },
+    { name: t('navbar.contact'), href: "/contact" },
+    { name: t('navbar.subscriptions'), href: "/#pricing" },
   ]
 
   return (
@@ -87,7 +90,7 @@ export function Navbar() {
             className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-white"
             onClick={() => setMobileMenuOpen(true)}
           >
-            <span className="sr-only">Open main menu</span>
+            <span className="sr-only">{t('navbar.openMenu')}</span>
             <Menu className="h-6 w-6" aria-hidden="true" />
           </button>
         </div>
@@ -106,7 +109,8 @@ export function Navbar() {
           ))}
         </div>
 
-        <div className="hidden lg:flex lg:flex-1 lg:justify-end lg:gap-x-4">
+        <div className="hidden lg:flex lg:flex-1 lg:justify-end lg:gap-x-4 lg:items-center">
+          <LanguageSwitcher />
           {isAuthenticated ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -126,8 +130,8 @@ export function Navbar() {
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col space-y-1 leading-none">
-                    {userName && <p className="font-medium text-white">Welcome, {userName}</p>}
-                    <p className="text-xs text-gray-400">Manage your account</p>
+                    {userName && <p className="font-medium text-white">{t('navbar.welcome', { name: userName })}</p>}
+                    <p className="text-xs text-gray-400">{t('navbar.manageAccount')}</p>
                   </div>
                 </div>
                 <div className="p-1">
@@ -137,14 +141,14 @@ export function Navbar() {
                     onClick={() => {}}
                   >
                     <User className="mr-2 h-4 w-4 text-gray-400" />
-                    <span>Profile</span>
+                    <span>{t('navbar.profile')}</span>
                   </Link>
                   <button
                     onClick={handleLogout} 
                     className="flex items-center w-full px-3 py-2 text-sm rounded-md hover:bg-gray-800 text-gray-200 cursor-pointer"
                   >
                     <LogOut className="mr-2 h-4 w-4 text-gray-400" />
-                    <span>Log out</span>
+                    <span>{t('navbar.logout')}</span>
                   </button>
                 </div>
               </DropdownMenuContent>
@@ -152,10 +156,10 @@ export function Navbar() {
           ) : (
             <>
               <Button variant="outline" asChild>
-                <Link href="/login">Sign in</Link>
+                <Link href="/login">{t('navbar.login')}</Link>
               </Button>
               <Button asChild>
-                <Link href="/register">Sign up</Link>
+                <Link href="/register">{t('navbar.register')}</Link>
               </Button>
             </>
           )}
@@ -188,7 +192,7 @@ export function Navbar() {
                     className="rounded-md p-2 text-white hover:bg-gray-800"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    <span className="sr-only">Close menu</span>
+                    <span className="sr-only">{t('navbar.closeMenu')}</span>
                     <X className="h-6 w-6" aria-hidden="true" />
                   </button>
                 </div>
@@ -206,6 +210,9 @@ export function Navbar() {
                     </Link>
                   ))}
                 </div>
+                <div className="mb-6">
+                  <LanguageSwitcher />
+                </div>
                 <div className="grid gap-4 mt-8">
                   {isAuthenticated ? (
                     <>
@@ -218,7 +225,7 @@ export function Navbar() {
                         }}
                       >
                         <User className="mr-2 h-4 w-4" />
-                        <span>Profile</span>
+                        <span>{t('navbar.profile')}</span>
                       </Button>
                       <Button
                         className="w-full flex items-center justify-center"
@@ -229,7 +236,7 @@ export function Navbar() {
                         }}
                       >
                         <LogOut className="mr-2 h-4 w-4" />
-                        <span>Log out</span>
+                        <span>{t('navbar.logout')}</span>
                       </Button>
                     </>
                   ) : (
@@ -240,14 +247,14 @@ export function Navbar() {
                         onClick={() => setMobileMenuOpen(false)}
                         asChild
                       >
-                        <Link href="/login">Sign in</Link>
+                        <Link href="/login">{t('navbar.login')}</Link>
                       </Button>
                       <Button
                         className="w-full"
                         onClick={() => setMobileMenuOpen(false)}
                         asChild
                       >
-                        <Link href="/register">Sign up</Link>
+                        <Link href="/register">{t('navbar.register')}</Link>
                       </Button>
                     </>
                   )}

@@ -6,10 +6,12 @@ import { useParams } from "next/navigation"
 import Link from "next/link"
 import { CheckCircle, XCircle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useTranslation } from "react-i18next"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function VerifyEmailPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const params = useParams()
   const [verifying, setVerifying] = useState(true)
@@ -23,7 +25,7 @@ export default function VerifyEmailPage() {
         const token = params.token as string
         
         if (!token) {
-          throw new Error("Invalid verification link")
+          throw new Error(t('verifyEmailPage.emailVerificationFailed'))
         }
         
         // Directly make a request to the backend through our API route
@@ -41,7 +43,7 @@ export default function VerifyEmailPage() {
         setSuccess(true)
       } catch (err: any) {
         console.error('Verification error:', err)
-        setError(err.message || "Failed to verify email")
+        setError(err.message || t('verifyEmailPage.emailVerificationFailed'))
       } finally {
         setVerifying(false)
       }
@@ -60,10 +62,10 @@ export default function VerifyEmailPage() {
         <Card className="border-gray-800 bg-gray-950/80 backdrop-blur-sm">
           <CardHeader className="space-y-1 text-center">
             <CardTitle className="text-2xl font-bold tracking-tight">
-              Email Verification
+              {verifying ? t('verifyEmailPage.verifyingEmail') : success ? t('verifyEmailPage.emailVerified') : t('verifyEmailPage.verificationFailed')}
             </CardTitle>
             <CardDescription className="text-gray-400">
-              Verifying your email address
+              {verifying ? t('verifyEmailPage.verifyingEmail') : success ? t('verifyEmailPage.emailVerifiedSuccessfully') : t('verifyEmailPage.emailVerificationFailed')}
             </CardDescription>
           </CardHeader>
           
@@ -71,24 +73,24 @@ export default function VerifyEmailPage() {
             {verifying ? (
               <div className="flex flex-col items-center justify-center space-y-4 py-6">
                 <Loader2 className="h-16 w-16 animate-spin text-indigo-500" />
-                <p className="text-center text-gray-300">Verifying your email address...</p>
+                <p className="text-center text-gray-300">{t('verifyEmailPage.verifyingEmail')}</p>
               </div>
             ) : success ? (
               <div className="flex flex-col items-center justify-center space-y-4 py-6">
                 <CheckCircle className="h-16 w-16 text-green-500" />
-                <h3 className="text-xl font-medium text-green-500">Email Verified Successfully</h3>
+                <h3 className="text-xl font-medium text-green-500">{t('verifyEmailPage.emailVerified')}</h3>
                 <p className="text-center text-gray-300">
-                  Thank you for verifying your email address. You can now login to your account.
+                  {t('verifyEmailPage.emailVerifiedSuccessfully')}
                 </p>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center space-y-4 py-6">
                 <XCircle className="h-16 w-16 text-red-500" />
-                <h3 className="text-xl font-medium text-red-500">Verification Failed</h3>
+                <h3 className="text-xl font-medium text-red-500">{t('verifyEmailPage.verificationFailed')}</h3>
                 <p className="text-center text-gray-300">{error}</p>
                 <Alert className="border-red-500/20 bg-red-500/10">
                   <AlertDescription>
-                    The verification link may have expired or is invalid. Please try registering again or contact support.
+                    {t('verifyEmailPage.emailVerificationFailed')}
                   </AlertDescription>
                 </Alert>
               </div>
@@ -101,7 +103,7 @@ export default function VerifyEmailPage() {
               onClick={() => router.push('/login')}
               disabled={verifying}
             >
-              {success ? 'Go to Login' : 'Back to Login'}
+              {success ? t('verifyEmailPage.continueToLogin') : t('verifyEmailPage.tryAgain')}
             </Button>
             
             {!success && !verifying && (

@@ -11,6 +11,7 @@ import { SimplifiedHero } from "@/components/simplified-hero"
 import Image from "next/image";
 import { api } from "@/lib/api"; // Import the api utility
 import { toast } from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 
 // Define Plan interface to match SubscriptionPlan from API
 interface Plan {
@@ -54,6 +55,7 @@ const DynamicMarketBackground = dynamic(() => import("@/components/market-backgr
 })
 
 export default function Home() {
+  const { t } = useTranslation();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -93,11 +95,11 @@ export default function Home() {
           setPlans(activePlans);
         } else {
           console.error('Invalid response format:', response);
-          setError('Failed to load plans. Please try again later.');
+          setError(t('homepage.pricing.failedToLoad'));
         }
       } catch (error) {
         console.error('Error fetching plans:', error);
-        setError('Failed to load plans. Please try again later.');
+        setError(t('homepage.pricing.failedToLoad'));
       } finally {
         setLoading(false);
       }
@@ -111,7 +113,7 @@ export default function Home() {
       return (
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           {[1, 2, 3].map((_, i) => (
-            <PlanCard key={i} name="Loading..." price={0} description="" features={[]} highlighted={false} assetCount={0} isLoading={true} />
+            <PlanCard key={i} name={t('common.loading')} price={0} description="" features={[]} highlighted={false} assetCount={0} isLoading={true} />
           ))}
         </div>
       );
@@ -128,7 +130,7 @@ export default function Home() {
     if (plans.length === 0) {
       return (
         <div className="text-center text-gray-400 text-lg mt-8">
-          <p>No subscription plans available at the moment. Please check back later.</p>
+          <p>{t('homepage.pricing.noPlansAvailable')}</p>
         </div>
       );
     }
@@ -176,12 +178,11 @@ export default function Home() {
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
               <span className="bg-gradient-to-r from-emerald-400 to-blue-500 bg-clip-text text-transparent">
-                Premium Market Analysis
+                {t('homepage.hero.title')}
               </span>
             </h2>
             <p className="mt-4 text-xl text-gray-400 max-w-3xl mx-auto">
-              Get expert trading insights delivered directly to your inbox. Select your assets and receive personalized
-              analysis.
+              {t('homepage.hero.subtitle')}
             </p>
           </div>
 
@@ -193,12 +194,11 @@ export default function Home() {
             <div className="text-center mb-16">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
                 <span className="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-                  Subscription Plans
+                  {t('homepage.pricing.title')}
                 </span>
               </h2>
               <p className="mt-4 text-xl text-gray-400 max-w-3xl mx-auto">
-                Choose the plan that fits your trading strategy. Each plan allows you to select specific assets for
-                analysis.
+                {t('homepage.pricing.subtitle')}
               </p>
             </div>
 
@@ -213,21 +213,20 @@ export default function Home() {
               <div>
                 <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
                   <span className="bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
-                    Ready to elevate your trading?
+                    {t('homepage.cta.title')}
                   </span>
                 </h2>
                 <p className="mt-4 text-lg text-gray-400">
-                  Join thousands of traders who rely on our expert analysis to make informed decisions in volatile
-                  markets.
+                  {t('homepage.cta.subtitle')}
                 </p>
                 <div className="mt-8 flex flex-wrap gap-4">
                   <Button size="lg" asChild>
                     <Link href="/register">
-                      Get Started <ArrowUpRight className="ml-2 h-4 w-4" />
+                      {t('common.getStarted')} <ArrowUpRight className="ml-2 h-4 w-4" />
                     </Link>
                   </Button>
                   <Button variant="outline" size="lg">
-                    Learn More
+                    {t('common.learnMore')}
                   </Button>
                 </div>
               </div>
@@ -245,7 +244,7 @@ export default function Home() {
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-center w-14 h-14 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-110"
-            aria-label="تواصل معنا على واتساب"
+            aria-label={t('homepage.whatsapp.ariaLabel')}
           >
             <MessageCircle className="w-6 h-6" />
           </a>

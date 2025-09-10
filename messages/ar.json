@@ -1,23 +1,638 @@
 {
   "common": {
-    "success": "تم بنجاح",
+    "success": "نجح",
     "error": "خطأ",
     "cancel": "إلغاء",
     "selectAll": "تحديد الكل",
-    "deselectAll": "إلغاء تحديد الكل"
+    "deselectAll": "إلغاء تحديد الكل",
+    "loading": "جاري التحميل...",
+    "getStarted": "ابدأ الآن",
+    "learnMore": "اعرف المزيد"
   },
-  "users": {
-    "subscription": {
-      "managementTitle": "إدارة الاشتراك والأصول",
-      "managementDescription": "اختر خطة الاشتراك والأصول التي تريد إضافتها للمستخدم",
-      "selectPlan": "اختر الخطة",
-      "selectPlanPlaceholder": "اختر خطة الاشتراك",
-      "duration": "المدة (بالأشهر)",
-      "tradingPairs": "أزواج التداول",
-      "updateButton": "تحديث",
-      "updatingButton": "جاري التحديث...",
-      "updateSuccess": "تم تحديث الاشتراك والأصول بنجاح",
-      "updateError": "حدث خطأ أثناء تحديث الاشتراك والأصول"
+  "homepage": {
+    "hero": {
+      "title": "تحليل السوق المتميز",
+      "subtitle": "احصل على رؤى التداول الخبيرة مباشرة في صندوق بريدك الإلكتروني. اختر أصولك واحصل على تحليل شخصي."
+    },
+    "pricing": {
+      "title": "خطط الاشتراك",
+      "subtitle": "اختر الخطة التي تناسب استراتيجية التداول الخاصة بك. كل خطة تتيح لك اختيار أصول محددة للتحليل.",
+      "loadingPlans": "جاري التحميل...",
+      "noPlansAvailable": "لا توجد خطط اشتراك متاحة في الوقت الحالي. يرجى المراجعة لاحقاً.",
+      "failedToLoad": "فشل في تحميل الخطط. يرجى المحاولة مرة أخرى لاحقاً."
+    },
+    "cta": {
+      "title": "هل أنت مستعد لرفع مستوى تداولك؟",
+      "subtitle": "انضم إلى آلاف المتداولين الذين يعتمدون على تحليلنا الخبير لاتخاذ قرارات مدروسة في الأسواق المتقلبة."
+    },
+    "whatsapp": {
+      "ariaLabel": "تواصل معنا على واتساب"
     }
+  },
+  "navbar": {
+    "home": "الرئيسية",
+    "about": "حولنا",
+    "contact": "اتصل بنا",
+    "subscriptions": "الاشتراكات",
+    "profile": "الملف الشخصي",
+    "login": "تسجيل الدخول",
+    "register": "إنشاء حساب",
+    "logout": "تسجيل الخروج",
+    "dashboard": "لوحة التحكم",
+    "welcome": "مرحباً، {{name}}!",
+    "toggleMenu": "تبديل القائمة",
+    "userMenu": "قائمة المستخدم",
+    "viewProfile": "عرض الملف الشخصي",
+    "settings": "الإعدادات",
+    "signOut": "تسجيل الخروج"
+  },
+  "loginPage": {
+    "title": "تسجيل الدخول إلى حسابك",
+    "welcomeBack": "مرحباً بعودتك",
+    "description": "أدخل بياناتك للوصول إلى حسابك",
+    "email": "البريد الإلكتروني",
+    "emailPlaceholder": "أدخل بريدك الإلكتروني",
+    "password": "كلمة المرور",
+    "passwordPlaceholder": "أدخل كلمة المرور",
+    "forgotPassword": "نسيت كلمة المرور؟",
+    "signIn": "تسجيل الدخول",
+    "signingIn": "جاري تسجيل الدخول...",
+    "noAccount": "ليس لديك حساب؟",
+    "signUp": "إنشاء حساب",
+    "rememberMe": "تذكرني",
+    "invalidCredentials": "بريد إلكتروني أو كلمة مرور غير صحيحة",
+    "loginFailed": "فشل تسجيل الدخول. يرجى المحاولة مرة أخرى."
+  },
+  "registerPage": {
+    "title": "إنشاء حساب جديد",
+    "joinTitle": "انضم إلى نوفيا الذكية",
+    "description": "أدخل معلوماتك لإنشاء حساب",
+    "firstName": "الاسم الأول",
+    "firstNamePlaceholder": "أحمد",
+    "lastName": "اسم العائلة",
+    "lastNamePlaceholder": "محمد",
+    "email": "البريد الإلكتروني",
+    "emailPlaceholder": "name@example.com",
+    "phoneNumber": "رقم الهاتف",
+    "phoneNumberPlaceholder": "رقم الهاتف",
+    "selectCountry": "اختر البلد",
+    "searchCountry": "البحث عن بلد...",
+    "noCountryFound": "لم يتم العثور على بلد.",
+    "password": "كلمة المرور",
+    "confirmPassword": "تأكيد كلمة المرور",
+    "passwordRequirement": "يجب أن تكون كلمة المرور 8 أحرف على الأقل",
+    "haveReferralCode": "لدي كود إحالة",
+    "referralCode": "كود الإحالة (اختياري)",
+    "referralCodePlaceholder": "أدخل كود الإحالة هنا",
+    "createAccount": "إنشاء حساب",
+    "creatingAccount": "جاري إنشاء الحساب...",
+    "alreadyHaveAccount": "لديك حساب بالفعل؟",
+    "signIn": "تسجيل الدخول",
+    "passwordTooShort": "يجب أن تكون كلمة المرور 8 أحرف على الأقل",
+    "passwordNeedsUppercase": "يجب أن تحتوي كلمة المرور على حرف كبير واحد على الأقل",
+    "passwordNeedsLowercase": "يجب أن تحتوي كلمة المرور على حرف صغير واحد على الأقل",
+    "passwordNeedsNumber": "يجب أن تحتوي كلمة المرور على رقم واحد على الأقل",
+    "passwordNeedsSpecial": "يجب أن تحتوي كلمة المرور على رمز خاص واحد على الأقل",
+    "enterPhoneNumber": "يرجى إدخال رقم هاتفك",
+    "passwordsDoNotMatch": "كلمات المرور غير متطابقة",
+    "provideValidPhone": "يرجى تقديم رقم هاتف صالح"
+  },
+  "resetPasswordPage": {
+    "backToLogin": "العودة إلى تسجيل الدخول",
+    "resetYourPassword": "إعادة تعيين كلمة المرور",
+    "enterNewPassword": "أدخل كلمة المرور الجديدة أدناه",
+    "validatingLink": "جاري التحقق من رابط إعادة التعيين...",
+    "passwordResetComplete": "تم إعادة تعيين كلمة المرور",
+    "passwordUpdatedSuccess": "تم تحديث كلمة المرور بنجاح. يمكنك الآن تسجيل الدخول بكلمة المرور الجديدة.",
+    "goToLogin": "الذهاب إلى تسجيل الدخول",
+    "newPassword": "كلمة المرور الجديدة",
+    "passwordPlaceholder": "••••••••",
+    "passwordRequirement": "يجب أن تكون كلمة المرور 8 أحرف على الأقل",
+    "confirmNewPassword": "تأكيد كلمة المرور الجديدة",
+    "resettingPassword": "جاري إعادة تعيين كلمة المرور...",
+    "resetPassword": "إعادة تعيين كلمة المرور",
+    "invalidOrExpiredLink": "رابط غير صالح أو منتهي الصلاحية",
+    "linkExpiredMessage": "رابط إعادة تعيين كلمة المرور غير صالح أو منتهي الصلاحية. يرجى طلب رابط جديد لإعادة تعيين كلمة المرور.",
+    "requestNewLink": "طلب رابط جديد",
+    "rememberPassword": "تتذكر كلمة المرور؟ سجل الدخول",
+    "passwordsDoNotMatch": "كلمات المرور غير متطابقة",
+    "passwordTooShort": "يجب أن تكون كلمة المرور 8 أحرف على الأقل",
+    "invalidResetLink": "رابط إعادة تعيين غير صالح"
+  },
+  "subscriptionsPage": {
+    "chooseYourPlan": "اختر خطتك",
+    "error": "خطأ",
+    "noPlansAvailable": "لا توجد خطط متاحة",
+    "noPlansMessage": "لا توجد خطط اشتراك متاحة حالياً.",
+    "failedToLoadPlans": "فشل في تحميل خطط الاشتراك"
+  },
+  "profilePage": {
+    "loadingProfile": "جاري تحميل الملف الشخصي...",
+    "myProfile": "ملفي الشخصي",
+    "profile": "الملف الشخصي",
+    "password": "كلمة المرور",
+    "subscription": "الاشتراك",
+    "notifications": "الإشعارات",
+    "assetPreferences": "تفضيلات الأصول",
+    "referral": "الإحالة",
+    "personalInformation": "المعلومات الشخصية",
+    "updatePersonalDetails": "تحديث تفاصيلك الشخصية.",
+    "firstName": "الاسم الأول",
+    "lastName": "اسم العائلة",
+    "email": "البريد الإلكتروني",
+    "countryCode": "رمز البلد",
+    "phoneNumber": "رقم الهاتف",
+    "binanceWallet": "محفظة بينانس",
+    "updateProfile": "تحديث الملف الشخصي",
+    "success": "نجح",
+    "profileUpdatedSuccess": "تم تحديث الملف الشخصي بنجاح",
+    "error": "خطأ",
+    "failedToUpdateProfile": "فشل في تحديث الملف الشخصي",
+    "limitReached": "تم الوصول إلى الحد الأقصى",
+    "maxAssetsMessage": "يمكنك اختيار حد أقصى {{count}} أصل.",
+    "subscriptionCancelledSuccess": "تم إلغاء اشتراكك بنجاح",
+    "failedToCancelSubscription": "فشل في إلغاء الاشتراك"
+  },
+  "paymentPage": {
+    "backToPlans": "العودة إلى الخطط",
+    "completePayment": "إكمال الدفع",
+    "selectPlan": "اختر الخطة",
+    "paymentMethod": "طريقة الدفع",
+    "cryptoPayment": "الدفع بالعملة المشفرة",
+    "network": "الشبكة",
+    "currency": "العملة",
+    "walletAddress": "عنوان المحفظة",
+    "uploadReceipt": "رفع إيصال الدفع",
+    "additionalNotes": "ملاحظات إضافية",
+    "submitPayment": "إرسال الدفعة",
+    "processing": "جاري المعالجة...",
+    "paymentSuccess": "تم الدفع بنجاح",
+    "paymentFailed": "فشل في الدفع",
+    "invalidPlan": "خطة غير صالحة",
+    "loadingPlan": "جاري تحميل الخطة...",
+    "error": "خطأ"
+  },
+  "footer": {
+    "newsletter": {
+      "title": "ابق على اطلاع",
+      "description": "اشترك في نشرتنا الإخبارية للحصول على أحدث رؤى السوق والتحديثات.",
+      "emailPlaceholder": "أدخل بريدك الإلكتروني",
+      "subscribeButton": "اشترك"
+    },
+    "company": {
+      "description": "تحليلات السوق المتميزة ورؤى التداول يتم توصيلها مباشرة إلى صندوق بريدك الإلكتروني."
+    },
+    "products": {
+      "title": "المنتجات",
+      "starterPlan": "الخطة الأساسية",
+      "proPlan": "الخطة الاحترافية",
+      "expertPlan": "خطة الخبراء",
+      "customSolutions": "حلول مخصصة"
+    },
+    "support": {
+      "title": "الدعم",
+      "helpCenter": "مركز المساعدة",
+      "contactUs": "اتصل بنا",
+      "faq": "الأسئلة الشائعة",
+      "documentation": "التوثيق"
+    },
+    "legal": {
+      "title": "القانوني",
+      "privacyPolicy": "سياسة الخصوصية",
+      "termsOfService": "شروط الخدمة",
+      "cookiePolicy": "سياسة ملفات تعريف الارتباط",
+      "riskDisclaimer": "إخلاء مسؤولية المخاطر"
+    },
+    "quickLinks": {
+      "privacy": "الخصوصية",
+      "terms": "الشروط",
+      "cookies": "ملفات تعريف الارتباط"
+    },
+    "copyright": "© {{year}} نوفيا الذكية. جميع الحقوق محفوظة."
+  },
+  "heroSection": {
+    "title": "تحليل السوق المتميز",
+    "subtitle": "احصل على رؤى التداول الخبيرة مباشرة في صندوق بريدك الإلكتروني",
+    "description": "اختر أصولك واحصل على تحليل شخصي",
+    "getStarted": "ابدأ الآن",
+    "viewPricing": "عرض الأسعار",
+    "realtimeAnalysis": "تحليل فوري",
+    "expertInsights": "رؤى الخبراء",
+    "multipleAssets": "أصول متعددة",
+    "marketAnalysis": "تحليل السوق",
+    "keySupportLevel": "مستوى الدعم الرئيسي",
+    "supportDescription": "توقع اهتمام شراء قوي",
+    "keyResistanceLevel": "مستوى المقاومة الرئيسي",
+    "resistanceDescription": "ضغط بيع محتمل",
+    "tradingRecommendation": "توصية التداول",
+    "recommendationDescription": "فكر في المراكز الطويلة عند التراجع إلى الدعم",
+    "scrollToExplore": "مرر للاستكشاف"
+  },
+  "simplifiedHero": {
+    "expertMarket": "السوق الخبير",
+    "analysis": "التحليل",
+    "description": "اشترك لتلقي رؤى التداول المهنية حول الأصول المختارة. اختر خطتك، حدد أصولك، وابدأ في اتخاذ قرارات تداول مدروسة.",
+    "getStarted": "ابدأ الآن",
+    "viewPricing": "عرض الأسعار",
+    "realtimeAnalysis": "تحليل فوري",
+    "expertInsights": "رؤى الخبراء",
+    "multipleAssets": "أصول متعددة",
+    "marketAnalysis": "تحليل السوق",
+    "keySupportLevel": "مستوى الدعم الرئيسي",
+    "supportLevelDescription": "$1,920.30 - توقع ضغط شراء قوي",
+    "keyResistanceLevel": "مستوى المقاومة الرئيسي",
+    "resistanceLevelDescription": "$1,965.80 - راقب فرصة الاختراق",
+    "tradingRecommendation": "توصية التداول",
+    "tradingRecommendationDescription": "اشتري عند الانخفاضات قرب $1,925 مع وقف الخسارة عند $1,915"
+  },
+  "featureSection": {
+    "realtimeAnalysis": {
+      "name": "التحليل الفوري",
+      "description": "ابق متقدماً على السوق مع الرؤى الفورية والأنماط التقنية."
+    },
+    "multipleAssets": {
+      "name": "أصول متعددة",
+      "description": "اختر من الأسهم والعملات المشفرة وأزواج الفوركس والسلع والمزيد."
+    },
+    "expertInsights": {
+      "name": "رؤى الخبراء",
+      "description": "استفد من سنوات الخبرة في التداول من فريق المحللين لدينا."
+    },
+    "regularUpdates": {
+      "name": "تحديثات منتظمة",
+      "description": "احصل على التحليل حسب جدولك الزمني - يومياً أو أسبوعياً أو كل أسبوعين."
+    },
+    "priceAlerts": {
+      "name": "تنبيهات الأسعار",
+      "description": "احصل على إشعارات عندما تصل أصولك إلى مستويات أسعار حرجة."
+    },
+    "customDelivery": {
+      "name": "التوصيل المخصص",
+      "description": "احصل على التحليل مباشرة في صندوق بريدك عندما تحتاجه أكثر."
+    },
+    "advancedCharts": {
+      "name": "الرسوم البيانية المتقدمة",
+      "description": "تمثيل بصري للاتجاهات مع نقاط دخول وخروج واضحة."
+    },
+    "flexiblePlans": {
+      "name": "خطط مرنة",
+      "description": "اختر خطة الاشتراك التي تناسب احتياجات التداول الخاصة بك."
+    }
+  },
+  "enhancedFooter": {
+    "newsletter": {
+      "title": "احصل على رؤى السوق أولاً",
+      "description": "اشترك في نشرتنا الإخبارية للحصول على أحدث تحليلات السوق ونصائح التداول والعروض الحصرية.",
+      "emailLabel": "عنوان البريد الإلكتروني",
+      "emailPlaceholder": "name@example.com",
+      "consentText": "أوافق على تلقي رسائل البريد الإلكتروني التسويقية ويمكنني إلغاء الاشتراك في أي وقت",
+      "subscribeButton": "اشترك"
+    },
+    "company": {
+      "description": "تحليل السوق الخبير يصل إلى صندوق بريدك. اشترك لاتخاذ قرارات تداول مدروسة.",
+      "social": {
+        "twitter": "تويتر",
+        "linkedin": "لينكد إن",
+        "github": "جيت هاب"
+      }
+    },
+    "products": {
+      "title": "المنتجات",
+      "starterPlan": "الخطة المبتدئة",
+      "proPlan": "الخطة الاحترافية",
+      "expertPlan": "خطة الخبراء",
+      "customSolutions": "الحلول المخصصة"
+    },
+    "support": {
+      "title": "الدعم",
+      "helpCenter": "مركز المساعدة",
+      "contactUs": "اتصل بنا",
+      "faq": "الأسئلة الشائعة",
+      "documentation": "التوثيق"
+    },
+    "legal": {
+      "title": "القانونية",
+      "privacyPolicy": "سياسة الخصوصية",
+      "termsOfService": "شروط الخدمة",
+      "cookiePolicy": "سياسة ملفات تعريف الارتباط",
+      "riskDisclaimer": "إخلاء مسؤولية المخاطر"
+    },
+    "contact": {
+      "title": "اتصل بنا",
+      "emailDescription": "للاستفسارات العامة",
+      "phoneDescription": "تركيا",
+      "locations": {
+        "turkey": "تركيا إسطنبول",
+        "egypt": "مصر القاهرة",
+        "bahrain": "البحرين"
+      }
+    },
+    "copyright": "نوفيا الذكاء الاصطناعي المحدودة. جميع الحقوق محفوظة."
+  },
+  "about": {
+    "title": "حول نوفيا",
+    "subtitle": "تمكين المتداولين من خلال تحليل السوق المدعوم بالذكاء الاصطناعي والرؤى الخبيرة لاتخاذ قرارات مدروسة في الأسواق المالية العالمية.",
+    "story": {
+      "title": "قصتنا",
+      "paragraph1": "تأسست نوفيا الذكاء الاصطناعي من قبل فريق من المتداولين ذوي الخبرة وأخصائيي الذكاء الاصطناعي، وولدت من الحاجة إلى إضفاء الطابع الديمقراطي على الوصول إلى تحليل السوق ذي المستوى المهني.",
+      "paragraph2": "أدركنا أن التداول الناجح يتطلب أكثر من مجرد الحدس - إنه يتطلب رؤى مدفوعة بالبيانات وخبرة تقنية ومعلومات استخبارية في الوقت المناسب للسوق.",
+      "paragraph3": "اليوم، نخدم آلاف المتداولين في جميع أنحاء العالم، ونوفر لهم الأدوات والمعرفة التي يحتاجونها للتنقل في الأسواق المالية المعقدة بثقة."
+    },
+    "emailTypes": {
+      "title": "أنواع التحليل التي نقدمها",
+      "subtitle": "يغطي تحليلنا الشامل تنسيقات متعددة لتناسب أساليب وتفضيلات التداول المختلفة.",
+      "signal": {
+        "title": "إشارات التداول",
+        "description": "نقاط دخول وخروج دقيقة مع مستويات واضحة لوقف الخسارة وجني الأرباح للعمل الفوري."
+      },
+      "analysis": {
+        "title": "تحليل السوق",
+        "description": "تحليل فني مفصل مع مستويات الدعم والمقاومة واتجاه الاتجاه ونظرة السوق."
+      },
+      "target": {
+        "title": "تحقيق الهدف",
+        "description": "إشعارات في الوقت الفعلي عندما تصل صفقاتك إلى أهداف الربح المحددة مسبقاً."
+      },
+      "newSession": {
+        "title": "تحديثات الجلسة",
+        "description": "تنبيهات لجلسات التداول الجديدة وفرص افتتاح السوق."
+      }
+    },
+    "values": {
+      "title": "قيمنا الأساسية",
+      "subtitle": "المبادئ التي توجه مهمتنا لتقديم رؤى وخدمات تداول استثنائية.",
+      "accuracy": {
+        "title": "الدقة",
+        "description": "نسعى جاهدين للحصول على الدقة في كل تحليل، باستخدام خوارزميات متقدمة والتحقق من الخبراء."
+      },
+      "transparency": {
+        "title": "الشفافية",
+        "description": "تواصل واضح وصادق حول ظروف السوق والمخاطر والنتائج المحتملة."
+      },
+      "education": {
+        "title": "التعليم",
+        "description": "تمكين المتداولين بالمعرفة والرؤى لتحسين مهارات التداول لديهم."
+      },
+      "innovation": {
+        "title": "الابتكار",
+        "description": "تحسين نماذج الذكاء الاصطناعي وتقنيات التحليل باستمرار للحصول على نتائج أفضل."
+      },
+      "integrity": {
+        "title": "النزاهة",
+        "description": "الحفاظ على أعلى المعايير الأخلاقية في جميع توصيات التداول لدينا."
+      },
+      "customerFocus": {
+        "title": "التركيز على العملاء",
+        "description": "وضع نجاح مشتركينا في مركز كل ما نقوم به."
+      }
+    },
+    "cta": {
+      "title": "هل أنت مستعد لتحويل تداولك؟",
+      "subtitle": "انضم إلى آلاف المتداولين الناجحين الذين يثقون في نوفيا الذكاء الاصطناعي لتلبية احتياجات تحليل السوق."
+    }
+  },
+  "contact": {
+    "title": "اتصل بنا",
+    "subtitle": "تواصل معنا",
+    "description": "هل لديك أسئلة حول خدماتنا؟ تحتاج دعم مع اشتراكك؟ نحن هنا لمساعدتك على النجاح في رحلة التداول الخاصة بك.",
+    "form": {
+      "title": "أرسل لنا رسالة",
+      "description": "املأ النموذج أدناه وسنعود إليك في أقرب وقت ممكن.",
+      "firstName": "الاسم الأول",
+      "firstNamePlaceholder": "أدخل اسمك الأول",
+      "lastName": "اسم العائلة",
+      "lastNamePlaceholder": "أدخل اسم العائلة",
+      "email": "عنوان البريد الإلكتروني",
+      "emailPlaceholder": "أدخل عنوان بريدك الإلكتروني",
+      "subject": "الموضوع",
+      "subjectPlaceholder": "ما هو موضوع رسالتك؟",
+      "message": "الرسالة",
+      "messagePlaceholder": "أخبرنا كيف يمكننا مساعدتك...",
+      "sendButton": "إرسال الرسالة"
+    },
+    "info": {
+      "title": "معلومات الاتصال",
+      "description": "تواصل معنا من خلال أي من هذه القنوات.",
+      "email": "البريد الإلكتروني",
+      "phone": "الهاتف",
+      "location": "المواقع"
+    }
+  },
+  "profilePage": {
+    "loadingProfile": "جاري تحميل الملف الشخصي...",
+    "myProfile": "ملفي الشخصي",
+    "profile": "الملف الشخصي",
+    "password": "كلمة المرور",
+    "subscription": "الاشتراك",
+    "notifications": "الإشعارات",
+    "assetPreferences": "تفضيلات الأصول",
+    "referral": "الإحالة",
+    "personalInformation": "المعلومات الشخصية",
+    "updatePersonalDetails": "قم بتحديث تفاصيلك الشخصية ومعلومات الاتصال.",
+    "firstName": "الاسم الأول",
+    "lastName": "اسم العائلة",
+    "email": "البريد الإلكتروني",
+    "countryCode": "رمز البلد",
+    "phoneNumber": "رقم الهاتف",
+    "binanceWallet": "عنوان محفظة بينانس",
+    "updateProfile": "تحديث الملف الشخصي",
+    "changePassword": "تغيير كلمة المرور",
+    "updatePasswordDescription": "قم بتحديث كلمة مرور حسابك. ستتلقى بريداً إلكترونياً للتحقق.",
+    "verificationDescription": "يرجى إدخال رمز التحقق المرسل إلى بريدك الإلكتروني",
+    "currentPassword": "كلمة المرور الحالية",
+    "newPassword": "كلمة المرور الجديدة",
+    "confirmNewPassword": "تأكيد كلمة المرور الجديدة",
+    "requestPasswordChange": "طلب تغيير كلمة المرور",
+    "verificationCode": "رمز التحقق",
+    "verificationCodePlaceholder": "أدخل الرمز من بريدك الإلكتروني",
+    "back": "العودة",
+    "verifyChangePassword": "التحقق وتغيير كلمة المرور",
+    "subscriptionDetails": "تفاصيل الاشتراك",
+    "manageSubscription": "إدارة اشتراكك الحالي.",
+    "currentPlan": "الخطة الحالية",
+    "subscriptionStatus": "حالة الاشتراك",
+    "nextPaymentDate": "تاريخ الدفع التالي",
+    "autoRenew": "التجديد التلقائي",
+    "enabled": "مفعل",
+    "disabled": "معطل",
+    "paymentId": "معرف الدفع",
+    "notAvailable": "غير متوفر",
+    "copy": "نسخ",
+    "paymentIdDescription": "استخدم هذا المعرف لتفعيل إشعارات تليجرام",
+    "telegramNotifications": "إشعارات تليجرام",
+    "telegramInstructions": "كيفية تفعيل بوت تليجرام:",
+    "telegramStep1": "انسخ معرف الدفع من الأعلى",
+    "telegramStep2": "اضغط على زر \"فتح بوت تليجرام\" أدناه",
+    "telegramStep3": "ابدأ محادثة مع البوت بالضغط على \"ابدأ\"",
+    "telegramStep4": "أدخل معرف الدفع عندما يطلبه البوت",
+    "telegramStep5": "بعد التحقق، ستبدأ في تلقي الإشعارات",
+    "openTelegramBot": "فتح بوت تليجرام",
+    "cancelSubscription": "إلغاء الاشتراك",
+    "cancelSubscriptionTitle": "إلغاء الاشتراك",
+    "cancelSubscriptionWarning": "هل أنت متأكد من أنك تريد إلغاء اشتراكك؟ يرجى ملاحظة:",
+    "cancelSubscriptionNote": "ستفقد الوصول إلى جميع الميزات المميزة والتحليلات. لن يتم تقديم استرداد للوقت غير المستخدم.",
+    "cancelSubscriptionActive": "سيبقى اشتراكك نشطاً حتى نهاية فترة الفوترة الحالية.",
+    "keepSubscription": "الاحتفاظ بالاشتراك",
+    "yesCancelSubscription": "نعم، إلغاء الاشتراك",
+    "notificationSettings": "إعدادات الإشعارات",
+    "manageNotificationPreferences": "إدارة تفضيلات البريد الإلكتروني والإشعارات المباشرة.",
+    "marketingEmails": "رسائل البريد الإلكتروني التسويقية",
+    "assetAnalysisUpdates": "تحديثات تحليل الأصول",
+    "priceAlerts": "تنبيهات الأسعار",
+    "saveNotificationPreferences": "حفظ تفضيلات الإشعارات",
+    "assetPreferencesTitle": "تفضيلات الأصول",
+    "assetPreferencesUnlimited": "اختر أي عدد من الأصول تريده لتلقي تحديثات مفصلة عبر البريد الإلكتروني.",
+    "assetPreferencesLimited": "اختر حتى {count} أصول لتلقي تحديثات مفصلة عبر البريد الإلكتروني.",
+    "forex": "الفوركس",
+    "stockIndices": "مؤشرات الأسهم",
+    "commodities": "السلع",
+    "cryptocurrencies": "العملات المشفرة",
+    "saveAssetPreferences": "حفظ تفضيلات الأصول",
+    "referralProgram": "برنامج الإحالة",
+    "referralDescription": "شارك رمز الإحالة الخاص بك واكسب نقاط لكل إحالة ناجحة.",
+    "yourReferralCode": "رمز الإحالة الخاص بك",
+    "totalReferrals": "إجمالي الإحالات",
+    "peopleUsedCode": "الأشخاص الذين استخدموا رمزك",
+    "currentPoints": "النقاط الحالية",
+    "availablePoints": "النقاط المتاحة للاستبدال",
+    "howItWorks": "كيف يعمل",
+    "shareYourCode": "شارك رمزك",
+    "shareCodeDescription": "شارك رمز الإحالة الفريد مع الأصدقاء والزملاء",
+    "theySignUp": "يقومون بالتسجيل",
+    "signUpDescription": "عندما يسجلون باستخدام رمزك، تحصلون كلاكما على 10 نقاط",
+    "earnMorePoints": "اكسب المزيد من النقاط",
+    "earnPointsDescription": "احصل على نقاط إضافية عندما يشتركون في خطة مدفوعة",
+    "referredBy": "تمت الإحالة بواسطة",
+    "referredByText": "تمت إحالتك بواسطة:",
+    "limitReached": "تم الوصول للحد الأقصى",
+    "maxAssetsMessage": "يمكنك اختيار حد أقصى {count} أصول مع خطتك الحالية.",
+    "success": "نجح",
+    "error": "خطأ",
+    "profileUpdatedSuccess": "تم تحديث الملف الشخصي بنجاح",
+    "failedToUpdateProfile": "فشل في تحديث الملف الشخصي",
+    "subscriptionCancelledSuccess": "تم إلغاء الاشتراك بنجاح",
+    "failedToCancelSubscription": "فشل في إلغاء الاشتراك",
+    "failedToFetchProfile": "فشل في تحميل الملف الشخصي",
+    "free": "مجاني",
+    "notActive": "غير نشط",
+    "active": "نشط",
+    "cancelled": "ملغى",
+    "expired": "منتهي الصلاحية"
+  },
+  "loginPage": {
+    "back": "العودة",
+    "signInToAccount": "تسجيل الدخول إلى حسابك",
+    "welcomeBack": "مرحباً بعودتك",
+    "enterCredentials": "أدخل بياناتك للوصول إلى حسابك",
+    "emailAddress": "عنوان البريد الإلكتروني",
+    "emailPlaceholder": "name@example.com",
+    "password": "كلمة المرور",
+    "forgotPassword": "نسيت كلمة المرور؟",
+    "signingIn": "جاري تسجيل الدخول...",
+    "signIn": "تسجيل الدخول",
+    "noAccount": "ليس لديك حساب؟",
+    "signUp": "إنشاء حساب"
+  },
+  "registerPage": {
+    "back": "العودة",
+    "createNewAccount": "إنشاء حساب جديد",
+    "joinNoviaAI": "انضم إلى نوفيا AI",
+    "enterInformation": "أدخل معلوماتك لإنشاء حسابك",
+    "firstName": "الاسم الأول",
+    "firstNamePlaceholder": "أحمد",
+    "lastName": "اسم العائلة",
+    "lastNamePlaceholder": "محمد",
+    "emailAddress": "عنوان البريد الإلكتروني",
+    "emailPlaceholder": "name@example.com",
+    "phoneNumber": "رقم الهاتف",
+    "selectCountry": "اختر البلد",
+    "searchCountry": "البحث عن بلد...",
+    "noCountryFound": "لم يتم العثور على بلد.",
+    "phoneNumberPlaceholder": "123456789",
+    "password": "كلمة المرور",
+    "passwordRequirement": "يجب أن تكون 8 أحرف على الأقل مع حرف كبير وصغير ورقم ورمز خاص",
+    "confirmPassword": "تأكيد كلمة المرور",
+    "haveReferralCode": "لديك رمز إحالة؟",
+    "referralCode": "رمز الإحالة",
+    "referralCodePlaceholder": "أدخل رمز الإحالة",
+    "creatingAccount": "جاري إنشاء الحساب...",
+    "createAccount": "إنشاء حساب",
+    "alreadyHaveAccount": "لديك حساب بالفعل؟",
+    "signIn": "تسجيل الدخول",
+    "passwordTooShort": "يجب أن تكون كلمة المرور 8 أحرف على الأقل",
+    "passwordNeedsUppercase": "يجب أن تحتوي كلمة المرور على حرف كبير واحد على الأقل",
+    "passwordNeedsLowercase": "يجب أن تحتوي كلمة المرور على حرف صغير واحد على الأقل",
+    "passwordNeedsNumber": "يجب أن تحتوي كلمة المرور على رقم واحد على الأقل",
+    "passwordNeedsSpecial": "يجب أن تحتوي كلمة المرور على رمز خاص واحد على الأقل",
+    "enterPhoneNumber": "يرجى إدخال رقم هاتفك",
+    "passwordsDoNotMatch": "كلمات المرور غير متطابقة",
+    "provideValidPhone": "يرجى تقديم رقم هاتف صالح"
+  },
+  "forgotPasswordPage": {
+    "backToLogin": "العودة لتسجيل الدخول",
+    "checkYourEmail": "تحقق من بريدك الإلكتروني",
+    "resetYourPassword": "إعادة تعيين كلمة المرور",
+    "linkSent": "تم إرسال الرابط",
+    "passwordRecovery": "استرداد كلمة المرور",
+    "linkSentDescription": "لقد أرسلنا رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني",
+    "enterEmailDescription": "أدخل بريدك الإلكتروني لتلقي رابط إعادة تعيين كلمة المرور",
+    "emailAddress": "عنوان البريد الإلكتروني",
+    "emailPlaceholder": "name@example.com",
+    "sending": "جاري الإرسال...",
+    "sendResetLink": "إرسال رابط الإعادة",
+    "emailSentSuccessfully": "تم إرسال البريد الإلكتروني بنجاح",
+    "emailSentMessage": "لقد أرسلنا رابط إعادة تعيين كلمة المرور إلى {email}. يرجى التحقق من صندوق الوارد والنقر على الرابط لإعادة تعيين كلمة المرور.",
+    "returnToLogin": "العودة لتسجيل الدخول",
+    "rememberPassword": "تتذكر كلمة المرور؟",
+    "signIn": "تسجيل الدخول"
+  },
+  "resetPasswordPage": {
+    "invalidResetLink": "رابط إعادة التعيين غير صالح",
+    "backToLogin": "العودة لتسجيل الدخول",
+    "resetYourPassword": "إعادة تعيين كلمة المرور",
+    "passwordResetComplete": "تم إعادة تعيين كلمة المرور",
+    "setNewPassword": "تعيين كلمة مرور جديدة",
+    "passwordResetSuccess": "تم إعادة تعيين كلمة المرور بنجاح",
+    "enterNewPasswordDescription": "أدخل كلمة المرور الجديدة أدناه",
+    "passwordResetSuccessMessage": "تم إعادة تعيين كلمة المرور بنجاح. يمكنك الآن تسجيل الدخول بكلمة المرور الجديدة.",
+    "newPassword": "كلمة المرور الجديدة",
+    "confirmNewPassword": "تأكيد كلمة المرور الجديدة",
+    "resetting": "جاري إعادة التعيين...",
+    "resetPassword": "إعادة تعيين كلمة المرور",
+    "backToLoginPage": "العودة لتسجيل الدخول",
+    "passwordRequirement": "يجب أن تكون 8 أحرف على الأقل مع حرف كبير وصغير ورقم ورمز خاص",
+    "passwordTooShort": "يجب أن تكون كلمة المرور 8 أحرف على الأقل",
+    "passwordNeedsUppercase": "يجب أن تحتوي كلمة المرور على حرف كبير واحد على الأقل",
+    "passwordNeedsLowercase": "يجب أن تحتوي كلمة المرور على حرف صغير واحد على الأقل",
+    "passwordNeedsNumber": "يجب أن تحتوي كلمة المرور على رقم واحد على الأقل",
+    "passwordNeedsSpecial": "يجب أن تحتوي كلمة المرور على رمز خاص واحد على الأقل",
+    "passwordsDoNotMatch": "كلمات المرور غير متطابقة"
+  },
+  "verifyEmailPage": {
+    "verifyingEmail": "جاري التحقق من بريدك الإلكتروني...",
+    "emailVerified": "تم التحقق من البريد الإلكتروني!",
+    "verificationFailed": "فشل التحقق",
+    "emailVerifiedSuccessfully": "تم التحقق من بريدك الإلكتروني بنجاح",
+    "emailVerificationFailed": "فشل التحقق من البريد الإلكتروني. قد يكون الرابط غير صالح أو منتهي الصلاحية.",
+    "continueToLogin": "المتابعة لتسجيل الدخول",
+    "tryAgain": "حاول مرة أخرى"
+  },
+  "subscriptionsPage": {
+    "subscriptionPlans": "خطط الاشتراك",
+    "chooseYourPlan": "اختر خطتك",
+    "selectPlanDescription": "اختر الخطة التي تناسب احتياجاتك في التداول",
+    "monthly": "شهرياً",
+    "popular": "الأكثر شعبية",
+    "recommended": "موصى به",
+    "selectPlan": "اختر الخطة",
+    "currentPlan": "الخطة الحالية",
+    "upgrade": "ترقية",
+    "features": "المميزات",
+    "unlimited": "غير محدود",
+    "assets": "أصول",
+    "tradingPairs": "أزواج التداول",
+    "telegramGroup": "الوصول لمجموعة تليجرام",
+    "emailSupport": "دعم البريد الإلكتروني",
+    "prioritySupport": "دعم الأولوية"
   }
-} 
+}

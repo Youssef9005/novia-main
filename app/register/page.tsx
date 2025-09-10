@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import Image from "next/image"
+import { useTranslation } from "react-i18next"
 
 interface Country {
   name: string;
@@ -19,6 +20,7 @@ interface Country {
 }
 
 export default function RegisterPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const [showReferralCode, setShowReferralCode] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -101,47 +103,47 @@ export default function RegisterPage() {
 
     // Password strength validation
     if (formData.password.length < 8) {
-      setError("Password must be at least 8 characters long")
+      setError(t('registerPage.passwordTooShort'))
       setIsLoading(false)
       return
     }
     if (!/[A-Z]/.test(formData.password)) {
-      setError("Password must include at least one uppercase letter")
+      setError(t('registerPage.passwordNeedsUppercase'))
       setIsLoading(false)
       return
     }
     if (!/[a-z]/.test(formData.password)) {
-      setError("Password must include at least one lowercase letter")
+      setError(t('registerPage.passwordNeedsLowercase'))
       setIsLoading(false)
       return
     }
     if (!/[0-9]/.test(formData.password)) {
-      setError("Password must include at least one number")
+      setError(t('registerPage.passwordNeedsNumber'))
       setIsLoading(false)
       return
     }
     if (!/[^A-Za-z0-9]/.test(formData.password)) {
-      setError("Password must include at least one special character")
+      setError(t('registerPage.passwordNeedsSpecial'))
       setIsLoading(false)
       return
     }
 
     // Ensure phone number is provided
     if (!formData.phoneNumber.number) {
-      setError("Please enter your phone number")
+      setError(t('registerPage.enterPhoneNumber'))
       setIsLoading(false)
       return
     }
 
     // Basic validation
     if (formData.password !== formData.passwordConfirm) {
-      setError("Passwords do not match")
+      setError(t('registerPage.passwordsDoNotMatch'))
       setIsLoading(false)
       return
     }
 
     if (!formData.phoneNumber.countryCode || !formData.phoneNumber.number) {
-      setError("Please provide a valid phone number")
+      setError(t('registerPage.provideValidPhone'))
       setIsLoading(false)
       return
     }
@@ -191,7 +193,7 @@ export default function RegisterPage() {
         <Button variant="ghost" size="sm" asChild>
           <Link href="/">
             <ChevronLeft className="mr-2 h-4 w-4" />
-            Back
+            {t('registerPage.back')}
           </Link>
         </Button>
       </div>
@@ -199,14 +201,14 @@ export default function RegisterPage() {
       <div className="sm:mx-auto sm:w-full sm:max-w-md flex items-center flex-col">
         <Image src={"./logo.jpeg"} alt="Website Logo" width={100} height={100} className="rounded-full border border-gray-800 p-2" />
 
-        <h2 className="mt-6 text-center text-2xl font-bold leading-9 tracking-tight">Create a new account</h2>
+        <h2 className="mt-6 text-center text-2xl font-bold leading-9 tracking-tight">{t('registerPage.createNewAccount')}</h2>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <Card className="border-gray-800 bg-gray-950/80 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle className="text-xl">Join Novia AI</CardTitle>
-            <CardDescription>Enter your information to create an account</CardDescription>
+            <CardTitle className="text-xl">{t('registerPage.joinNoviaAI')}</CardTitle>
+            <CardDescription>{t('registerPage.enterInformation')}</CardDescription>
           </CardHeader>
           <CardContent>
             {error && (
@@ -218,10 +220,10 @@ export default function RegisterPage() {
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <Label htmlFor="first-name">First name</Label>
+                  <Label htmlFor="first-name">{t('registerPage.firstName')}</Label>
                   <Input
                     id="first-name"
-                    placeholder="John"
+                    placeholder={t('registerPage.firstNamePlaceholder')}
                     required
                     className="bg-gray-900 border-gray-800"
                     value={formData.firstName}
@@ -230,10 +232,10 @@ export default function RegisterPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="last-name">Last name</Label>
+                  <Label htmlFor="last-name">{t('registerPage.lastName')}</Label>
                   <Input
                     id="last-name"
-                    placeholder="Doe"
+                    placeholder={t('registerPage.lastNamePlaceholder')}
                     required
                     className="bg-gray-900 border-gray-800"
                     value={formData.lastName}
@@ -243,11 +245,11 @@ export default function RegisterPage() {
                 </div>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="email">Email address</Label>
+                <Label htmlFor="email">{t('registerPage.emailAddress')}</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="name@example.com"
+                  placeholder={t('registerPage.emailPlaceholder')}
                   required
                   className="bg-gray-900 border-gray-800"
                   value={formData.email}
@@ -258,7 +260,7 @@ export default function RegisterPage() {
 
               {/* Phone Number Input */}
               <div className="space-y-1">
-                <Label>Phone Number</Label>
+                <Label>{t('registerPage.phoneNumber')}</Label>
                 <div className="flex gap-2">
                   <Popover open={open} onOpenChange={setOpen}>
                     <PopoverTrigger asChild>
@@ -274,15 +276,15 @@ export default function RegisterPage() {
                             <span className="text-xs text-gray-400">({selectedCountry.code})</span>
                           </span>
                         ) : (
-                          "Select country"
+                          t('registerPage.selectCountry')
                         )}
                         <ChevronLeft className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[300px] p-0 bg-gray-900 border-gray-800">
                       <Command>
-                        <CommandInput placeholder="Search country..." className="bg-gray-900 border-gray-800" />
-                        <CommandEmpty>No country found.</CommandEmpty>
+                        <CommandInput placeholder={t('registerPage.searchCountry')} className="bg-gray-900 border-gray-800" />
+                        <CommandEmpty>{t('registerPage.noCountryFound')}</CommandEmpty>
                         <CommandGroup className="max-h-[300px] overflow-auto">
                           {countries.map((country) => (
                             <CommandItem
@@ -304,7 +306,7 @@ export default function RegisterPage() {
                   <Input
                     id="phone-number"
                     type="tel"
-                    placeholder="Phone number"
+                    placeholder={t('registerPage.phoneNumberPlaceholder')}
                     required
                     className="flex-1 bg-gray-900 border-gray-800"
                     value={formData.phoneNumber.number}
@@ -315,7 +317,7 @@ export default function RegisterPage() {
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t('registerPage.password')}</Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -342,11 +344,11 @@ export default function RegisterPage() {
                   </Button>
                 </div>
                 <p className="text-xs text-gray-400 mt-1">
-                  Password must be at least 8 characters long
+                  {t('registerPage.passwordRequirement')}
                 </p>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="confirm-password">Confirm password</Label>
+                <Label htmlFor="confirm-password">{t('registerPage.confirmPassword')}</Label>
                 <div className="relative">
                   <Input
                     id="confirm-password"
@@ -380,12 +382,12 @@ export default function RegisterPage() {
                     onClick={toggleReferralCode}
                     className="text-sm font-medium text-emerald-500 hover:text-emerald-400 transition-colors"
                   >
-                    I have a referral code
+                    {t('registerPage.haveReferralCode')}
                   </button>
                 ) : (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="referral-code">Referral Code (Optional)</Label>
+                      <Label htmlFor="referral-code">{t('registerPage.referralCode')}</Label>
                       <button
                         type="button"
                         onClick={toggleReferralCode}
@@ -396,7 +398,7 @@ export default function RegisterPage() {
                     </div>
                     <Input
                       id="referral-code"
-                      placeholder="Enter your referral code here"
+                      placeholder={t('registerPage.referralCodePlaceholder')}
                       className="bg-gray-900 border-gray-800"
                       value={formData.referralCode}
                       onChange={handleChange}
@@ -407,15 +409,15 @@ export default function RegisterPage() {
               </div>
 
               <Button type="submit" className="w-full mt-4" disabled={isLoading}>
-                {isLoading ? 'Creating account...' : 'Create account'}
+                {isLoading ? t('registerPage.creatingAccount') : t('registerPage.createAccount')}
               </Button>
             </form>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <div className="text-center text-sm">
-              Already have an account?{" "}
+              {t('registerPage.alreadyHaveAccount')}{" "}
               <Link href="/login" className="font-medium text-blue-500 hover:text-blue-400">
-                Sign in
+                {t('registerPage.signIn')}
               </Link>
             </div>
           </CardFooter>

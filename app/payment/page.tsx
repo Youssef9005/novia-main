@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
 import { api } from "@/lib/api"
 import { ImageUpload } from "@/components/ui/image-upload"
+import { useTranslation } from "react-i18next"
 
 interface TradingPair {
   symbol: string;
@@ -75,6 +76,7 @@ interface PaymentData {
 }
 
 function PaymentContent() {
+  const { t } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
   const planName = searchParams.get('plan')
@@ -565,7 +567,7 @@ function PaymentContent() {
       <div className="min-h-screen bg-gray-800 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-lg">Verifying authentication...</p>
+          <p className="text-white text-lg">{t('paymentPage.verifyingAuthentication')}</p>
         </div>
       </div>
     );
@@ -576,7 +578,7 @@ function PaymentContent() {
       <div className="min-h-screen bg-gray-800 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-lg">Loading trading pairs...</p>
+          <p className="text-white text-lg">{t('paymentPage.loadingTradingPairs')}</p>
         </div>
       </div>
     );
@@ -588,13 +590,13 @@ function PaymentContent() {
         <div className="text-center">
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 max-w-md mx-auto">
             <Shield className="h-16 w-16 text-white mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-white mb-4">Authentication Required</h2>
-            <p className="text-gray-300 mb-6">Please log in to continue with your payment</p>
+            <h2 className="text-2xl font-bold text-white mb-4">{t('paymentPage.authenticationRequired')}</h2>
+            <p className="text-gray-300 mb-6">{t('paymentPage.pleaseLoginToContinue')}</p>
             <Button 
               onClick={() => router.push('/login')}
               className="bg-gray-800 hover:bg-gray-700 text-white px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105"
             >
-              Go to Login
+              {t('paymentPage.goToLogin')}
             </Button>
           </div>
         </div>
@@ -608,13 +610,13 @@ function PaymentContent() {
         <div className="text-center">
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 max-w-md mx-auto">
             <Star className="h-16 w-16 text-white mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-white mb-4">Plan Information Missing</h2>
-            <p className="text-gray-300 mb-6">Please select a plan to continue</p>
+            <h2 className="text-2xl font-bold text-white mb-4">{t('paymentPage.planInfoMissing')}</h2>
+            <p className="text-gray-300 mb-6">{t('paymentPage.pleaseSelectPlan')}</p>
             <Button 
               onClick={() => router.push('/#pricing')}
               className="bg-gray-800 hover:bg-gray-700 text-white px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105"
             >
-              Choose a Plan
+              {t('paymentPage.chooseAPlan')}
             </Button>
           </div>
         </div>
@@ -630,8 +632,8 @@ function PaymentContent() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-800 rounded-full mb-4">
             <Wallet className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-white mb-2">Secure Payment</h1>
-          <p className="text-gray-300 text-lg">Complete your subscription with USDT</p>
+          <h1 className="text-4xl font-bold text-white mb-2">{t('paymentPage.securePayment')}</h1>
+          <p className="text-gray-300 text-lg">{t('paymentPage.completeSubscriptionWithUSDT')}</p>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
@@ -641,7 +643,7 @@ function PaymentContent() {
               <CardHeader className="text-center">
                 <CardTitle className="text-2xl font-bold text-white flex items-center justify-center gap-2">
                   <Zap className="h-6 w-6 text-yellow-400" />
-                  {planName} Plan
+                  {planName} {t('paymentPage.plan')}
                 </CardTitle>
                 
                 {/* Plan Images Display */}

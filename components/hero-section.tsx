@@ -7,6 +7,7 @@ import { ArrowRight, BarChart4, LineChart, TrendingUp, ChevronDown } from "lucid
 import { Button } from "@/components/ui/button"
 import { Canvas, useFrame } from "@react-three/fiber"
 import { Float, Text, Environment } from "@react-three/drei"
+import { useTranslation } from "react-i18next"
 
 function FloatingCharts({ scrollY = 0 }) {
   const chartRef = useRef()
@@ -128,6 +129,7 @@ function Scene({ scrollY }) {
 }
 
 export function HeroSection() {
+  const { t } = useTranslation()
   const [hover, setHover] = useState(false)
   const containerRef = useRef(null)
   const scrollYMotion = useMotionValue(0)
@@ -199,9 +201,9 @@ export function HeroSection() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <span className="block">Expert Market</span>
+              <span className="block">{t('heroSection.title')}</span>
               <span className="block mt-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
-                Analysis
+                {t('heroSection.subtitle')}
               </span>
             </motion.h1>
 
@@ -211,8 +213,7 @@ export function HeroSection() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
-              Subscribe to receive professional trading insights on your selected assets. Choose your plan, select your
-              assets, and start making informed trading decisions.
+              {t('heroSection.description')}
             </motion.p>
 
             <motion.div
@@ -229,7 +230,7 @@ export function HeroSection() {
                 onMouseLeave={() => setHover(false)}
               >
                 <Link href="/register">
-                  Get Started
+                  {t('heroSection.getStarted')}
                   <motion.div animate={{ x: hover ? 4 : 0 }} transition={{ duration: 0.2 }}>
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </motion.div>
@@ -237,7 +238,7 @@ export function HeroSection() {
               </Button>
 
               <Button variant="outline" size="lg" className="w-full sm:w-auto" asChild>
-                <Link href="/#pricing">View Pricing</Link>
+                <Link href="/#pricing">{t('heroSection.viewPricing')}</Link>
               </Button>
             </motion.div>
 
@@ -251,19 +252,19 @@ export function HeroSection() {
                 <div className="rounded-full bg-blue-500/10 p-2">
                   <TrendingUp className="h-5 w-5 text-blue-500" />
                 </div>
-                <span className="text-sm text-gray-400">Real-time Analysis</span>
+                <span className="text-sm text-gray-400">{t('heroSection.realtimeAnalysis')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="rounded-full bg-emerald-500/10 p-2">
                   <BarChart4 className="h-5 w-5 text-emerald-500" />
                 </div>
-                <span className="text-sm text-gray-400">Expert Insights</span>
+                <span className="text-sm text-gray-400">{t('heroSection.expertInsights')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="rounded-full bg-purple-500/10 p-2">
                   <LineChart className="h-5 w-5 text-purple-500" />
                 </div>
-                <span className="text-sm text-gray-400">Multiple Assets</span>
+                <span className="text-sm text-gray-400">{t('heroSection.multipleAssets')}</span>
               </div>
             </motion.div>
           </motion.div>
@@ -289,7 +290,7 @@ export function HeroSection() {
               >
                 <div className="flex justify-between items-center mb-6">
                   <div>
-                    <h3 className="text-lg font-bold">Market Analysis</h3>
+                    <h3 className="text-lg font-bold">{t('heroSection.marketAnalysis')}</h3>
                     <p className="text-sm text-gray-400">Gold (XAU/USD)</p>
                   </div>
                   <div className="text-emerald-500 font-bold">+1.2%</div>
@@ -334,18 +335,18 @@ export function HeroSection() {
 
                 <div className="space-y-4">
                   <div className="p-3 bg-gray-800/50 rounded-lg">
-                    <h4 className="text-sm font-medium mb-1">Key Support Level</h4>
-                    <p className="text-xs text-gray-400">$1,920.30 - Strong buying pressure expected</p>
+                    <h4 className="text-sm font-medium mb-1">{t('heroSection.keySupportLevel')}</h4>
+                    <p className="text-xs text-gray-400">$1,920.30 - {t('heroSection.supportDescription')}</p>
                   </div>
 
                   <div className="p-3 bg-gray-800/50 rounded-lg">
-                    <h4 className="text-sm font-medium mb-1">Key Resistance Level</h4>
-                    <p className="text-xs text-gray-400">$1,965.80 - Watch for breakout opportunity</p>
+                    <h4 className="text-sm font-medium mb-1">{t('heroSection.keyResistanceLevel')}</h4>
+                    <p className="text-xs text-gray-400">$1,965.80 - {t('heroSection.resistanceDescription')}</p>
                   </div>
 
                   <div className="p-3 bg-gray-800/50 rounded-lg">
-                    <h4 className="text-sm font-medium mb-1">Trading Recommendation</h4>
-                    <p className="text-xs text-gray-400">Buy on dips near $1,925 with stop loss at $1,915</p>
+                    <h4 className="text-sm font-medium mb-1">{t('heroSection.tradingRecommendation')}</h4>
+                    <p className="text-xs text-gray-400">{t('heroSection.recommendationDescription')}</p>
                   </div>
                 </div>
               </motion.div>
@@ -359,7 +360,7 @@ export function HeroSection() {
           animate={{ y: [0, 10, 0] }}
           transition={{ duration: 1.5, repeat: Number.POSITIVE_INFINITY, repeatType: "loop" }}
         >
-          <p className="text-sm text-gray-400 mb-2">Scroll to explore</p>
+          <p className="text-sm text-gray-400 mb-2">{t('heroSection.scrollToExplore')}</p>
           <ChevronDown className="h-6 w-6 text-gray-400" />
         </motion.div>
       </div>

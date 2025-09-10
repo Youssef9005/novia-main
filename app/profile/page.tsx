@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -90,6 +91,7 @@ function getMaxAssets(plan: string): number {
 }
 
 export default function ProfilePage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>("")
@@ -156,7 +158,7 @@ export default function ProfilePage() {
       }
       
       if (!response.ok) {
-        throw new Error('Failed to fetch profile')
+        throw new Error(t('profilePage.failedToFetchProfile'))
       }
       
       const data = await response.json()
@@ -167,7 +169,7 @@ export default function ProfilePage() {
         email: data.data.user.email || "",
         plan: data.data.user.plan || "Free",
         assets: data.data.user.selectedAssets || [],
-        nextPayment: data.data.user.nextPaymentDate ? new Date(data.data.user.nextPaymentDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : "Not available",
+        nextPayment: data.data.user.nextPaymentDate ? new Date(data.data.user.nextPaymentDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : t('profilePage.notAvailable'),
         myReferralCode: data.data.user.myReferralCode || "",
         binanceWalletAddress: data.data.user.binanceWalletAddress || "",
         referralPoints: data.data.user.referralPoints || 0,
@@ -204,8 +206,8 @@ export default function ProfilePage() {
         return { ...prevUser, assets: [...currentAssets, asset] };
       } else {
         toast({
-          title: "Limit Reached",
-          description: `You can select a maximum of ${maxAssets} assets.`,
+          title: t('profilePage.limitReached'),
+          description: t('profilePage.maxAssetsMessage', { count: maxAssets }),
           variant: "destructive",
         });
         return prevUser;
@@ -241,8 +243,8 @@ export default function ProfilePage() {
 
         setUser(updatedUser);
         toast({
-          title: "Success",
-          description: "Profile updated successfully",
+          title: t('profilePage.success'),
+          description: t('profilePage.profileUpdatedSuccess'),
         });
       } else {
         throw new Error(response.message || 'Failed to update profile');
@@ -250,8 +252,8 @@ export default function ProfilePage() {
     } catch (err: any) {
       setError(err.message || 'Failed to update profile');
       toast({
-        title: "Error",
-        description: err.message || "Failed to update profile",
+        title: t('profilePage.error'),
+        description: err.message || t('profilePage.failedToUpdateProfile'),
         variant: "destructive"
       });
     } finally {
@@ -423,8 +425,8 @@ export default function ProfilePage() {
       }));
 
       toast({
-        title: "Success",
-        description: "Your subscription has been cancelled successfully",
+        title: t('profilePage.success'),
+        description: t('profilePage.subscriptionCancelledSuccess'),
       });
 
       // Close the dialog
@@ -434,8 +436,8 @@ export default function ProfilePage() {
       fetchUserProfile();
     } catch (err: any) {
       toast({
-        title: "Error",
-        description: err.message || "Failed to cancel subscription",
+        title: t('profilePage.error'),
+        description: err.message || t('profilePage.failedToCancelSubscription'),
         variant: "destructive"
       });
     } finally {
@@ -447,7 +449,7 @@ export default function ProfilePage() {
     return (
       <div className="flex h-screen items-center justify-center bg-black bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))]">
         <Loader2 className="h-12 w-12 animate-spin text-yellow-500" />
-        <p className="ml-4 text-yellow-500">Loading profile...</p>
+        <p className="ml-4 text-yellow-500">{t('profilePage.loadingProfile')}</p>
       </div>
     );
   }
@@ -458,41 +460,41 @@ export default function ProfilePage() {
         {/* Background elements could go here */}
       </div>
       <div className="relative z-10 w-full max-w-6xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
-        <h1 className="text-4xl font-bold text-white text-center mb-12">My Profile</h1>
+        <h1 className="text-4xl font-bold text-white text-center mb-12">{t('profilePage.myProfile')}</h1>
 
         <Tabs defaultValue="profile" className="w-full">
           <TabsList className="grid w-full grid-cols-4 lg:grid-cols-6 h-auto mb-8 bg-gray-900 border border-gray-700">
             <TabsTrigger value="profile" className="flex flex-col h-auto py-3 data-[state=active]:bg-gray-800 text-gray-300 data-[state=active]:text-white">
               <User className="h-5 w-5 mb-1" />
-              <span className="text-xs sm:text-sm">Profile</span>
+              <span className="text-xs sm:text-sm">{t('profilePage.profile')}</span>
             </TabsTrigger>
             <TabsTrigger value="password" className="flex flex-col h-auto py-3 data-[state=active]:bg-gray-800 text-gray-300 data-[state=active]:text-white">
               <Key className="h-5 w-5 mb-1" />
-              <span className="text-xs sm:text-sm">Password</span>
+              <span className="text-xs sm:text-sm">{t('profilePage.password')}</span>
             </TabsTrigger>
             <TabsTrigger value="subscription" className="flex flex-col h-auto py-3 data-[state=active]:bg-gray-800 text-gray-300 data-[state=active]:text-white">
               <CreditCard className="h-5 w-5 mb-1" />
-              <span className="text-xs sm:text-sm">Subscription</span>
+              <span className="text-xs sm:text-sm">{t('profilePage.subscription')}</span>
             </TabsTrigger>
             <TabsTrigger value="notifications" className="flex flex-col h-auto py-3 data-[state=active]:bg-gray-800 text-gray-300 data-[state=active]:text-white">
               <Bell className="h-5 w-5 mb-1" />
-              <span className="text-xs sm:text-sm">Notifications</span>
+              <span className="text-xs sm:text-sm">{t('profilePage.notifications')}</span>
             </TabsTrigger>
             <TabsTrigger value="asset-preferences" className="flex flex-col h-auto py-3 data-[state=active]:bg-gray-800 text-gray-300 data-[state=active]:text-white">
               <Settings className="h-5 w-5 mb-1" />
-              <span className="text-xs sm:text-sm">Asset Preferences</span>
+              <span className="text-xs sm:text-sm">{t('profilePage.assetPreferences')}</span>
             </TabsTrigger>
             <TabsTrigger value="referral" className="flex flex-col h-auto py-3 data-[state=active]:bg-gray-800 text-gray-300 data-[state=active]:text-white">
               <Users className="h-5 w-5 mb-1" />
-              <span className="text-xs sm:text-sm">Referral</span>
+              <span className="text-xs sm:text-sm">{t('profilePage.referral')}</span>
             </TabsTrigger>
           </TabsList>
           
           <TabsContent value="profile">
             <Card className="border-gray-800 bg-gray-950/80 backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="text-white">Personal Information</CardTitle>
-                <CardDescription className="text-gray-400">Update your personal details.</CardDescription>
+                <CardTitle className="text-white">{t('profilePage.personalInformation')}</CardTitle>
+                <CardDescription className="text-gray-400">{t('profilePage.updatePersonalDetails')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {error && (
@@ -508,7 +510,7 @@ export default function ProfilePage() {
                 <form onSubmit={handleUpdateProfile} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="firstName" className="text-gray-300">First Name</Label>
+                      <Label htmlFor="firstName" className="text-gray-300">{t('profilePage.firstName')}</Label>
                       <Input 
                         id="firstName" 
                         value={user.firstName} 
@@ -517,7 +519,7 @@ export default function ProfilePage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="lastName" className="text-gray-300">Last Name</Label>
+                      <Label htmlFor="lastName" className="text-gray-300">{t('profilePage.lastName')}</Label>
                       <Input 
                         id="lastName" 
                         value={user.lastName} 
@@ -527,7 +529,7 @@ export default function ProfilePage() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-gray-300">Email</Label>
+                    <Label htmlFor="email" className="text-gray-300">{t('profilePage.email')}</Label>
                     <Input 
                       id="email" 
                       type="email" 
@@ -538,7 +540,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="countryCode" className="text-gray-300">Country Code</Label>
+                      <Label htmlFor="countryCode" className="text-gray-300">{t('profilePage.countryCode')}</Label>
                       <Input 
                         id="countryCode" 
                         value={user.phoneNumber.countryCode} 
@@ -550,7 +552,7 @@ export default function ProfilePage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="phoneNumber" className="text-gray-300">Phone Number</Label>
+                      <Label htmlFor="phoneNumber" className="text-gray-300">{t('profilePage.phoneNumber')}</Label>
                       <Input 
                         id="phoneNumber" 
                         value={user.phoneNumber.number} 
@@ -563,7 +565,7 @@ export default function ProfilePage() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="binanceWalletAddress" className="text-gray-300">Binance Wallet Address</Label>
+                    <Label htmlFor="binanceWalletAddress" className="text-gray-300">{t('profilePage.binanceWallet')}</Label>
                     <Input 
                       id="binanceWalletAddress" 
                       type="text" 
@@ -577,7 +579,7 @@ export default function ProfilePage() {
                     {formLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      "Save Changes"
+                      t('profilePage.updateProfile')
                     )}
                   </Button>
                 </form>
@@ -588,11 +590,11 @@ export default function ProfilePage() {
           <TabsContent value="password">
             <Card className="border-gray-800 bg-gray-950/80 backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="text-white">Change Password</CardTitle>
+                <CardTitle className="text-white">{t('profilePage.changePassword')}</CardTitle>
                 <CardDescription className="text-gray-400">
                   {verificationSent 
-                    ? "Please enter the verification code sent to your email"
-                    : "Update your account password. You will receive a verification email."}
+                    ? t('profilePage.verificationDescription')
+                    : t('profilePage.updatePasswordDescription')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -669,7 +671,7 @@ export default function ProfilePage() {
                       {formLoading ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        "Request Password Change"
+                        t('profilePage.requestPasswordChange')
                       )}
                     </Button>
                   </form>
@@ -692,7 +694,7 @@ export default function ProfilePage() {
                         className="flex-1 border-gray-700 text-gray-300 hover:bg-gray-800"
                         onClick={() => setVerificationSent(false)}
                       >
-                        Back
+                        {t('profilePage.back')}
                       </Button>
                       <Button 
                         type="submit" 
@@ -702,7 +704,7 @@ export default function ProfilePage() {
                         {formLoading ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          "Verify & Change Password"
+                          t('profilePage.verifyChangePassword')
                         )}
                       </Button>
                     </div>
@@ -715,46 +717,53 @@ export default function ProfilePage() {
           <TabsContent value="subscription">
             <Card className="border-gray-800 bg-gray-950/80 backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="text-white">Subscription Details</CardTitle>
-                <CardDescription className="text-gray-400">Manage your current subscription.</CardDescription>
+                <CardTitle className="text-white">{t('profilePage.subscriptionDetails')}</CardTitle>
+                <CardDescription className="text-gray-400">{t('profilePage.manageSubscription')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label className="text-gray-300">Current Plan</Label>
-                  <p className="text-white text-lg font-semibold">{user.subscription?.plan || user.plan}</p>
+                  <Label className="text-gray-300">{t('profilePage.currentPlan')}</Label>
+                  <p className="text-white text-lg font-semibold">
+                    {user.subscription?.plan || (user.plan === 'Free' ? t('profilePage.free') : user.plan)}
+                  </p>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-gray-300">Subscription Status</Label>
+                  <Label className="text-gray-300">{t('profilePage.subscriptionStatus')}</Label>
                   <p className={`text-lg font-semibold ${
                     user.subscription?.status === 'active' ? 'text-green-500' : 
                     user.subscription?.status === 'cancelled' ? 'text-red-500' : 
                     'text-yellow-500'
                   }`}>
-                    {user.subscription?.status ? user.subscription.status.charAt(0).toUpperCase() + user.subscription.status.slice(1) : 'Not Active'}
+                    {user.subscription?.status ? 
+                      (user.subscription.status === 'active' ? t('profilePage.active') :
+                       user.subscription.status === 'cancelled' ? t('profilePage.cancelled') :
+                       user.subscription.status === 'expired' ? t('profilePage.expired') :
+                       user.subscription.status.charAt(0).toUpperCase() + user.subscription.status.slice(1)) :
+                      t('profilePage.notActive')}
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-gray-300">Next Payment Date</Label>
+                  <Label className="text-gray-300">{t('profilePage.nextPaymentDate')}</Label>
                   <p className="text-white text-lg font-semibold">
                     {user.subscription?.endDate ? new Date(user.subscription.endDate).toLocaleDateString('en-US', { 
                       year: 'numeric', 
                       month: 'long', 
                       day: 'numeric' 
-                    }) : 'Not available'}
+                    }) : t('profilePage.notAvailable')}
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-gray-300">Auto Renew</Label>
+                  <Label className="text-gray-300">{t('profilePage.autoRenew')}</Label>
                   <p className="text-white text-lg font-semibold">
-                    {user.subscription?.autoRenew ? 'Enabled' : 'Disabled'}
+                    {user.subscription?.autoRenew ? t('profilePage.enabled') : t('profilePage.disabled')}
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-gray-300">Payment ID</Label>
+                  <Label className="text-gray-300">{t('profilePage.paymentId')}</Label>
                   <div className="flex items-center space-x-2">
                     <Input 
-                      value={user.subscription?.paymentId || 'Not available'} 
+                      value={user.subscription?.paymentId || t('profilePage.notAvailable')} 
                       readOnly 
                       className="bg-gray-800 text-white border-gray-700"
                     />
@@ -765,33 +774,33 @@ export default function ProfilePage() {
                           navigator.clipboard.writeText(user.subscription.paymentId);
                           toast({
                             title: "Copied!",
-                            description: "Payment ID copied to clipboard",
+                            description: t('profilePage.paymentIdDescription'),
                           });
                         }
                       }}
                       disabled={!user.subscription?.paymentId}
                       className="border-gray-700 text-gray-300 hover:bg-gray-800"
                     >
-                      Copy
+                      {t('profilePage.copy')}
                     </Button>
                   </div>
-                  <p className="text-sm text-gray-400">Use this ID to activate Telegram notifications</p>
+                  <p className="text-sm text-gray-400">{t('profilePage.paymentIdDescription')}</p>
                 </div>
 
                 <div className="space-y-4 mt-6">
                   <div className="flex items-center space-x-2">
                     <Bell className="h-5 w-5 text-blue-400" />
-                    <h3 className="text-lg font-semibold text-white">Telegram Notifications</h3>
+                    <h3 className="text-lg font-semibold text-white">{t('profilePage.telegramNotifications')}</h3>
                   </div>
                   
                   <div className="bg-gray-900 p-4 rounded-lg border border-gray-700">
-                    <h4 className="text-white font-medium mb-2">How to activate Telegram bot:</h4>
+                    <h4 className="text-white font-medium mb-2">{t('profilePage.telegramInstructions')}</h4>
                     <ol className="text-gray-300 space-y-2 ml-4 list-decimal">
-                      <li>Copy your Payment ID from above</li>
-                      <li>Click the "Open Telegram Bot" button below</li>
-                      <li>Start a chat with the bot by clicking "Start"</li>
-                      <li>Enter your Payment ID when prompted by the bot</li>
-                      <li>After verification, you'll start receiving notifications</li>
+                      <li>{t('profilePage.telegramStep1')}</li>
+                      <li>{t('profilePage.telegramStep2')}</li>
+                      <li>{t('profilePage.telegramStep3')}</li>
+                      <li>{t('profilePage.telegramStep4')}</li>
+                      <li>{t('profilePage.telegramStep5')}</li>
                     </ol>
                   </div>
 
@@ -800,33 +809,33 @@ export default function ProfilePage() {
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center space-x-2"
                   >
                     <Send className="h-4 w-4" />
-                    <span>Open Telegram Bot</span>
+                    <span>{t('profilePage.openTelegramBot')}</span>
                   </Button>
                 </div>
                 
                 <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
                   <DialogTrigger asChild>
                     <Button variant="outline" className="w-full border-red-500 text-red-500 hover:bg-red-900/20 hover:text-red-400">
-                      Cancel Subscription
+                      {t('profilePage.cancelSubscription')}
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="bg-gray-900 border-gray-800">
                     <DialogHeader>
-                      <DialogTitle className="text-white">Cancel Subscription</DialogTitle>
+                      <DialogTitle className="text-white">{t('profilePage.cancelSubscriptionTitle')}</DialogTitle>
                       <DialogDescription className="text-gray-400">
-                        Are you sure you want to cancel your subscription? Please note:
+                        {t('profilePage.cancelSubscriptionWarning')}
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                       <div className="flex items-start space-x-3 text-yellow-500">
                         <AlertTriangle className="h-5 w-5 mt-0.5" />
                         <p className="text-sm">
-                          You will lose access to all premium features and analyses. No refunds will be provided for unused time.
+                          {t('profilePage.cancelSubscriptionNote')}
                         </p>
                       </div>
                       <div className="flex items-start space-x-3 text-gray-400">
                         <p className="text-sm">
-                          Your subscription will remain active until the end of your current billing period.
+                          {t('profilePage.cancelSubscriptionActive')}
                         </p>
                       </div>
                     </div>
@@ -836,7 +845,7 @@ export default function ProfilePage() {
                         onClick={() => setShowCancelDialog(false)}
                         className="border-gray-700 text-gray-300 hover:bg-gray-800"
                       >
-                        Keep Subscription
+                        {t('profilePage.keepSubscription')}
                       </Button>
                       <Button
                         variant="destructive"
@@ -847,7 +856,7 @@ export default function ProfilePage() {
                         {formLoading ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          "Yes, Cancel Subscription"
+                          t('profilePage.yesCancelSubscription')
                         )}
                       </Button>
                     </DialogFooter>
@@ -860,8 +869,8 @@ export default function ProfilePage() {
           <TabsContent value="notifications">
             <Card className="border-gray-800 bg-gray-950/80 backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="text-white">Notification Settings</CardTitle>
-                <CardDescription className="text-gray-400">Manage your email and push notification preferences.</CardDescription>
+                <CardTitle className="text-white">{t('profilePage.notificationSettings')}</CardTitle>
+                <CardDescription className="text-gray-400">{t('profilePage.manageNotificationPreferences')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {error && (
@@ -876,7 +885,7 @@ export default function ProfilePage() {
                 )}
                 <form onSubmit={handleUpdateNotifications} className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="marketing-notifications" className="text-gray-300">Marketing Emails</Label>
+                    <Label htmlFor="marketing-notifications" className="text-gray-300">{t('profilePage.marketingEmails')}</Label>
                     <Switch
                       id="marketing-notifications"
                       checked={user.notifications.marketing}
@@ -884,7 +893,7 @@ export default function ProfilePage() {
                     />
                   </div>
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="asset-analysis-notifications" className="text-gray-300">Asset Analysis Updates</Label>
+                    <Label htmlFor="asset-analysis-notifications" className="text-gray-300">{t('profilePage.assetAnalysisUpdates')}</Label>
                     <Switch
                       id="asset-analysis-notifications"
                       checked={user.notifications.assetAnalysis}
@@ -892,7 +901,7 @@ export default function ProfilePage() {
                     />
                   </div>
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="price-alerts" className="text-gray-300">Price Alerts</Label>
+                    <Label htmlFor="price-alerts" className="text-gray-300">{t('profilePage.priceAlerts')}</Label>
                     <Switch
                       id="price-alerts"
                       checked={user.notifications.priceAlerts}
@@ -903,7 +912,7 @@ export default function ProfilePage() {
                     {formLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      "Save Notification Preferences"
+                      t('profilePage.saveNotificationPreferences')
                     )}
                   </Button>
                 </form>
@@ -914,16 +923,16 @@ export default function ProfilePage() {
           <TabsContent value="asset-preferences">
             <Card className="border-gray-800 bg-gray-950/80 backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="text-white">Asset Preferences</CardTitle>
+                <CardTitle className="text-white">{t('profilePage.assetPreferencesTitle')}</CardTitle>
                 <CardDescription className="text-gray-400">
                   {getMaxAssets(user.plan) === 0
-                    ? "Select as many assets as you want to receive detailed updates via email."
-                    : `Select up to ${getMaxAssets(user.plan)} assets to receive detailed updates via email.`}
+                    ? t('profilePage.assetPreferencesUnlimited')
+                    : t('profilePage.assetPreferencesLimited', { count: getMaxAssets(user.plan) })}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-white">Forex</h3>
+                  <h3 className="text-lg font-semibold text-white">{t('profilePage.forex')}</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                     {forexAssets.map(asset => (
                       <div key={asset} className="flex items-center space-x-2">
@@ -943,7 +952,7 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-white">Stock Indices</h3>
+                  <h3 className="text-lg font-semibold text-white">{t('profilePage.stockIndices')}</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                     {stockIndicesAssets.map(asset => (
                       <div key={asset} className="flex items-center space-x-2">
@@ -963,7 +972,7 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-white">Commodities</h3>
+                  <h3 className="text-lg font-semibold text-white">{t('profilePage.commodities')}</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                     {commodityAssets.map(asset => (
                       <div key={asset} className="flex items-center space-x-2">
@@ -983,7 +992,7 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-white">Cryptocurrencies</h3>
+                  <h3 className="text-lg font-semibold text-white">{t('profilePage.cryptocurrencies')}</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                     {cryptoAssets.map(asset => (
                       <div key={asset} className="flex items-center space-x-2">
@@ -1006,7 +1015,7 @@ export default function ProfilePage() {
                   {formLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    "Save Asset Preferences"
+                    t('profilePage.saveAssetPreferences')
                   )}
                 </Button>
               </CardContent>
@@ -1016,13 +1025,13 @@ export default function ProfilePage() {
           <TabsContent value="referral">
             <Card className="border-gray-800 bg-gray-950/80 backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="text-white">Referral Program</CardTitle>
-                <CardDescription className="text-gray-400">Share your referral code and earn points for each successful referral.</CardDescription>
+                <CardTitle className="text-white">{t('profilePage.referralProgram')}</CardTitle>
+                <CardDescription className="text-gray-400">{t('profilePage.referralDescription')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-gray-900 p-4 rounded-lg border border-gray-800">
-                    <h3 className="text-lg font-semibold text-white mb-2">Your Referral Code</h3>
+                    <h3 className="text-lg font-semibold text-white mb-2">{t('profilePage.yourReferralCode')}</h3>
                     <div className="flex items-center space-x-2">
                       <Input 
                         value={user.myReferralCode} 
@@ -1040,34 +1049,34 @@ export default function ProfilePage() {
                         }}
                         className="border-gray-700 text-gray-300 hover:bg-gray-800"
                       >
-                        Copy
+                        {t('profilePage.copy')}
                       </Button>
                     </div>
                   </div>
                   
                   <div className="bg-gray-900 p-4 rounded-lg border border-gray-800">
-                    <h3 className="text-lg font-semibold text-white mb-2">Total Referrals</h3>
+                    <h3 className="text-lg font-semibold text-white mb-2">{t('profilePage.totalReferrals')}</h3>
                     <p className="text-3xl font-bold text-yellow-500">{user.referralPoints / 10}</p>
-                    <p className="text-sm text-gray-400">People who used your code</p>
+                    <p className="text-sm text-gray-400">{t('profilePage.peopleUsedCode')}</p>
                   </div>
                   
                   <div className="bg-gray-900 p-4 rounded-lg border border-gray-800">
-                    <h3 className="text-lg font-semibold text-white mb-2">Current Points</h3>
+                    <h3 className="text-lg font-semibold text-white mb-2">{t('profilePage.currentPoints')}</h3>
                     <p className="text-3xl font-bold text-yellow-500">{user.referralPoints}</p>
-                    <p className="text-sm text-gray-400">Available points to redeem</p>
+                    <p className="text-sm text-gray-400">{t('profilePage.availablePoints')}</p>
                   </div>
                 </div>
 
                 <div className="bg-gray-900 p-4 rounded-lg border border-gray-800">
-                  <h3 className="text-lg font-semibold text-white mb-4">How it works</h3>
+                  <h3 className="text-lg font-semibold text-white mb-4">{t('profilePage.howItWorks')}</h3>
                   <div className="space-y-4">
                     <div className="flex items-start space-x-3">
                       <div className="bg-yellow-500/20 p-2 rounded-full">
                         <span className="text-yellow-500 font-bold">1</span>
                       </div>
                       <div>
-                        <h4 className="text-white font-medium">Share Your Code</h4>
-                        <p className="text-gray-400">Share your unique referral code with friends and colleagues</p>
+                        <h4 className="text-white font-medium">{t('profilePage.shareYourCode')}</h4>
+                        <p className="text-gray-400">{t('profilePage.shareCodeDescription')}</p>
                       </div>
                     </div>
                     <div className="flex items-start space-x-3">
@@ -1075,8 +1084,8 @@ export default function ProfilePage() {
                         <span className="text-yellow-500 font-bold">2</span>
                       </div>
                       <div>
-                        <h4 className="text-white font-medium">They Sign Up</h4>
-                        <p className="text-gray-400">When they sign up using your code, you both get 10 points</p>
+                        <h4 className="text-white font-medium">{t('profilePage.theySignUp')}</h4>
+                        <p className="text-gray-400">{t('profilePage.signUpDescription')}</p>
                       </div>
                     </div>
                     <div className="flex items-start space-x-3">
@@ -1084,8 +1093,8 @@ export default function ProfilePage() {
                         <span className="text-yellow-500 font-bold">3</span>
                       </div>
                       <div>
-                        <h4 className="text-white font-medium">Earn More Points</h4>
-                        <p className="text-gray-400">Get additional points when they subscribe to a paid plan</p>
+                        <h4 className="text-white font-medium">{t('profilePage.earnMorePoints')}</h4>
+                        <p className="text-gray-400">{t('profilePage.earnPointsDescription')}</p>
                       </div>
                     </div>
                   </div>
@@ -1093,9 +1102,9 @@ export default function ProfilePage() {
 
                 {user.referredBy && (
                   <div className="bg-gray-900 p-4 rounded-lg border border-gray-800">
-                    <h3 className="text-lg font-semibold text-white mb-2">Referred By</h3>
+                    <h3 className="text-lg font-semibold text-white mb-2">{t('profilePage.referredBy')}</h3>
                     <p className="text-gray-300">
-                      You were referred by: <span className="text-yellow-500">{user.referredBy.name || user.referredBy.email}</span>
+                      {t('profilePage.referredByText')} <span className="text-yellow-500">{user.referredBy.name || user.referredBy.email}</span>
                     </p>
                   </div>
                 )}

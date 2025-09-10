@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { PlanCard } from "@/components/subscription/PlanCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
@@ -20,6 +21,7 @@ interface Plan {
 }
 
 export default function SubscriptionsPage() {
+  const { t } = useTranslation();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export default function SubscriptionsPage() {
     const fetchPlans = async () => {
       try {
         console.log('Fetching subscription plans...');
-        const response = await api.subscriptions.getAllPlans();
+        const response = await api.subscriptions.getPlans();
         console.log('Received plans:', response);
         
         if (!response.data || !response.data.plans) {
@@ -37,8 +39,12 @@ export default function SubscriptionsPage() {
 
         // Filter out inactive plans and sort by price
         const activePlans = response.data.plans
-          .filter((plan: Plan) => plan.isActive)
-          .sort((a: Plan, b: Plan) => a.price - b.price);
+          .filter((plan: any) => plan.isActive)
+          .sort((a: any, b: any) => a.price - b.price)
+          .map((plan: any): Plan => ({
+            ...plan,
+            saleEndsAt: plan.saleEndsAt ? new Date(plan.saleEndsAt) : undefined
+          }));
         
         console.log('Active plans:', activePlans);
         setPlans(activePlans);
@@ -46,8 +52,8 @@ export default function SubscriptionsPage() {
         console.error('Error fetching plans:', err);
         setError(err.message);
         toast({
-          title: "Error",
-          description: err.message || "Failed to load subscription plans",
+          title: t('subscriptionsPage.error'),
+          description: err.message || t('subscriptionsPage.failedToLoadPlans'),
           variant: "destructive"
         });
       } finally {
@@ -61,7 +67,7 @@ export default function SubscriptionsPage() {
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold text-center mb-8">Choose Your Plan</h1>
+        <h1 className="text-4xl font-bold text-center mb-8">{t('subscriptionsPage.chooseYourPlan')}</h1>
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="space-y-4">
@@ -81,7 +87,7 @@ export default function SubscriptionsPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
-          <h1 className="text-4xl font-bold mb-4">Error</h1>
+          <h1 className="text-4xl font-bold mb-4">{t('subscriptionsPage.error')}</h1>
           <p className="text-red-500">{error}</p>
         </div>
       </div>
@@ -92,8 +98,8 @@ export default function SubscriptionsPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
-          <h1 className="text-4xl font-bold mb-4">No Plans Available</h1>
-          <p className="text-muted-foreground">There are currently no subscription plans available.</p>
+          <h1 className="text-4xl font-bold mb-4">{t('subscriptionsPage.noPlansAvailable')}</h1>
+          <p className="text-muted-foreground">{t('subscriptionsPage.noPlansMessage')}</p>
         </div>
       </div>
     );
@@ -101,7 +107,7 @@ export default function SubscriptionsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold text-center mb-8">Choose Your Plan</h1>
+      <h1 className="text-4xl font-bold text-center mb-8">{t('subscriptionsPage.chooseYourPlan')}</h1>
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {plans.map((plan, index) => (
           <PlanCard

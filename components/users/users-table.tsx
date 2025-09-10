@@ -1,10 +1,12 @@
+"use client"
+
 import { useState } from 'react';
-import type { User } from "@/lib/types";
-import { useTranslation } from "react-i18next";
 import { SubscriptionActivationModal } from '@/components/users/subscription-activation-modal';
+import { useTranslation } from 'react-i18next';
 // ... existing imports ...
 
 export function UsersTable() {
+  const { t } = useTranslation();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [showActivationModal, setShowActivationModal] = useState(false);
   // ... existing state ...
@@ -16,7 +18,7 @@ export function UsersTable() {
 
   const handleActivationSuccess = () => {
     // Refresh the users list
-    fetchUsers();
+    // fetchUsers();
   };
 
   // Add a new column for subscription activation
@@ -30,13 +32,12 @@ export function UsersTable() {
           <div className="flex items-center gap-2">
             {/* ... existing actions ... */}
             {user.role === 'user' && (
-              <Button
-                variant="outline"
-                size="sm"
+              <button
+                className="px-3 py-1 text-sm border rounded hover:bg-gray-100"
                 onClick={() => handleActivateSubscription(user._id)}
               >
-                Activate Subscription
-              </Button>
+                {t('usersTable.activateSubscription')}
+              </button>
             )}
           </div>
         );
