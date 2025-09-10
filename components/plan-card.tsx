@@ -92,11 +92,12 @@ export function PlanCard({
         <>
           {/* Plan Image */}
           {images && images.length > 0 ? (
-            <div className="w-full h-48 relative bg-gray-100 dark:bg-gray-800 rounded-t-md overflow-hidden">
+            <div className="w-full h-48 relative bg-black rounded-t-md overflow-hidden flex items-center justify-center">
               <img
                 src={images[0].url}
                 alt={`${name} plan image`}
-                className="object-cover w-full h-full transition-transform hover:scale-105"
+                className="w-full h-auto object-contain transition-transform hover:scale-105"
+                style={{ maxHeight: '100%' }}
                 onError={(e) => {
                   console.error('Image failed to load:', images[0].url);
                   (e.target as HTMLImageElement).style.display = 'none';
