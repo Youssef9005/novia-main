@@ -19,6 +19,12 @@ interface PlanCardProps {
   saleEndsAt?: string
   saleDescription?: string
   maxTradingPairs?: number
+  images?: Array<{
+    url: string;
+    filename: string;
+    originalName: string;
+    uploadedAt: string;
+  }>;
 }
 
 export function PlanCard({
@@ -34,7 +40,8 @@ export function PlanCard({
   isOnSale = false,
   saleEndsAt,
   saleDescription,
-  maxTradingPairs = 1
+  maxTradingPairs = 1,
+  images
 }: PlanCardProps) {
   const router = useRouter()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -84,18 +91,34 @@ export function PlanCard({
       ) : (
         <>
           {/* Plan Image */}
-          {Array.isArray((features as any)?.images) && (features as any).images.length > 0 ? (
-            <div className="w-full h-32 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-t-md overflow-hidden">
+          {images && images.length > 0 ? (
+            <div className="w-full h-48 relative bg-gray-100 dark:bg-gray-800 rounded-t-md overflow-hidden">
               <img
-                src={(features as any).images[0].url}
-                alt={name + " plan image"}
-                className="object-cover w-full h-full"
-                style={{ maxHeight: 128 }}
+                src={images[0].url}
+                alt={`${name} plan image`}
+                className="object-cover w-full h-full transition-transform hover:scale-105"
+                onError={(e) => {
+                  console.error('Image failed to load:', images[0].url);
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  (e.target as HTMLImageElement).parentElement!.innerHTML = '<div class="w-full h-full flex items-center justify-center"><span class="text-gray-400 text-sm">Image not available</span></div>';
+                }}
               />
+              {images.length > 1 && (
+                <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full">
+                  +{images.length - 1} more
+                </div>
+              )}
             </div>
           ) : (
-            <div className="w-full h-32 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-t-md overflow-hidden">
-              <span className="text-gray-400 text-xs">No Image</span>
+            <div className="w-full h-48 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded-t-md overflow-hidden">
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-2 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center">
+                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <span className="text-gray-400 text-sm">No Image Available</span>
+              </div>
             </div>
           )}
           {highlighted && (

@@ -35,6 +35,12 @@ interface Plan {
   isRecommended?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  images?: Array<{
+    url: string;
+    filename: string;
+    originalName: string;
+    uploadedAt: string;
+  }>;
 }
 
 // Dynamically import components with 3D content to avoid SSR issues
@@ -89,7 +95,8 @@ export default function Home() {
               isPopular: plan.isPopular,
               isRecommended: plan.isRecommended,
               createdAt: plan.createdAt,
-              updatedAt: plan.updatedAt
+              updatedAt: plan.updatedAt,
+              images: plan.images || []
             }));
           
           setPlans(activePlans);
@@ -152,6 +159,7 @@ export default function Home() {
             saleEndsAt={plan.saleEndsAt}
             saleDescription={plan.saleDescription}
             maxTradingPairs={plan.maxTradingPairs}
+            images={plan.images}
           />
         ))}
       </div>
