@@ -9,37 +9,26 @@ import { Button } from "@/components/ui/button"
 import { useTranslation } from "react-i18next"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useAuth } from "@/hooks/useAuth"
 
 export default function VerifyEmailPage() {
   const { t } = useTranslation()
   const router = useRouter()
   const params = useParams()
+  const { verifyEmail, loading: authLoading } = useAuth()
   const [verifying, setVerifying] = useState(true)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
   
   useEffect(() => {
-    const verifyEmail = async () => {
+    const runVerification = async () => {
       try {
-        // Get token from URL params
-        const token = params.token as string
-        
-        if (!token) {
+        const tokenFromParams = params.token as string
+
+        if (!tokenFromParams) {
           throw new Error(t('verifyEmailPage.emailVerificationFailed'))
         }
-        
-        // Directly make a request to the backend through our API route
-        // Backend expects a GET request to /api/auth/verify-email/:token
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.novia-ai.com'; // Fallback for safety
-        const response = await fetch(`${apiUrl}/api/auth/verify-email/${token}`, {
-          method: 'GET',
-        })
-        
-        if (!response.ok) {
-          const data = await response.json()
-          throw new Error(data.message || 'Email verification failed')
-        }
-        
+        await verifyEmail(tokenFromParams)
         setSuccess(true)
       } catch (err: any) {
         console.error('Verification error:', err)
@@ -49,11 +38,12 @@ export default function VerifyEmailPage() {
       }
     }
     
-    verifyEmail()
+    runVerification()
   }, [params.token])
   
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-black bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))]">
+      <div className="flex min-h-screen w-full items-center justify-center bg-black bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))]">
+    
       <div className="absolute inset-0 z-0">
         {/* Background stars/particles could go here */}
       </div>
@@ -101,7 +91,7 @@ export default function VerifyEmailPage() {
             <Button
               className="w-full"
               onClick={() => router.push('/login')}
-              disabled={verifying}
+              disabled={verifying || authLoading}
             >
               {success ? t('verifyEmailPage.continueToLogin') : t('verifyEmailPage.tryAgain')}
             </Button>
@@ -117,6 +107,7 @@ export default function VerifyEmailPage() {
           </CardFooter>
         </Card>
       </div>
-    </div>
+
+      </div>
   )
 }

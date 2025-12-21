@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, X, Search, Eye, EyeOff } from "lucide-react"
+import { ChevronLeft, X, Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,6 +12,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import Image from "next/image"
 import { useTranslation } from "react-i18next"
+import { useAuth } from "@/hooks/useAuth"
 
 interface Country {
   name: string;
@@ -22,6 +23,7 @@ interface Country {
 export default function RegisterPage() {
   const { t } = useTranslation()
   const router = useRouter()
+  const { signup, loading: authLoading } = useAuth()
   const [showReferralCode, setShowReferralCode] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -149,37 +151,19 @@ export default function RegisterPage() {
     }
 
     try {
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          password: formData.password,
-          passwordConfirm: formData.passwordConfirm,
-          referralCode: showReferralCode ? formData.referralCode : undefined,
-          phoneNumber: {
-            countryCode: selectedCountry?.code || '',
-            number: formData.phoneNumber.number
-          }
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        // Handle specific error cases
-        if (response.status === 503) {
-          throw new Error('Server is currently unavailable. Please try again later.')
+      const data = await signup({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        password: formData.password,
+        passwordConfirm: formData.passwordConfirm,
+        referralCode: showReferralCode ? formData.referralCode : undefined,
+        phoneNumber: {
+          countryCode: selectedCountry?.code || '',
+          number: formData.phoneNumber.number
         }
-        throw new Error(data.message || 'Registration failed')
-      }
-
-      // Always redirect to login page with success message
-      router.push('/login?registered=true&message=' + encodeURIComponent(data.message))
+      })
+      router.push('/profile')
     } catch (err: any) {
       setError(err.message || 'An error occurred during registration')
     } finally {
@@ -188,7 +172,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center py-12 bg-gradient-to-b from-black to-gray-950">
+      <div className="min-h-screen w-full flex flex-col items-center justify-center py-12 bg-gradient-to-b from-black to-gray-950">
       <div className="absolute top-4 left-4 sm:top-8 sm:left-8">
         <Button variant="ghost" size="sm" asChild>
           <Link href="/">
@@ -228,7 +212,7 @@ export default function RegisterPage() {
                     className="bg-gray-900 border-gray-800"
                     value={formData.firstName}
                     onChange={handleChange}
-                    disabled={isLoading}
+                    disabled={isLoading || authLoading}
                   />
                 </div>
                 <div className="space-y-1">
@@ -240,7 +224,7 @@ export default function RegisterPage() {
                     className="bg-gray-900 border-gray-800"
                     value={formData.lastName}
                     onChange={handleChange}
-                    disabled={isLoading}
+                    disabled={isLoading || authLoading}
                   />
                 </div>
               </div>
@@ -254,7 +238,7 @@ export default function RegisterPage() {
                   className="bg-gray-900 border-gray-800"
                   value={formData.email}
                   onChange={handleChange}
-                  disabled={isLoading}
+                  disabled={isLoading || authLoading}
                 />
               </div>
 
@@ -311,7 +295,7 @@ export default function RegisterPage() {
                     className="flex-1 bg-gray-900 border-gray-800"
                     value={formData.phoneNumber.number}
                     onChange={handleChange}
-                    disabled={isLoading}
+                    disabled={isLoading || authLoading}
                   />
                 </div>
               </div>
@@ -326,7 +310,7 @@ export default function RegisterPage() {
                     className="bg-gray-900 border-gray-800 pr-10"
                     value={formData.password}
                     onChange={handleChange}
-                    disabled={isLoading}
+                    disabled={isLoading || authLoading}
                     minLength={8}
                   />
                   <Button
@@ -357,7 +341,7 @@ export default function RegisterPage() {
                     className="bg-gray-900 border-gray-800 pr-10"
                     value={formData.passwordConfirm}
                     onChange={handleChange}
-                    disabled={isLoading}
+                    disabled={isLoading || authLoading}
                   />
                   <Button
                     type="button"
@@ -402,14 +386,14 @@ export default function RegisterPage() {
                       className="bg-gray-900 border-gray-800"
                       value={formData.referralCode}
                       onChange={handleChange}
-                      disabled={isLoading}
+                      disabled={isLoading || authLoading}
                     />
                   </div>
                 )}
               </div>
 
-              <Button type="submit" className="w-full mt-4" disabled={isLoading}>
-                {isLoading ? t('registerPage.creatingAccount') : t('registerPage.createAccount')}
+              <Button type="submit" className="w-full mt-4" disabled={isLoading || authLoading}>
+                {isLoading || authLoading ? t('registerPage.creatingAccount') : t('registerPage.createAccount')}
               </Button>
             </form>
           </CardContent>
@@ -423,6 +407,7 @@ export default function RegisterPage() {
           </CardFooter>
         </Card>
       </div>
-    </div>
+
+      </div>
   )
 }

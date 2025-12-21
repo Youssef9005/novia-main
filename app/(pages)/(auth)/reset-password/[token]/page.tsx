@@ -11,11 +11,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AuthProvider, useAuth } from "@/hooks/useAuth"
 
 export default function ResetPasswordPage() {
   const { t } = useTranslation()
   const router = useRouter()
   const params = useParams()
+  const { resetPassword, loading: authLoading } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -71,27 +73,8 @@ export default function ResetPasswordPage() {
     
     try {
       const token = params.token as string
-      
-      const response = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          token,
-          password: formData.password,
-          passwordConfirm: formData.passwordConfirm
-        }),
-      })
-      
-      const data = await response.json()
-      
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to reset password')
-      }
-      
+      await resetPassword(token, formData.password, formData.passwordConfirm)
       setResetComplete(true)
-      // Clear form data for security
       setFormData({ password: "", passwordConfirm: "" })
     } catch (err: any) {
       setError(err.message || 'An error occurred while resetting your password')
@@ -101,7 +84,8 @@ export default function ResetPasswordPage() {
   }
   
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-black bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))]">
+    <AuthProvider>
+      <div className="flex min-h-screen w-full items-center justify-center bg-black bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))]">
       <div className="absolute inset-0 z-0">
         {/* Background stars/particles could go here */}
       </div>
@@ -162,7 +146,7 @@ export default function ResetPasswordPage() {
                         className="bg-gray-900 border-gray-800 pr-10"
                         value={formData.password}
                         onChange={handleChange}
-                        disabled={isLoading}
+                        disabled={isLoading || authLoading}
                         required
                         minLength={8}
                       />
@@ -193,7 +177,7 @@ export default function ResetPasswordPage() {
                         className="bg-gray-900 border-gray-800 pr-10"
                         value={formData.passwordConfirm}
                         onChange={handleChange}
-                        disabled={isLoading}
+                        disabled={isLoading || authLoading}
                         required
                       />
                       <button
@@ -210,8 +194,13 @@ export default function ResetPasswordPage() {
                     </div>
                   </div>
                   
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button type="submit" className="w-full" disabled={isLoading || authLoading}>
                     {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {t('resetPasswordPage.resettingPassword')}
+                      </>
+                    ) : authLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         {t('resetPasswordPage.resettingPassword')}
@@ -247,6 +236,8 @@ export default function ResetPasswordPage() {
           )}
         </Card>
       </div>
-    </div>
+
+      </div>
+    </AuthProvider>
   )
 }

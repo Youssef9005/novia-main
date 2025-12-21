@@ -6,6 +6,7 @@ import { Navbar } from "@/components/navbar"
 import { EnhancedFooter } from "@/components/enhanced-footer"
 import { MessageCircle } from "lucide-react"
 import { LanguageProvider } from "@/components/language-provider"
+import { AuthProvider } from "@/hooks/useAuth"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -25,8 +26,9 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={`${inter.className} min-h-screen bg-black text-white flex flex-col`}>
         <LanguageProvider>
-          <Navbar />
-          <main className="flex-grow flex flex-col pt-16">{children}</main>
+          <AuthProvider>
+            <Navbar />
+            <main className="flex-grow flex flex-col pt-16">{children}</main>
         {/* Floating WhatsApp Chatbot Button */}
         <a
           href="https://wa.me/905344869220"
@@ -38,7 +40,8 @@ export default function RootLayout({
         >
           <MessageCircle className="w-7 h-7" />
         </a>
-          <EnhancedFooter />
+            <EnhancedFooter />
+          </AuthProvider>
         </LanguageProvider>
       </body>
     </html>

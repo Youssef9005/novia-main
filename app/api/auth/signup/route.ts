@@ -5,7 +5,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     
     // Forward the request to our backend server
-    const response = await fetch('https://api.novia-ai.com/api/auth/signup', {
+    const response = await fetch('http://localhost:8080/api/auth/signup', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
