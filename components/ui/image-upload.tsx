@@ -72,7 +72,7 @@ export function ImageUpload({
         const formData = new FormData();
         formData.append('image', file);
         
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080'}/api/upload/single`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.novia-ai.com'}/api/upload/single`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -116,7 +116,7 @@ export function ImageUpload({
     try {
       // Delete from backend if it's not a blob URL
       if (!filename.startsWith('blob:') && !filename.startsWith('temp-')) {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080'}/api/upload/${filename}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.novia-ai.com'}/api/upload/${filename}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`

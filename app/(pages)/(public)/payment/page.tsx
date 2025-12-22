@@ -193,7 +193,7 @@ function PaymentContent() {
       try {
         setLoadingWallets(true);
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080'}/api/wallets/active`
+          `${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.novia-ai.com'}/api/wallets/active`
         );
         
         if (!response.ok) {
@@ -249,7 +249,7 @@ function PaymentContent() {
       }
 
       // Verify token with backend
-      const response = await fetch('http://localhost:8080/api/users/me', {
+      const response = await fetch('https://api.novia-ai.com/api/users/me', {
         headers: { 
           'Authorization': `Bearer ${token}`
         }

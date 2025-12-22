@@ -1,7 +1,7 @@
 // Unified HTTP client for frontend API calls
 // Ensures base URL usage, includes credentials for HttpOnly cookies, and consistent error handling
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.novia-ai.com';
 
 type JsonInit = Omit<RequestInit, 'body' | 'headers'> & {
   headers?: Record<string, string>;

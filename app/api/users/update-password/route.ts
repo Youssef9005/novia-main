@@ -14,7 +14,7 @@ export async function PATCH(req: NextRequest) {
     }
     
     // Forward the request to our backend server
-    const response = await fetch('http://localhost:8080/api/auth/update-password', {
+    const response = await fetch('https://api.novia-ai.com/api/auth/update-password', {
       method: 'PATCH',
       headers: {
         'Authorization': `Bearer ${token}`,
