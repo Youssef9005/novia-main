@@ -14,6 +14,7 @@ interface Signal {
   tp1: string;
   tp2: string;
   tp3: string;
+  tp4?: string;
   stopLoss: string;
   price: string;
   message: string;
@@ -21,7 +22,11 @@ interface Signal {
   createdAt: string;
 }
 
-export default function SignalList() {
+interface SignalListProps {
+  onSelectSignal?: (signal: Signal) => void;
+}
+
+export default function SignalList({ onSelectSignal }: SignalListProps) {
   const { user } = useAuth();
   const [signals, setSignals] = useState<Signal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,7 +89,11 @@ export default function SignalList() {
               </div>
             ) : (
               signals.map((signal) => (
-                <div key={signal._id} className="border rounded-lg p-4 bg-card/50 hover:bg-card transition-colors">
+                <div 
+                  key={signal._id} 
+                  className="border rounded-lg p-4 bg-card/50 hover:bg-card transition-colors cursor-pointer"
+                  onClick={() => onSelectSignal && onSelectSignal(signal)}
+                >
                   <div className="flex justify-between items-start mb-2">
                     <div className="font-bold text-lg">{signal.symbol}</div>
                     <Badge variant={signal.type === 'Buy' ? 'default' : signal.type === 'Sell' ? 'destructive' : 'secondary'}>

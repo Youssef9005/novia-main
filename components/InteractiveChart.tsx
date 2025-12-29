@@ -1,11 +1,19 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { createChart, ColorType, CrosshairMode, IChartApi, ISeriesApi, LineStyle } from 'lightweight-charts';
-import { useAuth } from '@/hooks/useAuth';
+import { useEffect, useRef, useState } from 'react';
+import { createChart, ColorType, CrosshairMode, IChartApi, ISeriesApi, LineStyle, CandlestickSeries, Time } from 'lightweight-charts';
 
 interface InteractiveChartProps {
   symbol?: string;
+  signal?: any;
+}
+
+interface CandleData {
+  time: Time;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
 }
 
 // Helper to fetch data from Binance (Proxy or Direct if allowed)
@@ -16,43 +24,45 @@ interface InteractiveChartProps {
 // or explain the limitation.
 // Let's try to fetch from Binance for crypto, and generate mock for others if API fails.
 
-export default function InteractiveChart({ symbol = 'XAUUSD' }: InteractiveChartProps) {
+export default function InteractiveChart({ symbol = 'XAUUSD', signal }: InteractiveChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const priceLinesRef = useRef<any[]>([]);
   const [activeSignal, setActiveSignal] = useState<any>(null);
-  const { user } = useAuth();
   
-  // Fetch Active Signal
+  // Set active signal from prop or fetch
   useEffect(() => {
-    const fetchSignal = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-        
-        const res = await fetch('/api/signals', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-        
-        if (data.status === 'success' && data.data.signals.length > 0) {
-          // Find the latest active signal for the symbol
-          // Note: Signal API currently returns all signals. 
-          // We should filter for the current symbol and "active" status ideally.
-          const latest = data.data.signals.find((s: any) => 
-            s.symbol === symbol || s.symbol === symbol.replace('/', '')
-          );
-          if (latest) setActiveSignal(latest);
+    if (signal) {
+      setActiveSignal(signal);
+    } else {
+      // Existing fetch logic...
+      const fetchSignal = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          if (!token) return;
+          
+          const res = await fetch('/api/signals', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await res.json();
+          
+          if (data.status === 'success' && data.data.signals.length > 0) {
+            const latest = data.data.signals.find((s: any) => 
+              s.symbol === symbol || s.symbol === symbol.replace('/', '')
+            );
+            if (latest) setActiveSignal(latest);
+          }
+        } catch (err) {
+          console.error("Error fetching signal:", err);
         }
-      } catch (err) {
-        console.error("Error fetching signal:", err);
-      }
-    };
-    
-    fetchSignal();
-    const interval = setInterval(fetchSignal, 30000); // Poll every 30s
-    return () => clearInterval(interval);
-  }, [symbol]);
+      };
+      
+      fetchSignal();
+      const interval = setInterval(fetchSignal, 30000); 
+      return () => clearInterval(interval);
+    }
+  }, [symbol, signal]);
 
   // Initialize Chart
   useEffect(() => {
@@ -81,7 +91,7 @@ export default function InteractiveChart({ symbol = 'XAUUSD' }: InteractiveChart
       },
     });
 
-    const candleSeries = chart.addCandlestickSeries({
+    const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#26a69a',
       downColor: '#ef5350',
       borderVisible: false,
@@ -96,7 +106,7 @@ export default function InteractiveChart({ symbol = 'XAUUSD' }: InteractiveChart
     const loadData = async () => {
       // Mock data generator for XAUUSD since we don't have a free public API for it
       // In a real app, you would fetch from your backend or a paid provider
-      let data = [];
+      let data: CandleData[] = [];
       if (symbol === 'XAUUSD' || symbol === 'GOLD') {
          // Generate realistic-looking data around 2030-2040
          let time = Math.floor(Date.now() / 1000) - 100 * 300; // 100 candles of 5 mins
@@ -106,7 +116,7 @@ export default function InteractiveChart({ symbol = 'XAUUSD' }: InteractiveChart
             const high = Math.max(open, close) + Math.random();
             const low = Math.min(open, close) - Math.random();
             data.push({
-               time: time + i * 300,
+               time: (time + i * 300) as Time,
                open,
                high,
                low,
@@ -117,11 +127,14 @@ export default function InteractiveChart({ symbol = 'XAUUSD' }: InteractiveChart
       } else {
          // Try Binance for Crypto
          try {
-             const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}USDT&interval=15m&limit=1000`);
+             // If symbol doesn't end with USDT and it's a crypto, maybe append it? 
+             // But let's assume we pass full pair like BTCUSDT
+             const querySymbol = symbol.toUpperCase(); 
+             const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${querySymbol}&interval=15m&limit=1000`);
              const klines = await res.json();
              if (Array.isArray(klines)) {
                  data = klines.map((k: any) => ({
-                     time: k[0] / 1000,
+                     time: (k[0] / 1000) as Time,
                      open: parseFloat(k[1]),
                      high: parseFloat(k[2]),
                      low: parseFloat(k[3]),
@@ -156,68 +169,37 @@ export default function InteractiveChart({ symbol = 'XAUUSD' }: InteractiveChart
 
   // Draw Signal Lines
   useEffect(() => {
-    if (!chartRef.current || !candleSeriesRef.current || !activeSignal) return;
+    if (!chartRef.current || !candleSeriesRef.current) return;
 
-    // Clear previous lines (by re-creating series or removing lines - LW charts manages lines via PriceLines)
-    // Note: lightweight-charts doesn't have "clearPriceLines", we have to keep track of them or just let them stay if we re-mount.
-    // Since we re-mount on symbol change, it's fine. 
-    // But if signal changes, we might duplicate. 
-    // Better to remove specific lines if we had references, but for MVP we assume 1 signal.
+    // Clear previous lines
+    priceLinesRef.current.forEach(line => {
+      candleSeriesRef.current?.removePriceLine(line);
+    });
+    priceLinesRef.current = [];
+
+    if (!activeSignal) return;
     
-    const { entry, tp1, tp2, tp3, stopLoss } = activeSignal;
+    const { entry, tp1, tp2, tp3, tp4, stopLoss } = activeSignal;
 
-    if (entry) {
-        candleSeriesRef.current.createPriceLine({
-            price: parseFloat(entry),
-            color: '#2962FF',
+    const createLine = (price: string, color: string, title: string, style: LineStyle = LineStyle.Solid) => {
+        if (!price) return;
+        const line = candleSeriesRef.current?.createPriceLine({
+            price: parseFloat(price),
+            color,
             lineWidth: 2,
-            lineStyle: LineStyle.Solid,
+            lineStyle: style,
             axisLabelVisible: true,
-            title: 'ENTRY',
+            title,
         });
-    }
+        if (line) priceLinesRef.current.push(line);
+    };
 
-    if (tp1) {
-        candleSeriesRef.current.createPriceLine({
-            price: parseFloat(tp1),
-            color: '#00E676', // Green
-            lineWidth: 2,
-            lineStyle: LineStyle.Dashed,
-            axisLabelVisible: true,
-            title: 'TP1',
-        });
-    }
-    if (tp2) {
-        candleSeriesRef.current.createPriceLine({
-            price: parseFloat(tp2),
-            color: '#00E676',
-            lineWidth: 2,
-            lineStyle: LineStyle.Dashed,
-            axisLabelVisible: true,
-            title: 'TP2',
-        });
-    }
-    if (tp3) {
-        candleSeriesRef.current.createPriceLine({
-            price: parseFloat(tp3),
-            color: '#00E676',
-            lineWidth: 2,
-            lineStyle: LineStyle.Dashed,
-            axisLabelVisible: true,
-            title: 'TP3',
-        });
-    }
-
-    if (stopLoss) {
-        candleSeriesRef.current.createPriceLine({
-            price: parseFloat(stopLoss),
-            color: '#FF5252', // Red
-            lineWidth: 2,
-            lineStyle: LineStyle.Solid,
-            axisLabelVisible: true,
-            title: 'SL',
-        });
-    }
+    createLine(entry, '#2962FF', 'ENTRY', LineStyle.Solid);
+    createLine(tp1, '#00E676', 'TP1', LineStyle.Dashed);
+    createLine(tp2, '#00E676', 'TP2', LineStyle.Dashed);
+    createLine(tp3, '#00E676', 'TP3', LineStyle.Dashed);
+    createLine(tp4, '#00E676', 'TP4', LineStyle.Dashed);
+    createLine(stopLoss, '#FF1744', 'STOP LOSS', LineStyle.Solid);
 
   }, [activeSignal]);
 
