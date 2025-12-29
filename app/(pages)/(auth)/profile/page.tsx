@@ -805,7 +805,7 @@ export default function ProfilePage() {
                   </div>
 
                   <Button 
-                    onClick={() => window.open('https://t.me/novia_ai_subscription_bot', '_blank')}
+                    onClick={() => window.open('https://t.me/novia_ai_subscribe_bot', '_blank')}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center space-x-2"
                   >
                     <Send className="h-4 w-4" />
