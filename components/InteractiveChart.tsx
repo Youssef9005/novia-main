@@ -3,6 +3,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType, CrosshairMode, IChartApi, ISeriesApi, LineStyle, CandlestickSeries, Time } from 'lightweight-charts';
 import { Button } from '@/components/ui/button';
+import { 
+  Maximize2, 
+  Settings, 
+  Camera, 
+  MoreHorizontal, 
+  MousePointer2, 
+  Minus, 
+  TrendingUp, 
+  Type, 
+  Crosshair,
+  BarChart3,
+  Layers,
+  ChevronDown,
+  Pencil
+} from 'lucide-react';
 
 interface InteractiveChartProps {
   symbol?: string;
@@ -18,12 +33,13 @@ interface CandleData {
 }
 
 const TIMEFRAMES = [
-  { label: '1M', value: '1m', interval: '1m' },
-  { label: '5M', value: '5m', interval: '5m' },
-  { label: '15M', value: '15m', interval: '15m' },
-  { label: '1H', value: '1h', interval: '1h' },
-  { label: '4H', value: '4h', interval: '4h' },
-  { label: '1D', value: '1d', interval: '1d' },
+  { label: '1m', value: '1m' },
+  { label: '5m', value: '5m' },
+  { label: '15m', value: '15m' },
+  { label: '1h', value: '1h' },
+  { label: '4h', value: '4h' },
+  { label: 'D', value: '1d' },
+  { label: 'W', value: '1w' },
 ];
 
 export default function InteractiveChart({ symbol = 'XAUUSD', signal }: InteractiveChartProps) {
@@ -33,13 +49,13 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
   const priceLinesRef = useRef<any[]>([]);
   const [activeSignal, setActiveSignal] = useState<any>(null);
   const [timeframe, setTimeframe] = useState('1h');
+  const [chartType, setChartType] = useState('candles');
   
   // Set active signal from prop or fetch
   useEffect(() => {
     if (signal) {
       setActiveSignal(signal);
     } else {
-      // Existing fetch logic...
       const fetchSignal = async () => {
         try {
           const token = localStorage.getItem('token');
@@ -73,17 +89,29 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: '#1E1E1E' },
-        textColor: '#DDD',
+        background: { type: ColorType.Solid, color: '#131722' }, // TradingView Dark Theme
+        textColor: '#d1d4dc',
       },
       grid: {
-        vertLines: { color: '#2B2B43' },
-        horzLines: { color: '#2B2B43' },
+        vertLines: { color: '#1f2937', style: LineStyle.Dotted },
+        horzLines: { color: '#1f2937', style: LineStyle.Dotted },
       },
       width: chartContainerRef.current.clientWidth,
-      height: 600,
+      height: chartContainerRef.current.clientHeight,
       crosshair: {
         mode: CrosshairMode.Normal,
+        vertLine: {
+            width: 1,
+            color: '#758696',
+            style: LineStyle.Dashed,
+            labelBackgroundColor: '#758696',
+        },
+        horzLine: {
+            width: 1,
+            color: '#758696',
+            style: LineStyle.Dashed,
+            labelBackgroundColor: '#758696',
+        },
       },
       rightPriceScale: {
         borderColor: '#2B2B43',
@@ -106,11 +134,11 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
     });
 
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#26a69a',
-      downColor: '#ef5350',
+      upColor: '#089981', // TV Green
+      downColor: '#F23645', // TV Red
       borderVisible: false,
-      wickUpColor: '#26a69a',
-      wickDownColor: '#ef5350',
+      wickUpColor: '#089981',
+      wickDownColor: '#F23645',
     });
 
     chartRef.current = chart;
@@ -121,12 +149,11 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
       let data: CandleData[] = [];
       if (symbol === 'XAUUSD' || symbol === 'GOLD') {
          // Generate realistic-looking data
-         // Adjust time step based on timeframe
          const timeStep = timeframe === '1m' ? 60 : timeframe === '5m' ? 300 : timeframe === '15m' ? 900 : timeframe === '1h' ? 3600 : timeframe === '4h' ? 14400 : 86400;
          let time = Math.floor(Date.now() / 1000) - 1000 * timeStep;
          let open = 2030.0;
          for (let i = 0; i < 1000; i++) {
-            const close = open + (Math.random() - 0.5) * (timeStep / 60); // Volatility scales with time
+            const close = open + (Math.random() - 0.5) * (timeStep / 60); 
             const high = Math.max(open, close) + Math.random() * (timeStep / 60);
             const low = Math.min(open, close) - Math.random() * (timeStep / 60);
             data.push({
@@ -141,8 +168,9 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
       } else {
          // Try Binance for Crypto
          try {
-             const querySymbol = symbol.toUpperCase(); 
-             const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${querySymbol}&interval=${timeframe}&limit=1000`);
+             const querySymbol = symbol.toUpperCase().replace('/', ''); 
+             const binanceInterval = timeframe === '1d' ? '1d' : timeframe; // map if needed
+             const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${querySymbol}&interval=${binanceInterval}&limit=1000`);
              const klines = await res.json();
              if (Array.isArray(klines)) {
                  data = klines.map((k: any) => ({
@@ -160,8 +188,6 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
       
       if (data.length > 0) {
         candleSeries.setData(data);
-        
-        // Fit Content initially
         chart.timeScale().fitContent();
       }
     };
@@ -170,7 +196,10 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
 
     const handleResize = () => {
       if (chartContainerRef.current) {
-        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+        chart.applyOptions({ 
+          width: chartContainerRef.current.clientWidth,
+          height: chartContainerRef.current.clientHeight
+        });
       }
     };
     window.addEventListener('resize', handleResize);
@@ -193,14 +222,14 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
 
     if (!activeSignal) return;
     
-    const { entry, tp1, tp2, tp3, tp4, stopLoss } = activeSignal;
+    const { entry, tp1, tp2, tp3, stopLoss } = activeSignal;
 
-    const createLine = (price: string, color: string, title: string, style: LineStyle = LineStyle.Solid) => {
+    const createLine = (price: string, color: string, title: string, style: LineStyle = LineStyle.Solid, width: number = 2) => {
         if (!price) return;
         const line = candleSeriesRef.current?.createPriceLine({
             price: parseFloat(price),
             color,
-            lineWidth: 2,
+            lineWidth: width as any,
             lineStyle: style,
             axisLabelVisible: true,
             title,
@@ -208,52 +237,141 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
         if (line) priceLinesRef.current.push(line);
     };
 
-    createLine(entry, '#2962FF', 'ENTRY', LineStyle.Solid);
-    createLine(tp1, '#00E676', 'TP1', LineStyle.Dashed);
-    createLine(tp2, '#00E676', 'TP2', LineStyle.Dashed);
-    createLine(tp3, '#00E676', 'TP3', LineStyle.Dashed);
-    createLine(tp4, '#00E676', 'TP4', LineStyle.Dashed);
-    createLine(stopLoss, '#FF1744', 'STOP LOSS', LineStyle.Solid);
-    
-    // Auto-focus logic: Ensure entry and targets are visible
-    // We can't directly "set visible price range" easily in LW charts without calculating it manually.
-    // However, chart.timeScale().fitContent() fits the TIME.
-    // Price scale is usually auto. 
-    // If the signal prices are way off the current data, we might need to adjust.
-    // But usually, signal corresponds to current price.
+    createLine(entry, '#2962FF', 'ENTRY', LineStyle.Solid, 2);
+    createLine(tp1, '#089981', 'TP1', LineStyle.Dashed, 1);
+    if(tp2) createLine(tp2, '#089981', 'TP2', LineStyle.Dashed, 1);
+    if(tp3) createLine(tp3, '#089981', 'TP3', LineStyle.Dashed, 1);
+    createLine(stopLoss, '#F23645', 'SL', LineStyle.Solid, 2);
 
   }, [activeSignal]);
 
   return (
-    <div className="w-full h-full flex flex-col relative">
-      <div className="flex items-center space-x-2 p-2 bg-[#1E1E1E] border-b border-[#2B2B43] z-10">
-        <div className="font-bold text-white mr-4">{symbol}</div>
-        {TIMEFRAMES.map((tf) => (
-          <Button 
-            key={tf.value}
-            variant={timeframe === tf.value ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => setTimeframe(tf.value)}
-            className="h-7 text-xs"
-          >
-            {tf.label}
-          </Button>
-        ))}
+    <div className="w-full h-full flex flex-col bg-[#131722] text-[#d1d4dc] overflow-hidden rounded-lg border border-[#2B2B43] shadow-xl">
+      {/* Top Toolbar */}
+      <div className="flex items-center justify-between px-2 h-12 border-b border-[#2B2B43] bg-[#131722]">
+        <div className="flex items-center space-x-1">
+          <div className="flex items-center mr-4 px-2 hover:bg-[#2A2E39] rounded cursor-pointer transition-colors">
+            <span className="font-bold text-lg text-white mr-1">{symbol}</span>
+            <span className="text-xs text-gray-400 bg-[#2A2E39] px-1 rounded">BINANCE</span>
+          </div>
+          
+          <div className="h-6 w-px bg-[#2B2B43] mx-2" />
+
+          {TIMEFRAMES.map((tf) => (
+            <button
+              key={tf.value}
+              onClick={() => setTimeframe(tf.value)}
+              className={`px-2 py-1 text-sm rounded hover:bg-[#2A2E39] transition-colors ${timeframe === tf.value ? 'text-[#2962FF] font-medium' : 'text-[#d1d4dc]'}`}
+            >
+              {tf.label}
+            </button>
+          ))}
+          
+          <div className="h-6 w-px bg-[#2B2B43] mx-2" />
+
+          <button className="p-1.5 hover:bg-[#2A2E39] rounded text-[#d1d4dc]">
+            <BarChart3 size={18} />
+          </button>
+          <button className="flex items-center space-x-1 px-2 py-1 hover:bg-[#2A2E39] rounded text-[#d1d4dc]">
+            <Layers size={18} />
+            <span className="text-sm">Indicators</span>
+          </button>
+        </div>
+
+        <div className="flex items-center space-x-2">
+           <Button variant="ghost" size="icon" className="text-[#d1d4dc] hover:bg-[#2A2E39]"><Settings size={18} /></Button>
+           <Button variant="ghost" size="icon" className="text-[#d1d4dc] hover:bg-[#2A2E39]"><Maximize2 size={18} /></Button>
+           <Button variant="ghost" size="icon" className="text-[#d1d4dc] hover:bg-[#2A2E39]"><Camera size={18} /></Button>
+           <Button className="bg-[#2962FF] hover:bg-[#1e4bd8] text-white text-xs h-8">Publish</Button>
+        </div>
       </div>
-      <div ref={chartContainerRef} className="w-full flex-1 min-h-[500px]" />
-      
-      {/* Floating Signal Info Overlay (Optional: "In the middle of the screen") */}
-      {activeSignal && (
-        <div className="absolute top-14 right-4 bg-black/70 p-4 rounded text-xs text-white backdrop-blur-sm border border-white/10 pointer-events-none">
-          <div className="font-bold text-sm mb-2">{activeSignal.type} Signal</div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-             <div>Entry:</div><div className="font-mono">{activeSignal.entry}</div>
-             <div className="text-green-400">TP1:</div><div className="font-mono text-green-400">{activeSignal.tp1}</div>
-             {activeSignal.tp2 && <><div className="text-green-400">TP2:</div><div className="font-mono text-green-400">{activeSignal.tp2}</div></>}
-             <div className="text-red-400">SL:</div><div className="font-mono text-red-400">{activeSignal.stopLoss}</div>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Drawing Toolbar */}
+        <div className="w-12 border-r border-[#2B2B43] flex flex-col items-center py-4 space-y-4 bg-[#131722] z-20">
+            <div className="p-2 hover:bg-[#2A2E39] rounded cursor-pointer text-[#d1d4dc]"><Crosshair size={20} /></div>
+            <div className="p-2 hover:bg-[#2A2E39] rounded cursor-pointer text-[#d1d4dc]"><TrendingUp size={20} /></div>
+            <div className="p-2 hover:bg-[#2A2E39] rounded cursor-pointer text-[#d1d4dc]"><Layers size={20} /></div>
+            <div className="p-2 hover:bg-[#2A2E39] rounded cursor-pointer text-[#d1d4dc]"><Pencil size={20} /></div>
+            <div className="p-2 hover:bg-[#2A2E39] rounded cursor-pointer text-[#d1d4dc]"><Type size={20} /></div>
+            <div className="p-2 hover:bg-[#2A2E39] rounded cursor-pointer text-[#d1d4dc]"><Minus size={20} /></div>
+            <div className="mt-auto p-2 hover:bg-[#2A2E39] rounded cursor-pointer text-[#d1d4dc]"><MousePointer2 size={20} /></div>
+        </div>
+
+        {/* Chart Area */}
+        <div className="flex-1 relative bg-[#131722]">
+          <div ref={chartContainerRef} className="w-full h-full" />
+          
+          {/* Professional Signal Overlay */}
+          {activeSignal && (
+            <div className="absolute top-4 right-16 w-72 bg-[#1E222D]/95 backdrop-blur shadow-2xl rounded-lg border border-[#2B2B43] overflow-hidden animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className={`p-3 border-b border-[#2B2B43] flex justify-between items-center ${
+                  activeSignal.type === 'Buy' ? 'bg-[#089981]/10' : 
+                  activeSignal.type === 'Sell' ? 'bg-[#F23645]/10' : ''
+              }`}>
+                <div className="flex items-center space-x-2">
+                    <span className={`font-bold ${
+                        activeSignal.type === 'Buy' ? 'text-[#089981]' : 
+                        activeSignal.type === 'Sell' ? 'text-[#F23645]' : 'text-white'
+                    }`}>
+                        {activeSignal.type.toUpperCase()}
+                    </span>
+                    <span className="text-[#787B86] text-sm">{activeSignal.symbol}</span>
+                </div>
+                <div className="text-xs text-[#787B86]">
+                    {new Date(activeSignal.createdAt).toLocaleTimeString()}
+                </div>
+              </div>
+              
+              <div className="p-4 space-y-3">
+                 <div className="flex justify-between items-center">
+                    <span className="text-[#787B86] text-sm">Entry Price</span>
+                    <span className="font-mono text-white font-medium bg-[#2962FF]/20 px-2 py-0.5 rounded text-[#2962FF]">{activeSignal.entry}</span>
+                 </div>
+                 
+                 <div className="h-px bg-[#2B2B43] my-2" />
+
+                 <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                        <span className="text-[#787B86] text-xs">Take Profit 1</span>
+                        <span className="font-mono text-[#089981]">{activeSignal.tp1}</span>
+                    </div>
+                    {activeSignal.tp2 && (
+                        <div className="flex justify-between items-center">
+                            <span className="text-[#787B86] text-xs">Take Profit 2</span>
+                            <span className="font-mono text-[#089981]">{activeSignal.tp2}</span>
+                        </div>
+                    )}
+                    {activeSignal.tp3 && (
+                        <div className="flex justify-between items-center">
+                            <span className="text-[#787B86] text-xs">Take Profit 3</span>
+                            <span className="font-mono text-[#089981]">{activeSignal.tp3}</span>
+                        </div>
+                    )}
+                 </div>
+
+                 <div className="h-px bg-[#2B2B43] my-2" />
+
+                 <div className="flex justify-between items-center">
+                    <span className="text-[#787B86] text-sm">Stop Loss</span>
+                    <span className="font-mono text-[#F23645] font-medium bg-[#F23645]/10 px-2 py-0.5 rounded">{activeSignal.stopLoss}</span>
+                 </div>
+              </div>
+              
+              <div className="p-2 bg-[#2A2E39]/50 border-t border-[#2B2B43] text-center">
+                <p className="text-[10px] text-[#787B86]">
+                   Risk Warning: Trading involves significant risk.
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {/* Watermark / Background Text */}
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[100px] font-bold text-[#2A2E39]/20 pointer-events-none select-none z-0">
+             {symbol}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
