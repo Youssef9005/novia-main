@@ -1,23 +1,31 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType, CrosshairMode, IChartApi, ISeriesApi, LineStyle, CandlestickSeries, Time } from 'lightweight-charts';
+import { 
+  createChart, 
+  ColorType, 
+  CrosshairMode, 
+  IChartApi, 
+  ISeriesApi, 
+  LineStyle, 
+  CandlestickSeries, 
+  AreaSeries,
+  Time 
+} from 'lightweight-charts';
 import { Button } from '@/components/ui/button';
 import { 
   Maximize2, 
-  Settings, 
   Camera, 
-  MoreHorizontal, 
-  MousePointer2, 
-  Minus, 
-  TrendingUp, 
-  Type, 
   Crosshair,
   BarChart3,
   Layers,
-  ChevronDown,
-  Pencil
+  ZoomIn,
+  ZoomOut,
+  RefreshCw,
+  Eye,
+  EyeOff
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface InteractiveChartProps {
   symbol?: string;
@@ -45,12 +53,15 @@ const TIMEFRAMES = [
 export default function InteractiveChart({ symbol = 'XAUUSD', signal }: InteractiveChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const seriesRef = useRef<ISeriesApi<"Candlestick" | "Area"> | null>(null);
   const priceLinesRef = useRef<any[]>([]);
+  
   const [activeSignal, setActiveSignal] = useState<any>(null);
   const [timeframe, setTimeframe] = useState('1h');
-  const [chartType, setChartType] = useState('candles');
-  
+  const [chartType, setChartType] = useState<'candles' | 'area'>('candles');
+  const [showSignalLines, setShowSignalLines] = useState(true);
+  const [crosshairMode, setCrosshairMode] = useState<CrosshairMode>(CrosshairMode.Normal);
+
   // Set active signal from prop or fetch
   useEffect(() => {
     if (signal) {
@@ -87,9 +98,14 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
+    // Dispose old chart if exists
+    if (chartRef.current) {
+      chartRef.current.remove();
+    }
+
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: '#131722' }, // TradingView Dark Theme
+        background: { type: ColorType.Solid, color: '#131722' },
         textColor: '#d1d4dc',
       },
       grid: {
@@ -99,7 +115,7 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight,
       crosshair: {
-        mode: CrosshairMode.Normal,
+        mode: crosshairMode,
         vertLine: {
             width: 1,
             color: '#758696',
@@ -133,22 +149,32 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
       },
     });
 
-    const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#089981', // TV Green
-      downColor: '#F23645', // TV Red
-      borderVisible: false,
-      wickUpColor: '#089981',
-      wickDownColor: '#F23645',
-    });
+    let series: ISeriesApi<"Candlestick" | "Area">;
+
+    if (chartType === 'area') {
+      series = chart.addSeries(AreaSeries, {
+        topColor: 'rgba(41, 98, 255, 0.56)',
+        bottomColor: 'rgba(41, 98, 255, 0.04)',
+        lineColor: 'rgba(41, 98, 255, 1)',
+        lineWidth: 2,
+      });
+    } else {
+      series = chart.addSeries(CandlestickSeries, {
+        upColor: '#089981',
+        downColor: '#F23645',
+        borderVisible: false,
+        wickUpColor: '#089981',
+        wickDownColor: '#F23645',
+      });
+    }
 
     chartRef.current = chart;
-    candleSeriesRef.current = candleSeries;
+    seriesRef.current = series;
 
     // Load Data
     const loadData = async () => {
       let data: CandleData[] = [];
       if (symbol === 'XAUUSD' || symbol === 'GOLD') {
-         // Generate realistic-looking data
          const timeStep = timeframe === '1m' ? 60 : timeframe === '5m' ? 300 : timeframe === '15m' ? 900 : timeframe === '1h' ? 3600 : timeframe === '4h' ? 14400 : 86400;
          let time = Math.floor(Date.now() / 1000) - 1000 * timeStep;
          let open = 2030.0;
@@ -166,10 +192,9 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
             open = close;
          }
       } else {
-         // Try Binance for Crypto
          try {
              const querySymbol = symbol.toUpperCase().replace('/', ''); 
-             const binanceInterval = timeframe === '1d' ? '1d' : timeframe; // map if needed
+             const binanceInterval = timeframe === '1d' ? '1d' : timeframe;
              const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${querySymbol}&interval=${binanceInterval}&limit=1000`);
              const klines = await res.json();
              if (Array.isArray(klines)) {
@@ -187,7 +212,13 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
       }
       
       if (data.length > 0) {
-        candleSeries.setData(data);
+        if (chartType === 'area') {
+           // Area series needs just time and value (close)
+           const areaData = data.map(d => ({ time: d.time, value: d.close }));
+           series.setData(areaData);
+        } else {
+           series.setData(data);
+        }
         chart.timeScale().fitContent();
       }
     };
@@ -208,25 +239,25 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, [symbol, timeframe]);
+  }, [symbol, timeframe, chartType, crosshairMode]);
 
   // Draw Signal Lines
   useEffect(() => {
-    if (!chartRef.current || !candleSeriesRef.current) return;
+    if (!chartRef.current || !seriesRef.current) return;
 
     // Clear previous lines
     priceLinesRef.current.forEach(line => {
-      candleSeriesRef.current?.removePriceLine(line);
+      seriesRef.current?.removePriceLine(line);
     });
     priceLinesRef.current = [];
 
-    if (!activeSignal) return;
+    if (!activeSignal || !showSignalLines) return;
     
     const { entry, tp1, tp2, tp3, stopLoss } = activeSignal;
 
     const createLine = (price: string, color: string, title: string, style: LineStyle = LineStyle.Solid, width: number = 2) => {
         if (!price) return;
-        const line = candleSeriesRef.current?.createPriceLine({
+        const line = seriesRef.current?.createPriceLine({
             price: parseFloat(price),
             color,
             lineWidth: width as any,
@@ -243,7 +274,61 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
     if(tp3) createLine(tp3, '#089981', 'TP3', LineStyle.Dashed, 1);
     createLine(stopLoss, '#F23645', 'SL', LineStyle.Solid, 2);
 
-  }, [activeSignal]);
+  }, [activeSignal, showSignalLines, chartType]); // Re-run when chartType changes because series is recreated
+
+  // Handlers
+  const handleScreenshot = () => {
+    if (chartContainerRef.current) {
+        const canvas = chartContainerRef.current.querySelector('canvas');
+        if (canvas) {
+            const url = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = `${symbol}-chart.png`;
+            link.href = url;
+            link.click();
+        }
+    }
+  };
+
+  const handleZoomIn = () => {
+    if (chartRef.current) {
+        const timeScale = chartRef.current.timeScale();
+        const range = timeScale.getVisibleLogicalRange();
+        if (range) {
+            const span = range.to - range.from;
+            const newSpan = span * 0.8;
+            const center = (range.from + range.to) / 2;
+            timeScale.setVisibleLogicalRange({
+                from: center - newSpan / 2,
+                to: center + newSpan / 2,
+            });
+        }
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (chartRef.current) {
+        const timeScale = chartRef.current.timeScale();
+        const range = timeScale.getVisibleLogicalRange();
+        if (range) {
+            const span = range.to - range.from;
+            const newSpan = span * 1.25;
+            const center = (range.from + range.to) / 2;
+            timeScale.setVisibleLogicalRange({
+                from: center - newSpan / 2,
+                to: center + newSpan / 2,
+            });
+        }
+    }
+  };
+
+  const toggleFullscreen = () => {
+      if (!document.fullscreenElement) {
+          chartContainerRef.current?.requestFullscreen();
+      } else {
+          document.exitFullscreen();
+      }
+  };
 
   return (
     <div className="w-full h-full flex flex-col bg-[#131722] text-[#d1d4dc] overflow-hidden rounded-lg border border-[#2B2B43] shadow-xl">
@@ -269,33 +354,74 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
           
           <div className="h-6 w-px bg-[#2B2B43] mx-2" />
 
-          <button className="p-1.5 hover:bg-[#2A2E39] rounded text-[#d1d4dc]">
+          <button 
+             onClick={() => setChartType(prev => prev === 'candles' ? 'area' : 'candles')}
+             className={`p-1.5 hover:bg-[#2A2E39] rounded ${chartType === 'area' ? 'text-[#2962FF]' : 'text-[#d1d4dc]'}`}
+             title="Toggle Chart Type"
+          >
             <BarChart3 size={18} />
           </button>
-          <button className="flex items-center space-x-1 px-2 py-1 hover:bg-[#2A2E39] rounded text-[#d1d4dc]">
+          <button 
+             onClick={() => setShowSignalLines(!showSignalLines)}
+             className={`flex items-center space-x-1 px-2 py-1 hover:bg-[#2A2E39] rounded ${showSignalLines ? 'text-[#2962FF]' : 'text-[#d1d4dc]'}`}
+             title="Toggle Signal Lines"
+          >
             <Layers size={18} />
-            <span className="text-sm">Indicators</span>
+            <span className="text-sm hidden sm:inline">Signals</span>
           </button>
         </div>
 
         <div className="flex items-center space-x-2">
-           <Button variant="ghost" size="icon" className="text-[#d1d4dc] hover:bg-[#2A2E39]"><Settings size={18} /></Button>
-           <Button variant="ghost" size="icon" className="text-[#d1d4dc] hover:bg-[#2A2E39]"><Maximize2 size={18} /></Button>
-           <Button variant="ghost" size="icon" className="text-[#d1d4dc] hover:bg-[#2A2E39]"><Camera size={18} /></Button>
-           <Button className="bg-[#2962FF] hover:bg-[#1e4bd8] text-white text-xs h-8">Publish</Button>
+           <Button variant="ghost" size="icon" className="text-[#d1d4dc] hover:bg-[#2A2E39]" onClick={toggleFullscreen} title="Fullscreen"><Maximize2 size={18} /></Button>
+           <Button variant="ghost" size="icon" className="text-[#d1d4dc] hover:bg-[#2A2E39]" onClick={handleScreenshot} title="Screenshot"><Camera size={18} /></Button>
         </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Drawing Toolbar */}
+        {/* Left Drawing Toolbar - Functional View Tools */}
         <div className="w-12 border-r border-[#2B2B43] flex flex-col items-center py-4 space-y-4 bg-[#131722] z-20">
-            <div className="p-2 hover:bg-[#2A2E39] rounded cursor-pointer text-[#d1d4dc]"><Crosshair size={20} /></div>
-            <div className="p-2 hover:bg-[#2A2E39] rounded cursor-pointer text-[#d1d4dc]"><TrendingUp size={20} /></div>
-            <div className="p-2 hover:bg-[#2A2E39] rounded cursor-pointer text-[#d1d4dc]"><Layers size={20} /></div>
-            <div className="p-2 hover:bg-[#2A2E39] rounded cursor-pointer text-[#d1d4dc]"><Pencil size={20} /></div>
-            <div className="p-2 hover:bg-[#2A2E39] rounded cursor-pointer text-[#d1d4dc]"><Type size={20} /></div>
-            <div className="p-2 hover:bg-[#2A2E39] rounded cursor-pointer text-[#d1d4dc]"><Minus size={20} /></div>
-            <div className="mt-auto p-2 hover:bg-[#2A2E39] rounded cursor-pointer text-[#d1d4dc]"><MousePointer2 size={20} /></div>
+            <div 
+               className={`p-2 hover:bg-[#2A2E39] rounded cursor-pointer ${crosshairMode === CrosshairMode.Magnet ? 'text-[#2962FF]' : 'text-[#d1d4dc]'}`}
+               onClick={() => setCrosshairMode(prev => prev === CrosshairMode.Normal ? CrosshairMode.Magnet : CrosshairMode.Normal)}
+               title="Magnet Mode"
+            >
+               <Crosshair size={20} />
+            </div>
+            
+            <div className="w-8 h-px bg-[#2B2B43]" />
+
+            <div 
+               className="p-2 hover:bg-[#2A2E39] rounded cursor-pointer text-[#d1d4dc]" 
+               onClick={() => chartRef.current?.timeScale().fitContent()}
+               title="Reset Zoom"
+            >
+               <RefreshCw size={20} />
+            </div>
+
+            <div 
+               className="p-2 hover:bg-[#2A2E39] rounded cursor-pointer text-[#d1d4dc]"
+               onClick={handleZoomIn}
+               title="Zoom In"
+            >
+               <ZoomIn size={20} />
+            </div>
+            <div 
+               className="p-2 hover:bg-[#2A2E39] rounded cursor-pointer text-[#d1d4dc]"
+               onClick={handleZoomOut}
+               title="Zoom Out"
+            >
+               <ZoomOut size={20} />
+            </div>
+            
+            <div className="w-8 h-px bg-[#2B2B43]" />
+
+            <div 
+               className="p-2 hover:bg-[#2A2E39] rounded cursor-pointer text-[#d1d4dc]"
+               onClick={() => setShowSignalLines(!showSignalLines)}
+               title={showSignalLines ? "Hide Signal Lines" : "Show Signal Lines"}
+            >
+               {showSignalLines ? <Eye size={20} /> : <EyeOff size={20} />}
+            </div>
         </div>
 
         {/* Chart Area */}
