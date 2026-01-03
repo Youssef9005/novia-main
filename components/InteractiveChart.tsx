@@ -355,7 +355,7 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
      indicatorSeriesRef.current.clear();
 
      activeIndicators.forEach(ind => {
-        let data = [];
+        let data: { time: Time; value: number }[] = [];
         let color = '#2962FF';
         
         try {
@@ -403,7 +403,7 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
     if (!activeSignal || !showSignalLines) return;
     
     try {
-      const { entry, tp1, tp2, tp3, stopLoss } = activeSignal;
+      const { entry, tp1, tp2, tp3, tp4, stopLoss } = activeSignal;
 
       const createLine = (price: string, color: string, title: string, style: LineStyle = LineStyle.Solid, width: number = 2) => {
           if (!price) return;
@@ -418,10 +418,11 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
           if (line) priceLinesRef.current.push(line);
       };
 
-      createLine(entry, '#2962FF', 'ENTRY', LineStyle.Solid, 2);
-      createLine(tp1, '#089981', 'TP1', LineStyle.Dashed, 1);
-      if(tp2) createLine(tp2, '#089981', 'TP2', LineStyle.Dashed, 1);
-      if(tp3) createLine(tp3, '#089981', 'TP3', LineStyle.Dashed, 1);
+      createLine(entry, '#2962FF', 'Entry', LineStyle.Solid, 2);
+      createLine(tp1, '#089981', 'TP1', LineStyle.Solid, 2);
+      if(tp2) createLine(tp2, '#089981', 'TP2', LineStyle.Solid, 2);
+      if(tp3) createLine(tp3, '#089981', 'TP3', LineStyle.Solid, 2);
+      if(tp4) createLine(tp4, '#089981', 'TP4', LineStyle.Solid, 2);
       createLine(stopLoss, '#F23645', 'SL', LineStyle.Solid, 2);
     } catch (e) {
       console.error("Error drawing signal lines:", e);
@@ -477,7 +478,7 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
     }
   };
 
-  // Render SVG Drawings
+  // Render SVG Drawings & Signal Zones
   const renderSVGElements = useMemo(() => {
     if (!chartRef.current || !seriesRef.current) return null;
     
@@ -486,27 +487,32 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
         items.push({ ...currentDrawing, id: 'preview' } as Drawing);
     }
 
-    return items.map(d => {
+    const drawingElements = items.map(d => {
         const x1 = chartRef.current?.timeScale().timeToCoordinate(d.p1.time);
         const y1 = seriesRef.current?.priceToCoordinate(d.p1.price);
         const x2 = chartRef.current?.timeScale().timeToCoordinate(d.p2.time);
         const y2 = seriesRef.current?.priceToCoordinate(d.p2.price);
         
-        if (x1 === null || y1 === null || x2 === null || y2 === null) return null;
+        if (x1 === undefined || x1 === null || y1 === undefined || y1 === null || x2 === undefined || x2 === null || y2 === undefined || y2 === null) return null;
         
+        const cx1 = x1 as number;
+        const cy1 = y1 as number;
+        const cx2 = x2 as number;
+        const cy2 = y2 as number;
+
         if (d.type === 'trend') {
             return (
                 <line 
                     key={d.id} 
-                    x1={x1} y1={y1} x2={x2} y2={y2} 
+                    x1={cx1} y1={cy1} x2={cx2} y2={cy2} 
                     stroke={d.color} strokeWidth="2" 
                 />
             );
         } else if (d.type === 'rectangle') {
-            const x = Math.min(x1, x2);
-            const y = Math.min(y1, y2);
-            const w = Math.abs(x2 - x1);
-            const h = Math.abs(y2 - y1);
+            const x = Math.min(cx1, cx2);
+            const y = Math.min(cy1, cy2);
+            const w = Math.abs(cx2 - cx1);
+            const h = Math.abs(cy2 - cy1);
             return (
                 <rect 
                     key={d.id} 
@@ -517,7 +523,64 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
         }
         return null;
     });
-  }, [drawings, currentDrawing, chartUpdateTrigger, candleData]); // Re-render on scroll/zoom
+
+    // Signal Zones (Risk/Reward Visualization)
+    let signalZones = null;
+    if (activeSignal && showSignalLines) {
+        const { entry, stopLoss, tp1, tp2, tp3, tp4, type } = activeSignal;
+        
+        if (entry && stopLoss && tp1) {
+            const yEntry = seriesRef.current.priceToCoordinate(parseFloat(entry));
+            const ySL = seriesRef.current.priceToCoordinate(parseFloat(stopLoss));
+            
+            const tps = [tp1, tp2, tp3, tp4].filter(t => t).map(t => parseFloat(t));
+            const targetPrice = type === 'Buy' || type === 'buy' 
+                ? Math.max(...tps) 
+                : Math.min(...tps);
+            
+            const yTarget = seriesRef.current.priceToCoordinate(targetPrice);
+
+            if (yEntry !== null && ySL !== null && yTarget !== null) {
+                const width = chartContainerRef.current?.clientWidth || 0;
+                // We'll draw from left to right (full width) for now to ensure visibility
+                // Or start from 70% width to look like a projection? 
+                // Let's do full width with low opacity as a "Background Zone"
+                
+                signalZones = (
+                    <>
+                        {/* Stop Loss Zone (Red) */}
+                        <rect 
+                            key="sl-zone"
+                            x={0} 
+                            y={Math.min(yEntry, ySL)} 
+                            width={width} 
+                            height={Math.abs(yEntry - ySL)} 
+                            fill="#F23645" 
+                            fillOpacity="0.12" 
+                        />
+                        {/* Take Profit Zone (Green) */}
+                        <rect 
+                            key="tp-zone"
+                            x={0} 
+                            y={Math.min(yEntry, yTarget)} 
+                            width={width} 
+                            height={Math.abs(yEntry - yTarget)} 
+                            fill="#089981" 
+                            fillOpacity="0.12" 
+                        />
+                    </>
+                );
+            }
+        }
+    }
+
+    return (
+        <>
+            {signalZones}
+            {drawingElements}
+        </>
+    );
+  }, [drawings, currentDrawing, chartUpdateTrigger, candleData, activeSignal, showSignalLines]);
 
   // Handlers
   const handleScreenshot = () => {
