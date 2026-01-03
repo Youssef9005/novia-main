@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType, CrosshairMode, IChartApi, ISeriesApi, LineStyle, CandlestickSeries, Time } from 'lightweight-charts';
+import { Button } from '@/components/ui/button';
 
 interface InteractiveChartProps {
   symbol?: string;
@@ -16,13 +17,14 @@ interface CandleData {
   close: number;
 }
 
-// Helper to fetch data from Binance (Proxy or Direct if allowed)
-// For XAUUSD, we might need a different provider.
-// For now, we'll try to use a public crypto API or mock for XAUUSD if needed.
-// Since the user is likely using this for XAUUSD (Gold), we need to be careful.
-// If we can't get XAUUSD, we'll fallback to a mock generator for demo purposes 
-// or explain the limitation.
-// Let's try to fetch from Binance for crypto, and generate mock for others if API fails.
+const TIMEFRAMES = [
+  { label: '1M', value: '1m', interval: '1m' },
+  { label: '5M', value: '5m', interval: '5m' },
+  { label: '15M', value: '15m', interval: '15m' },
+  { label: '1H', value: '1h', interval: '1h' },
+  { label: '4H', value: '4h', interval: '4h' },
+  { label: '1D', value: '1d', interval: '1d' },
+];
 
 export default function InteractiveChart({ symbol = 'XAUUSD', signal }: InteractiveChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -30,6 +32,7 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const priceLinesRef = useRef<any[]>([]);
   const [activeSignal, setActiveSignal] = useState<any>(null);
+  const [timeframe, setTimeframe] = useState('1h');
   
   // Set active signal from prop or fetch
   useEffect(() => {
@@ -84,10 +87,21 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
       },
       rightPriceScale: {
         borderColor: '#2B2B43',
+        visible: true,
       },
       timeScale: {
         borderColor: '#2B2B43',
         timeVisible: true,
+        secondsVisible: false,
+      },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+      },
+      handleScale: {
+        axisPressedMouseMove: true,
+        mouseWheel: true,
+        pinch: true,
       },
     });
 
@@ -104,19 +118,19 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
 
     // Load Data
     const loadData = async () => {
-      // Mock data generator for XAUUSD since we don't have a free public API for it
-      // In a real app, you would fetch from your backend or a paid provider
       let data: CandleData[] = [];
       if (symbol === 'XAUUSD' || symbol === 'GOLD') {
-         // Generate realistic-looking data around 2030-2040
-         let time = Math.floor(Date.now() / 1000) - 100 * 300; // 100 candles of 5 mins
+         // Generate realistic-looking data
+         // Adjust time step based on timeframe
+         const timeStep = timeframe === '1m' ? 60 : timeframe === '5m' ? 300 : timeframe === '15m' ? 900 : timeframe === '1h' ? 3600 : timeframe === '4h' ? 14400 : 86400;
+         let time = Math.floor(Date.now() / 1000) - 1000 * timeStep;
          let open = 2030.0;
          for (let i = 0; i < 1000; i++) {
-            const close = open + (Math.random() - 0.5) * 2;
-            const high = Math.max(open, close) + Math.random();
-            const low = Math.min(open, close) - Math.random();
+            const close = open + (Math.random() - 0.5) * (timeStep / 60); // Volatility scales with time
+            const high = Math.max(open, close) + Math.random() * (timeStep / 60);
+            const low = Math.min(open, close) - Math.random() * (timeStep / 60);
             data.push({
-               time: (time + i * 300) as Time,
+               time: (time + i * timeStep) as Time,
                open,
                high,
                low,
@@ -127,10 +141,8 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
       } else {
          // Try Binance for Crypto
          try {
-             // If symbol doesn't end with USDT and it's a crypto, maybe append it? 
-             // But let's assume we pass full pair like BTCUSDT
              const querySymbol = symbol.toUpperCase(); 
-             const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${querySymbol}&interval=15m&limit=1000`);
+             const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${querySymbol}&interval=${timeframe}&limit=1000`);
              const klines = await res.json();
              if (Array.isArray(klines)) {
                  data = klines.map((k: any) => ({
@@ -148,12 +160,14 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
       
       if (data.length > 0) {
         candleSeries.setData(data);
+        
+        // Fit Content initially
+        chart.timeScale().fitContent();
       }
     };
 
     loadData();
 
-    // Resize handler
     const handleResize = () => {
       if (chartContainerRef.current) {
         chart.applyOptions({ width: chartContainerRef.current.clientWidth });
@@ -165,7 +179,7 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, [symbol]);
+  }, [symbol, timeframe]);
 
   // Draw Signal Lines
   useEffect(() => {
@@ -200,10 +214,46 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
     createLine(tp3, '#00E676', 'TP3', LineStyle.Dashed);
     createLine(tp4, '#00E676', 'TP4', LineStyle.Dashed);
     createLine(stopLoss, '#FF1744', 'STOP LOSS', LineStyle.Solid);
+    
+    // Auto-focus logic: Ensure entry and targets are visible
+    // We can't directly "set visible price range" easily in LW charts without calculating it manually.
+    // However, chart.timeScale().fitContent() fits the TIME.
+    // Price scale is usually auto. 
+    // If the signal prices are way off the current data, we might need to adjust.
+    // But usually, signal corresponds to current price.
 
   }, [activeSignal]);
 
   return (
-    <div ref={chartContainerRef} className="w-full h-full min-h-[500px]" />
+    <div className="w-full h-full flex flex-col relative">
+      <div className="flex items-center space-x-2 p-2 bg-[#1E1E1E] border-b border-[#2B2B43] z-10">
+        <div className="font-bold text-white mr-4">{symbol}</div>
+        {TIMEFRAMES.map((tf) => (
+          <Button 
+            key={tf.value}
+            variant={timeframe === tf.value ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setTimeframe(tf.value)}
+            className="h-7 text-xs"
+          >
+            {tf.label}
+          </Button>
+        ))}
+      </div>
+      <div ref={chartContainerRef} className="w-full flex-1 min-h-[500px]" />
+      
+      {/* Floating Signal Info Overlay (Optional: "In the middle of the screen") */}
+      {activeSignal && (
+        <div className="absolute top-14 right-4 bg-black/70 p-4 rounded text-xs text-white backdrop-blur-sm border border-white/10 pointer-events-none">
+          <div className="font-bold text-sm mb-2">{activeSignal.type} Signal</div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+             <div>Entry:</div><div className="font-mono">{activeSignal.entry}</div>
+             <div className="text-green-400">TP1:</div><div className="font-mono text-green-400">{activeSignal.tp1}</div>
+             {activeSignal.tp2 && <><div className="text-green-400">TP2:</div><div className="font-mono text-green-400">{activeSignal.tp2}</div></>}
+             <div className="text-red-400">SL:</div><div className="font-mono text-red-400">{activeSignal.stopLoss}</div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
