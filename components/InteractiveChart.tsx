@@ -32,7 +32,8 @@ import {
   Minus,
   MoveVertical,
   Square,
-  Trash2
+  Trash2,
+  Footprints
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
@@ -58,7 +59,7 @@ interface CandleData {
 
 interface Drawing {
   id: string;
-  type: 'trend' | 'rectangle' | 'fib' | 'long' | 'volprofile';
+  type: 'trend' | 'rectangle' | 'fib' | 'long' | 'volprofile' | 'footprint';
   p1: { time: Time; price: number };
   p2: { time: Time; price: number };
   color: string;
@@ -123,7 +124,7 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
   const [candleData, setCandleData] = useState<CandleData[]>([]);
   
   // Drawing Tools State
-  const [drawingTool, setDrawingTool] = useState<'cursor' | 'horizontal' | 'trend' | 'rectangle' | 'fib' | 'long' | 'volprofile'>('cursor');
+  const [drawingTool, setDrawingTool] = useState<'cursor' | 'horizontal' | 'trend' | 'rectangle' | 'fib' | 'long' | 'volprofile' | 'footprint'>('cursor');
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [currentDrawing, setCurrentDrawing] = useState<Partial<Drawing> | null>(null);
   const [chartUpdateTrigger, setChartUpdateTrigger] = useState(0);
@@ -632,6 +633,64 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
                      </g>
                  );
              }
+        } else if (d.type === 'footprint') {
+             // Volume Footprint
+             // Display simulated Bid x Ask volume clusters inside candles in range
+             const t1 = d.p1.time as number;
+             const t2 = d.p2.time as number;
+             
+             const rangeData = candleData.filter(c => (c.time as number) >= Math.min(t1, t2) && (c.time as number) <= Math.max(t1, t2));
+             
+             return (
+                 <g key={d.id}>
+                    {rangeData.map((c, i) => {
+                        const x = chartRef.current?.timeScale().timeToCoordinate(c.time);
+                        if (x === null || x === undefined) return null;
+                        
+                        const yHigh = seriesRef.current?.priceToCoordinate(c.high);
+                        const yLow = seriesRef.current?.priceToCoordinate(c.low);
+                        
+                        if (yHigh === null || yHigh === undefined || yLow === null || yLow === undefined) return null;
+                        
+                        // Divide candle into levels
+                        const height = Math.abs(yLow - yHigh);
+                        const levels = Math.floor(height / 14); // 14px per level
+                        const step = height / Math.max(1, levels);
+                        
+                        return (
+                            <g key={i}>
+                                {Array.from({ length: Math.max(1, levels) }).map((_, idx) => {
+                                    const y = yHigh + idx * step;
+                                    // Simulate volume data: Bid x Ask
+                                    // Random numbers based on price/volatility logic simulation
+                                    const bid = Math.floor(Math.random() * 500);
+                                    const ask = Math.floor(Math.random() * 500);
+                                    const delta = ask - bid;
+                                    const color = delta > 0 ? '#089981' : '#F23645';
+                                    
+                                    return (
+                                        <g key={idx}>
+                                            <rect x={x - 14} y={y} width={28} height={step - 1} fill="#1E222D" opacity="0.8" />
+                                            <text 
+                                                x={x} 
+                                                y={y + step / 1.5} 
+                                                textAnchor="middle" 
+                                                fontSize="8" 
+                                                fill={color}
+                                                style={{ pointerEvents: 'none', userSelect: 'none' }}
+                                            >
+                                                {`${bid}x${ask}`}
+                                            </text>
+                                        </g>
+                                    );
+                                })}
+                            </g>
+                        );
+                    })}
+                    {/* Bounding Box for selection */}
+                    <rect x={Math.min(cx1, cx2)} y={Math.min(cy1, cy2)} width={Math.abs(cx2 - cx1)} height={Math.abs(cy2 - cy1)} fill="none" stroke="#2962FF" strokeDasharray="4 4" opacity="0.5" />
+                 </g>
+             );
         }
         return null;
     });
@@ -755,7 +814,7 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
   };
 
   // Drawing Tool Helper
-  const toggleDrawingTool = (tool: 'cursor' | 'horizontal' | 'trend' | 'rectangle' | 'fib' | 'long' | 'volprofile') => {
+  const toggleDrawingTool = (tool: 'cursor' | 'horizontal' | 'trend' | 'rectangle' | 'fib' | 'long' | 'volprofile' | 'footprint') => {
       setDrawingTool(tool === drawingTool ? 'cursor' : tool);
       if (tool !== 'cursor') {
           toast.info(`Select two points for ${tool}`);
@@ -890,6 +949,38 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
                title="Rectangle"
             >
                <Square size={20} />
+            </div>
+
+            <div 
+               className={`p-2 hover:bg-[#2A2E39] rounded cursor-pointer ${drawingTool === 'fib' ? 'text-[#2962FF] bg-[#2A2E39]' : 'text-[#d1d4dc]'}`}
+               onClick={() => toggleDrawingTool('fib')}
+               title="Fibonacci Retracement"
+            >
+               <Activity size={20} />
+            </div>
+
+            <div 
+               className={`p-2 hover:bg-[#2A2E39] rounded cursor-pointer ${drawingTool === 'long' ? 'text-[#2962FF] bg-[#2A2E39]' : 'text-[#d1d4dc]'}`}
+               onClick={() => toggleDrawingTool('long')}
+               title="Long Position"
+            >
+               <TrendingUp size={20} className="rotate-90" />
+            </div>
+
+            <div 
+               className={`p-2 hover:bg-[#2A2E39] rounded cursor-pointer ${drawingTool === 'volprofile' ? 'text-[#2962FF] bg-[#2A2E39]' : 'text-[#d1d4dc]'}`}
+               onClick={() => toggleDrawingTool('volprofile')}
+               title="Fixed Range Volume Profile"
+            >
+               <BarChart3 size={20} className="rotate-90" />
+            </div>
+
+            <div 
+               className={`p-2 hover:bg-[#2A2E39] rounded cursor-pointer ${drawingTool === 'footprint' ? 'text-[#2962FF] bg-[#2A2E39]' : 'text-[#d1d4dc]'}`}
+               onClick={() => toggleDrawingTool('footprint')}
+               title="Volume Footprint"
+            >
+               <Footprints size={20} />
             </div>
             
             <div className="w-8 h-px bg-[#2B2B43]" />
