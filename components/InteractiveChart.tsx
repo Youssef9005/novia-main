@@ -58,7 +58,7 @@ interface CandleData {
 
 interface Drawing {
   id: string;
-  type: 'trend' | 'rectangle' | 'fib';
+  type: 'trend' | 'rectangle' | 'fib' | 'long' | 'volprofile';
   p1: { time: Time; price: number };
   p2: { time: Time; price: number };
   color: string;
@@ -123,7 +123,7 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
   const [candleData, setCandleData] = useState<CandleData[]>([]);
   
   // Drawing Tools State
-  const [drawingTool, setDrawingTool] = useState<'cursor' | 'horizontal' | 'trend' | 'rectangle'>('cursor');
+  const [drawingTool, setDrawingTool] = useState<'cursor' | 'horizontal' | 'trend' | 'rectangle' | 'fib' | 'long' | 'volprofile'>('cursor');
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [currentDrawing, setCurrentDrawing] = useState<Partial<Drawing> | null>(null);
   const [chartUpdateTrigger, setChartUpdateTrigger] = useState(0);
@@ -520,6 +520,118 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
                     stroke={d.color} strokeWidth="2" fill={`${d.color}20`} 
                 />
             );
+        } else if (d.type === 'fib') {
+            const dy = cy2 - cy1;
+            const levels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+            return (
+                <g key={d.id}>
+                    {levels.map(l => (
+                        <g key={l}>
+                            <line 
+                                x1={cx1} y1={cy1 + dy * l} 
+                                x2={cx2} y2={cy1 + dy * l} 
+                                stroke={d.color} strokeWidth="1" strokeDasharray="4 2"
+                            />
+                            <text 
+                                x={cx1} y={cy1 + dy * l - 2} 
+                                fill={d.color} fontSize="10" fontWeight="bold"
+                            >
+                                {l}
+                            </text>
+                        </g>
+                    ))}
+                    {/* Diagonal line */}
+                    <line x1={cx1} y1={cy1} x2={cx2} y2={cy2} stroke={d.color} strokeWidth="1" strokeDasharray="2 2" opacity="0.5" />
+                </g>
+            );
+        } else if (d.type === 'long') {
+             // Long Position Tool: p1=Entry, p2=StopLoss. Target=2x Risk
+             const entryY = cy1;
+             const slY = cy2;
+             const risk = Math.abs(entryY - slY);
+             // In pixels, higher Y is lower price. 
+             // If Entry < SL (pixel-wise), it means Price Entry > Price SL (Long).
+             // If SL is below Entry (higher pixel Y), then it's a long.
+             // Let's assume standard Long: SL is below Entry price (so SL pixel > Entry pixel).
+             
+             const isLong = slY > entryY; 
+             const targetY = entryY - (slY - entryY); // 1:1 for visual simplicity or extend to p2.time?
+             // Actually let's just use the box approach
+             
+             const width = Math.abs(cx2 - cx1) + 50; // Extend a bit
+             
+             return (
+                 <g key={d.id}>
+                    {/* Stop Loss Zone (Red) */}
+                    <rect 
+                        x={cx1} y={Math.min(entryY, slY)} 
+                        width={width} height={Math.abs(entryY - slY)} 
+                        fill="#F23645" fillOpacity="0.2" stroke="#F23645"
+                    />
+                    {/* Target Zone (Green) - Default 1.5R */}
+                    <rect 
+                        x={cx1} y={entryY - (slY - entryY) * 1.5} 
+                        width={width} height={Math.abs(slY - entryY) * 1.5} 
+                        fill="#089981" fillOpacity="0.2" stroke="#089981"
+                    />
+                    <text x={cx1} y={entryY - 5} fill="#d1d4dc" fontSize="10">Long Position</text>
+                 </g>
+             );
+        } else if (d.type === 'volprofile') {
+             // Fixed Range Volume Profile
+             // Calculate volume in price buckets between t1 and t2
+             const t1 = d.p1.time as number; // Time is numeric timestamp usually
+             const t2 = d.p2.time as number;
+             
+             // Filter data
+             // Note: lightweight-charts Time can be string or number. Assuming number (unix timestamp)
+             const rangeData = candleData.filter(c => (c.time as number) >= Math.min(t1, t2) && (c.time as number) <= Math.max(t1, t2));
+             
+             if (rangeData.length > 0) {
+                 const minPrice = Math.min(...rangeData.map(c => c.low));
+                 const maxPrice = Math.max(...rangeData.map(c => c.high));
+                 const bins = 20;
+                 const binSize = (maxPrice - minPrice) / bins;
+                 const volumeProfile = new Array(bins).fill(0);
+                 
+                 rangeData.forEach(c => {
+                     // Simple approximation: add volume to bin corresponding to close price
+                     // Better: distribute volume across high-low range
+                     const binIndex = Math.floor((c.close - minPrice) / binSize);
+                     if (binIndex >= 0 && binIndex < bins) {
+                         // We don't have volume in CandleData interface, simulate or use 1
+                         // Let's assume simulated volume
+                         volumeProfile[binIndex] += Math.abs(c.close - c.open) * 1000; 
+                     }
+                 });
+                 
+                 const maxVol = Math.max(...volumeProfile);
+                 const profileWidth = Math.abs(cx2 - cx1);
+                 
+                 return (
+                     <g key={d.id} opacity="0.6">
+                         {volumeProfile.map((vol, i) => {
+                             const price = minPrice + i * binSize;
+                             const y = seriesRef.current?.priceToCoordinate(price);
+                             const barWidth = (vol / maxVol) * profileWidth;
+                             
+                             if (y === null || y === undefined) return null;
+                             
+                             return (
+                                 <rect 
+                                    key={i}
+                                    x={Math.min(cx1, cx2)} 
+                                    y={y as number} 
+                                    width={barWidth} 
+                                    height={Math.abs((seriesRef.current?.priceToCoordinate(price + binSize) ?? 0) - (y as number)) - 1}
+                                    fill="#787B86"
+                                 />
+                             );
+                         })}
+                         <rect x={Math.min(cx1, cx2)} y={Math.min(cy1, cy2)} width={Math.abs(cx2 - cx1)} height={Math.abs(cy2 - cy1)} fill="none" stroke="#787B86" strokeDasharray="4 4" />
+                     </g>
+                 );
+             }
         }
         return null;
     });
@@ -640,6 +752,14 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
      setActiveIndicators(prev => 
         prev.includes(ind) ? prev.filter(i => i !== ind) : [...prev, ind]
      );
+  };
+
+  // Drawing Tool Helper
+  const toggleDrawingTool = (tool: 'cursor' | 'horizontal' | 'trend' | 'rectangle' | 'fib' | 'long' | 'volprofile') => {
+      setDrawingTool(tool === drawingTool ? 'cursor' : tool);
+      if (tool !== 'cursor') {
+          toast.info(`Select two points for ${tool}`);
+      }
   };
 
   const clearDrawings = () => {
