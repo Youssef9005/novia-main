@@ -37,6 +37,56 @@ import {
   Move
 } from 'lucide-react';
 
+// Helper for Linear Regression Channel (Adaptive Trend Finder)
+const calculateLinearRegressionChannel = (data: CandleData[], length: number = 100, deviationMult: number = 2) => {
+  if (!data || data.length < length) return null;
+
+  // Use the last 'length' candles
+  const subset = data.slice(-length);
+  const n = subset.length;
+
+  let sumX = 0;
+  let sumY = 0;
+  let sumXY = 0;
+  let sumXX = 0;
+
+  for (let i = 0; i < n; i++) {
+    const x = i;
+    const y = subset[i].close;
+    sumX += x;
+    sumY += y;
+    sumXY += x * y;
+    sumXX += x * x;
+  }
+
+  const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+  const intercept = (sumY - slope * sumX) / n;
+
+  // Calculate Standard Deviation
+  let sumSqDiff = 0;
+  for (let i = 0; i < n; i++) {
+    const y = subset[i].close;
+    const yPred = slope * i + intercept;
+    sumSqDiff += Math.pow(y - yPred, 2);
+  }
+  const stdDev = Math.sqrt(sumSqDiff / n);
+
+  // Generate line points
+  const basis = [];
+  const upper = [];
+  const lower = [];
+
+  for (let i = 0; i < n; i++) {
+    const item = subset[i];
+    const yPred = slope * i + intercept;
+    basis.push({ time: item.time, value: yPred });
+    upper.push({ time: item.time, value: yPred + deviationMult * stdDev });
+    lower.push({ time: item.time, value: yPred - deviationMult * stdDev });
+  }
+
+  return { basis, upper, lower };
+};
+
 // Helper for Fractals (Support & Resistance)
 const calculateFractals = (data: CandleData[]) => {
   const fractals: { time: Time; price: number; type: 'up' | 'down' }[] = [];
@@ -95,6 +145,7 @@ interface Signal {
   type: string;
   symbol: string;
   createdAt?: string;
+  message?: string;
 }
 
 interface InteractiveChartProps {
@@ -161,6 +212,112 @@ const calculateEMA = (data: CandleData[], period: number) => {
   return result;
 };
 
+  // Helper for Session Analysis (TradingView Logic)
+  const calculateSessions = (data: CandleData[]) => {
+    if (!data || data.length === 0) return null;
+
+    const lastCandle = data[data.length - 1];
+    const date = new Date(lastCandle.time as number * 1000);
+    const h = date.getUTCHours();
+    const m = date.getUTCMinutes();
+    
+    // Check which session is active or most recent
+    // Asian: 00:00 - 08:00
+    // EU: 08:00 - 16:30
+    // US: 13:30 - 21:00
+    
+    const findSessionOpen = (targetH: number, targetM: number) => {
+      // Look back up to 24 hours
+      const limit = Math.max(0, data.length - 1440);
+      for (let i = data.length - 1; i >= limit; i--) {
+        const d = new Date(data[i].time as number * 1000);
+        // Check for exact match or first candle after start time (within 15 mins)
+        if (d.getUTCHours() === targetH && d.getUTCMinutes() >= targetM && d.getUTCMinutes() < targetM + 15) {
+             return data[i];
+        }
+      }
+      return null;
+    };
+
+    let sessionType = '';
+    let openCandle = null;
+
+    // Determine current session context
+    // If > 13:30, US is dominant
+    if (h > 13 || (h === 13 && m >= 30)) {
+       sessionType = 'US';
+       openCandle = findSessionOpen(13, 30);
+       if (!openCandle && h < 21) { // Fallback if data gap
+           sessionType = 'European';
+           openCandle = findSessionOpen(8, 0);
+       }
+    } 
+    // If > 08:00, EU is dominant
+    else if (h >= 8) {
+       sessionType = 'European';
+       openCandle = findSessionOpen(8, 0);
+    }
+    // Else Asian
+    else {
+       sessionType = 'Asian';
+       openCandle = findSessionOpen(0, 0);
+    }
+    
+    if (!openCandle) return null;
+
+    const settings = {
+      supportPct: [-0.01, -0.02, -0.03, -0.04],
+      resistancePct: [0.01, 0.02, 0.03, 0.04]
+    };
+
+    return {
+      type: sessionType,
+      openPrice: openCandle.open,
+      supports: settings.supportPct.map(p => openCandle.open * (1 + p)),
+      resistances: settings.resistancePct.map(p => openCandle.open * (1 + p))
+    };
+  };
+
+  // Generate Alert Message (Exact Replica)
+  const generateSessionAlert = (session: any, symbol: string) => {
+    // Match Pine Script's #.#### format (up to 4 decimals, no trailing zeros)
+    const fmt = (n: number) => {
+        return parseFloat(n.toFixed(4)).toString();
+    };
+    const ticker = symbol.replace('/', '');
+    
+    const typeAr = session.type === 'Asian' ? 'الآسيوية' : session.type === 'European' ? 'الأوروبية' : 'الأمريكية';
+    
+    const message = `إشعار تحليل الجلسة ${typeAr} لهذا اليوم
+${session.type} Session Analysis Notice for Today
+الزوج: ${ticker}
+منطقة الارتكاز: ${fmt(session.openPrice)}
+إذا كان السعر يتداول أعلى منطقة الارتكاز يكون الاتجاه إيجابي
+المقاومة الأولى: ${fmt(session.resistances[0])}
+المقاومة الثانية: ${fmt(session.resistances[1])}
+المقاومة الثالثة: ${fmt(session.resistances[2])}
+المقاومة الرابعة: ${fmt(session.resistances[3])}
+إذا كان السعر يتداول أسفل منطقة الارتكاز يكون الاتجاه سلبي
+الدعم الأول: ${fmt(session.supports[0])}
+الدعم الثاني: ${fmt(session.supports[1])}
+الدعم الثالث: ${fmt(session.supports[2])}
+الدعم الرابع: ${fmt(session.supports[3])}
+Currency: ${ticker}
+Anchor Area: ${fmt(session.openPrice)}
+If the price is trading above the anchor area, the trend is positive.
+First Resistance: ${fmt(session.resistances[0])}
+Second Resistance: ${fmt(session.resistances[1])}
+Third Resistance: ${fmt(session.resistances[2])}
+Fourth Resistance: ${fmt(session.resistances[3])}
+If the price is trading below the anchor area, the trend is negative.
+First Support: ${fmt(session.supports[0])}
+Second Support: ${fmt(session.supports[1])}
+Third Support: ${fmt(session.supports[2])}
+Fourth Support: ${fmt(session.supports[3])}`;
+
+    return message;
+  };
+
 export default function InteractiveChart({ symbol = 'XAUUSD', signal }: InteractiveChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -184,11 +341,14 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
   const [candleUpColor, setCandleUpColor] = useState('#089981');
   const [candleDownColor, setCandleDownColor] = useState('#F23645');
   const [showSupportResistance, setShowSupportResistance] = useState(false);
+  const [showTrendFinder, setShowTrendFinder] = useState(false);
   const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [initialDrawingState, setInitialDrawingState] = useState<Drawing | null>(null);
   const srLinesRef = useRef<any[]>([]);
+  const trendFinderLinesRef = useRef<any[]>([]);
+  const analysisLinesRef = useRef<any[]>([]);
 
   const rawDataRef = useRef<CandleData[]>([]);
   
@@ -230,6 +390,187 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
   const [currentDrawing, setCurrentDrawing] = useState<Partial<Drawing> | null>(null);
   const [chartUpdateTrigger, setChartUpdateTrigger] = useState(0);
   const [isCalibrating, setIsCalibrating] = useState(false);
+
+  // Helper to parse analysis levels from message
+  const parseAnalysisLevels = (message: string) => {
+    if (!message) return null;
+
+    // Detect Session Type
+    let type = 'Asian'; // Default
+    if (message.includes('European') || message.includes('الأوروبية')) type = 'European';
+    else if (message.includes('US') || message.includes('الأمريكية')) type = 'US';
+
+    // Anchor
+    const anchorMatch = message.match(/(?:Anchor Area|منطقة الارتكاز)\s*:?\s*([\d.]+)/i);
+    const anchor = anchorMatch ? parseFloat(anchorMatch[1]) : null;
+
+    // Resistances
+    const resistanceMatches = Array.from(message.matchAll(/(?:Resistance|المقاومة).*?:\s*([\d.]+)/gi));
+    const resistances = resistanceMatches
+      .map(m => parseFloat(m[1]))
+      .filter(n => !isNaN(n))
+      .sort((a, b) => a - b); // Ascending (R1, R2, R3...)
+
+    // Supports
+    const supportMatches = Array.from(message.matchAll(/(?:Support|الدعم).*?:\s*([\d.]+)/gi));
+    const supports = Array.from(new Set(
+      supportMatches
+        .map(m => parseFloat(m[1]))
+        .filter(n => !isNaN(n))
+    )).sort((a, b) => b - a); // Descending (S1, S2, S3...)
+
+    return { type, anchor, resistances: Array.from(new Set(resistances)), supports };
+  };
+
+  // Draw Analysis Lines
+  useEffect(() => {
+    if (!seriesRef.current || !activeSignal?.message) {
+      // Clear lines if no signal or no message
+      analysisLinesRef.current.forEach(line => {
+        try {
+          seriesRef.current?.removePriceLine(line);
+        } catch (e) {}
+      });
+      analysisLinesRef.current = [];
+      return;
+    }
+
+    const levels = parseAnalysisLevels(activeSignal.message);
+    if (!levels) return;
+
+    // Clear existing lines
+    analysisLinesRef.current.forEach(line => {
+      try {
+        seriesRef.current?.removePriceLine(line);
+      } catch (e) {}
+    });
+    analysisLinesRef.current = [];
+
+    // Colors based on Session Type
+    // Asian: Purple (#9C27B0)
+    // European: Blue (#2962FF)
+    // US: Green (#4CAF50)
+    let mainColor = '#9C27B0'; // Asian Default
+    if (levels.type === 'European') mainColor = '#2962FF';
+    if (levels.type === 'US') mainColor = '#4CAF50';
+
+    // Draw Anchor
+    if (levels.anchor) {
+      const line = seriesRef.current.createPriceLine({
+        price: levels.anchor,
+        color: mainColor,
+        lineWidth: 3,
+        lineStyle: LineStyle.Solid,
+        axisLabelVisible: true,
+        title: `${levels.type} Open`,
+      });
+      analysisLinesRef.current.push(line);
+    }
+
+    // Draw Resistances
+    levels.resistances.forEach((price, i) => {
+      const line = seriesRef.current!.createPriceLine({
+        price: price,
+        color: mainColor,
+        lineWidth: 2,
+        lineStyle: LineStyle.Solid,
+        axisLabelVisible: true,
+        title: `R${i + 1}`,
+      });
+      analysisLinesRef.current.push(line);
+    });
+
+    // Draw Supports
+    levels.supports.forEach((price, i) => {
+      const line = seriesRef.current!.createPriceLine({
+        price: price,
+        color: mainColor,
+        lineWidth: 2,
+        lineStyle: LineStyle.Solid,
+        axisLabelVisible: true,
+        title: `S${i + 1}`,
+      });
+      analysisLinesRef.current.push(line);
+    });
+
+  }, [activeSignal, chartUpdateTrigger]);
+
+  // Draw Adaptive Trend Finder
+  useEffect(() => {
+    if (!chartRef.current || !seriesRef.current) return;
+
+    const channelIds = ['ATF_Upper', 'ATF_Basis', 'ATF_Lower'];
+    
+    if (!showTrendFinder) {
+      channelIds.forEach(id => {
+        if (indicatorSeriesRef.current.has(id)) {
+          const s = indicatorSeriesRef.current.get(id);
+          if (s) {
+            chartRef.current?.removeSeries(s);
+            indicatorSeriesRef.current.delete(id);
+          }
+        }
+      });
+      return;
+    }
+
+    // Create series if not exist
+    if (!indicatorSeriesRef.current.has('ATF_Basis')) {
+        const basis = chartRef.current.addSeries(LineSeries, { 
+            color: '#FF6D00', 
+            lineWidth: 2,
+            lineStyle: LineStyle.Solid,
+            title: 'Basis'
+        });
+        const upper = chartRef.current.addSeries(LineSeries, { 
+            color: '#2962FF', 
+            lineWidth: 2, 
+            title: 'Upper'
+        });
+        const lower = chartRef.current.addSeries(LineSeries, { 
+            color: '#2962FF', 
+            lineWidth: 2, 
+            title: 'Lower'
+        });
+        indicatorSeriesRef.current.set('ATF_Basis', basis);
+        indicatorSeriesRef.current.set('ATF_Upper', upper);
+        indicatorSeriesRef.current.set('ATF_Lower', lower);
+    }
+
+    // Calculate Data
+    // Use last 100 candles or adaptive length if implemented
+    const data = calculateLinearRegressionChannel(candleData, 100, 2);
+    if (data) {
+        indicatorSeriesRef.current.get('ATF_Basis')?.setData(data.basis);
+        indicatorSeriesRef.current.get('ATF_Upper')?.setData(data.upper);
+        indicatorSeriesRef.current.get('ATF_Lower')?.setData(data.lower);
+    }
+
+  }, [showTrendFinder, candleData]);
+
+  // Generate Signal from Chart Data (Session Analysis)
+  useEffect(() => {
+    if (candleData.length > 0 && !signal) {
+       // Only generate if no external signal is provided
+       const session = calculateSessions(candleData);
+       if (session) {
+         const alertMsg = generateSessionAlert(session, symbol);
+         // Check if we need to update (avoid infinite loop)
+         if (!activeSignal || activeSignal.message !== alertMsg) {
+             setActiveSignal({
+               entry: '',
+               stopLoss: '',
+               tp1: '',
+               type: 'ANALYSIS',
+               symbol: symbol,
+               message: alertMsg
+             });
+         }
+       }
+    }
+  }, [candleData, symbol, signal, activeSignal]);
+
+
 
   // Set active signal from prop or fetch
   useEffect(() => {
@@ -372,6 +713,9 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
            }
         }
       });
+
+      // Trigger update to redraw analysis lines if needed
+      setChartUpdateTrigger(prev => prev + 1);
 
       // Load Data
       const loadData = async () => {
@@ -601,7 +945,7 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
             if (data.length > 0) {
             const lineSeries = chartRef.current?.addSeries(LineSeries, {
                 color,
-                lineWidth: 2,
+                lineWidth: 3,
                 title: ind,
             });
             if (lineSeries) {
@@ -627,6 +971,56 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
     priceLinesRef.current = [];
   }, [activeSignal, showSignalLines]); 
 
+  // Global Event Listeners for Dragging
+  useEffect(() => {
+    if (!isDragging || !initialDrawingState || !dragStart || !chartRef.current || !seriesRef.current) return;
+
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+        const deltaX = e.clientX - dragStart.x;
+        const deltaY = e.clientY - dragStart.y;
+        
+        // Convert initial P1/P2 to coordinates
+        const x1_orig = chartRef.current!.timeScale().timeToCoordinate(initialDrawingState.p1.time);
+        const y1_orig = seriesRef.current!.priceToCoordinate(initialDrawingState.p1.price);
+        const x2_orig = chartRef.current!.timeScale().timeToCoordinate(initialDrawingState.p2.time);
+        const y2_orig = seriesRef.current!.priceToCoordinate(initialDrawingState.p2.price);
+
+        if (x1_orig !== null && y1_orig !== null && x2_orig !== null && y2_orig !== null) {
+            const x1_new = (x1_orig as number) + deltaX;
+            const y1_new = (y1_orig as number) + deltaY;
+            const x2_new = (x2_orig as number) + deltaX;
+            const y2_new = (y2_orig as number) + deltaY;
+
+            const t1_new = chartRef.current!.timeScale().coordinateToTime(x1_new);
+            const p1_new = seriesRef.current!.coordinateToPrice(y1_new);
+            const t2_new = chartRef.current!.timeScale().coordinateToTime(x2_new);
+            const p2_new = seriesRef.current!.coordinateToPrice(y2_new);
+
+            if (t1_new && p1_new && t2_new && p2_new) {
+                 setDrawings(prev => prev.map(d => d.id === initialDrawingState.id ? {
+                     ...d,
+                     p1: { time: t1_new as Time, price: p1_new },
+                     p2: { time: t2_new as Time, price: p2_new }
+                 } : d));
+            }
+        }
+    };
+
+    const handleGlobalMouseUp = () => {
+        setIsDragging(false);
+        setDragStart(null);
+        setInitialDrawingState(null);
+    };
+
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+
+    return () => {
+        window.removeEventListener('mousemove', handleGlobalMouseMove);
+        window.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isDragging, initialDrawingState, dragStart]);
+
   // Overlay Drawing Handlers
   const handleOverlayMouseDown = (e: React.MouseEvent) => {
     if (drawingTool === 'cursor' || drawingTool === 'horizontal' || !chartRef.current || !seriesRef.current) return;
@@ -649,39 +1043,6 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
   };
 
   const handleOverlayMouseMove = (e: React.MouseEvent) => {
-    // Handle Dragging
-    if (isDragging && initialDrawingState && dragStart && chartRef.current && seriesRef.current) {
-        const deltaX = e.clientX - dragStart.x;
-        const deltaY = e.clientY - dragStart.y;
-        
-        // Convert initial P1/P2 to coordinates
-        const x1_orig = chartRef.current.timeScale().timeToCoordinate(initialDrawingState.p1.time);
-        const y1_orig = seriesRef.current.priceToCoordinate(initialDrawingState.p1.price);
-        const x2_orig = chartRef.current.timeScale().timeToCoordinate(initialDrawingState.p2.time);
-        const y2_orig = seriesRef.current.priceToCoordinate(initialDrawingState.p2.price);
-
-        if (x1_orig !== null && y1_orig !== null && x2_orig !== null && y2_orig !== null) {
-            const x1_new = (x1_orig as number) + deltaX;
-            const y1_new = (y1_orig as number) + deltaY;
-            const x2_new = (x2_orig as number) + deltaX;
-            const y2_new = (y2_orig as number) + deltaY;
-
-            const t1_new = chartRef.current.timeScale().coordinateToTime(x1_new);
-            const p1_new = seriesRef.current.coordinateToPrice(y1_new);
-            const t2_new = chartRef.current.timeScale().coordinateToTime(x2_new);
-            const p2_new = seriesRef.current.coordinateToPrice(y2_new);
-
-            if (t1_new && p1_new && t2_new && p2_new) {
-                 setDrawings(prev => prev.map(d => d.id === initialDrawingState.id ? {
-                     ...d,
-                     p1: { time: t1_new as Time, price: p1_new },
-                     p2: { time: t2_new as Time, price: p2_new }
-                 } : d));
-            }
-        }
-        return; 
-    }
-
     if (!currentDrawing || !chartRef.current || !seriesRef.current) return;
     
     const rect = e.currentTarget.getBoundingClientRect();
@@ -700,12 +1061,7 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
   };
 
   const handleOverlayMouseUp = () => {
-    if (isDragging) {
-        setIsDragging(false);
-        setDragStart(null);
-        setInitialDrawingState(null);
-        return;
-    }
+    if (isDragging) return;
 
     if (currentDrawing && currentDrawing.p1 && currentDrawing.p2) {
         setDrawings(prev => [...prev, { ...currentDrawing, id: Math.random().toString() } as Drawing]);
@@ -1442,6 +1798,17 @@ export default function InteractiveChart({ symbol = 'XAUUSD', signal }: Interact
               >
                 {showSupportResistance ? <Eye size={18} /> : <EyeOff size={18} />}
                 <span className="text-xs font-semibold">S&R</span>
+              </button>
+
+              <button 
+                 onClick={() => setShowTrendFinder(!showTrendFinder)}
+                 className={`flex items-center space-x-1 px-2 py-1.5 rounded-lg transition-all duration-200 ${
+                     showTrendFinder ? 'text-[#FF6D00] bg-[#FF6D00]/10 border border-[#FF6D00]/20' : 'text-gray-400 hover:bg-[#1f2937] hover:text-white'
+                 }`}
+                 title="Toggle Adaptive Trend Finder"
+              >
+                <TrendingUp size={18} />
+                <span className="text-xs font-semibold">Trend Finder</span>
               </button>
 
               {selectedDrawingId && (

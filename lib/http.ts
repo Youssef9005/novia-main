@@ -24,6 +24,14 @@ export async function apiFetch<T = any>(path: string, options: JsonInit = {}): P
     ...(options.headers || {}),
   };
 
+  // Automatically attach Bearer token if available
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('token');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  }
+
   const init: RequestInit = {
     ...options,
     headers,

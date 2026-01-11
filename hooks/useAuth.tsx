@@ -10,6 +10,11 @@ export interface AuthUser {
   email: string;
   role?: string;
   emailVerified?: boolean;
+  subscription?: {
+    status: 'active' | 'cancelled' | 'expired';
+    plan?: string;
+    endDate?: string;
+  };
 }
 
 interface AuthContextValue {

@@ -139,10 +139,11 @@ export default function SignalList({ onSelectSignal }: SignalListProps) {
                 <button 
                     onClick={handleClearAll}
                     disabled={visibleSignals.length === 0}
-                    className="p-1.5 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="flex items-center space-x-1 px-2 py-1.5 text-xs font-medium text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed"
                     title="Clear All Signals"
                 >
                     <Trash2 size={14} />
+                    <span>Clear All</span>
                 </button>
             </div>
         </div>

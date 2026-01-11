@@ -1,0 +1,269 @@
+//@version=5
+indicator("Session Horizontal Lines with Support, Resistance, and Alerts", overlay=true)
+
+// Session settings in the input panel
+asian_open_hour = input.int(0, "Asian Open Hour (GMT)", minval=0, maxval=23)
+asian_open_minute = input.int(0, "Asian Open Minute", minval=0, maxval=59)
+asian_close_hour = input.int(8, "Asian Close Hour (GMT)", minval=0, maxval=23)
+asian_close_minute = input.int(0, "Asian Close Minute", minval=0, maxval=59)
+
+european_open_hour = input.int(8, "European Open Hour (GMT)", minval=0, maxval=23)
+european_open_minute = input.int(0, "European Open Minute", minval=0, maxval=59)
+european_close_hour = input.int(16, "European Close Hour (GMT)", minval=0, maxval=23)
+european_close_minute = input.int(30, "European Close Minute", minval=0, maxval=59)
+
+us_open_hour = input.int(13, "US Open Hour (GMT)", minval=0, maxval=23)
+us_open_minute = input.int(30, "US Open Minute", minval=0, maxval=59)
+us_close_hour = input.int(21, "US Close Hour (GMT)", minval=0, maxval=23)
+us_close_minute = input.int(0, "US Close Minute", minval=0, maxval=59)
+
+// Percentage settings for support and resistance lines
+support_1_pct = input.float(-1.0, "Support 1 (%)", minval=-10.0, maxval=0.0, step=0.1) / 100
+support_2_pct = input.float(-2.0, "Support 2 (%)", minval=-10.0, maxval=0.0, step=0.1) / 100
+support_3_pct = input.float(-3.0, "Support 3 (%)", minval=-10.0, maxval=0.0, step=0.1) / 100
+support_4_pct = input.float(-4.0, "Support 4 (%)", minval=-10.0, maxval=0.0, step=0.1) / 100
+
+resistance_1_pct = input.float(1.0, "Resistance 1 (%)", minval=0.0, maxval=10.0, step=0.1) / 100
+resistance_2_pct = input.float(2.0, "Resistance 2 (%)", minval=0.0, maxval=10.0, step=0.1) / 100
+resistance_3_pct = input.float(3.0, "Resistance 3 (%)", minval=0.0, maxval=10.0, step=0.1) / 100
+resistance_4_pct = input.float(4.0, "Resistance 4 (%)", minval=0.0, maxval=10.0, step=0.1) / 100
+
+// Color settings
+asian_open_color = input.color(color.purple, "Asian Open Color")
+asian_support_color = input.color(color.new(color.purple, 20), "Asian Support Color")
+asian_resistance_color = input.color(color.new(color.purple, 20), "Asian Resistance Color")
+
+european_open_color = input.color(color.blue, "European Open Color")
+european_support_color = input.color(color.new(color.blue, 20), "European Support Color")
+european_resistance_color = input.color(color.new(color.blue, 20), "European Resistance Color")
+
+us_open_color = input.color(color.green, "US Open Color")
+us_support_color = input.color(color.new(color.green, 20), "US Support Color")
+us_resistance_color = input.color(color.new(color.green, 20), "US Resistance Color")
+
+// Line width settings
+open_linewidth = input.int(2, "Open Line Width", minval=1, maxval=5)
+support_linewidth = input.int(1, "Support Line Width", minval=1, maxval=5)
+resistance_linewidth = input.int(1, "Resistance Line Width", minval=1, maxval=5)
+
+// Label settings
+label_size = input.string("normal", "Label Size", options=["small", "normal", "large", "huge"])
+label_textcolor = input.color(color.white, "Label Text Color")
+
+// Define session times
+asian_open_time = timestamp(year, month, dayofmonth, asian_open_hour, asian_open_minute)
+asian_close_time = timestamp(year, month, dayofmonth, asian_close_hour, asian_close_minute)
+
+european_open_time = timestamp(year, month, dayofmonth, european_open_hour, european_open_minute)
+european_close_time = timestamp(year, month, dayofmonth, european_close_hour, european_close_minute)
+
+us_open_time = timestamp(year, month, dayofmonth, us_open_hour, us_open_minute)
+us_close_time = timestamp(year, month, dayofmonth, us_close_hour, us_close_minute)
+
+// Store open, support, and resistance prices
+var float asian_open_price = na
+var float asian_support_1 = na
+var float asian_support_2 = na
+var float asian_support_3 = na
+var float asian_support_4 = na
+var float asian_resistance_1 = na
+var float asian_resistance_2 = na
+var float asian_resistance_3 = na
+var float asian_resistance_4 = na
+
+var float european_open_price = na
+var float european_support_1 = na
+var float european_support_2 = na
+var float european_support_3 = na
+var float european_support_4 = na
+var float european_resistance_1 = na
+var float european_resistance_2 = na
+var float european_resistance_3 = na
+var float european_resistance_4 = na
+
+var float us_open_price = na
+var float us_support_1 = na
+var float us_support_2 = na
+var float us_support_3 = na
+var float us_support_4 = na
+var float us_resistance_1 = na
+var float us_resistance_2 = na
+var float us_resistance_3 = na
+var float us_resistance_4 = na
+
+// Calculate prices at the start of each session
+if (time == asian_open_time)
+    asian_open_price := open
+    asian_support_1 := open * (1 + support_1_pct)
+    asian_support_2 := open * (1 + support_2_pct)
+    asian_support_3 := open * (1 + support_3_pct)
+    asian_support_4 := open * (1 + support_4_pct)
+    asian_resistance_1 := open * (1 + resistance_1_pct)
+    asian_resistance_2 := open * (1 + resistance_2_pct)
+    asian_resistance_3 := open * (1 + resistance_3_pct)
+    asian_resistance_4 := open * (1 + resistance_4_pct)
+
+if (time == european_open_time)
+    european_open_price := open
+    european_support_1 := open * (1 + support_1_pct)
+    european_support_2 := open * (1 + support_2_pct)
+    european_support_3 := open * (1 + support_3_pct)
+    european_support_4 := open * (1 + support_4_pct)
+    european_resistance_1 := open * (1 + resistance_1_pct)
+    european_resistance_2 := open * (1 + resistance_2_pct)
+    european_resistance_3 := open * (1 + resistance_3_pct)
+    european_resistance_4 := open * (1 + resistance_4_pct)
+
+if (time == us_open_time)
+    us_open_price := open
+    us_support_1 := open * (1 + support_1_pct)
+    us_support_2 := open * (1 + support_2_pct)
+    us_support_3 := open * (1 + support_3_pct)
+    us_support_4 := open * (1 + support_4_pct)
+    us_resistance_1 := open * (1 + resistance_1_pct)
+    us_resistance_2 := open * (1 + resistance_2_pct)
+    us_resistance_3 := open * (1 + resistance_3_pct)
+    us_resistance_4 := open * (1 + resistance_4_pct)
+
+// Plot horizontal open lines
+plot(time >= asian_open_time and time <= asian_close_time ? asian_open_price : na, color=asian_open_color, linewidth=open_linewidth, title="Asian Open")
+plot(time >= european_open_time and time <= european_close_time ? european_open_price : na, color=european_open_color, linewidth=open_linewidth, title="EU Open")
+plot(time >= us_open_time and time <= us_close_time ? us_open_price : na, color=us_open_color, linewidth=open_linewidth, title="US Open")
+
+// Plot support lines
+plot(time >= asian_open_time and time <= asian_close_time ? asian_support_1 : na, color=asian_support_color, linewidth=support_linewidth, title="Asian S1")
+plot(time >= asian_open_time and time <= asian_close_time ? asian_support_2 : na, color=asian_support_color, linewidth=support_linewidth, title="Asian S2")
+plot(time >= asian_open_time and time <= asian_close_time ? asian_support_3 : na, color=asian_support_color, linewidth=support_linewidth, title="Asian S3")
+plot(time >= asian_open_time and time <= asian_close_time ? asian_support_4 : na, color=asian_support_color, linewidth=support_linewidth, title="Asian S4")
+
+plot(time >= european_open_time and time <= european_close_time ? european_support_1 : na, color=european_support_color, linewidth=support_linewidth, title="EU S1")
+plot(time >= european_open_time and time <= european_close_time ? european_support_2 : na, color=european_support_color, linewidth=support_linewidth, title="EU S2")
+plot(time >= european_open_time and time <= european_close_time ? european_support_3 : na, color=european_support_color, linewidth=support_linewidth, title="EU S3")
+plot(time >= european_open_time and time <= european_close_time ? european_support_4 : na, color=european_support_color, linewidth=support_linewidth, title="EU S4")
+
+plot(time >= us_open_time and time <= us_close_time ? us_support_1 : na, color=us_support_color, linewidth=support_linewidth, title="US S1")
+plot(time >= us_open_time and time <= us_close_time ? us_support_2 : na, color=us_support_color, linewidth=support_linewidth, title="US S2")
+plot(time >= us_open_time and time <= us_close_time ? us_support_3 : na, color=us_support_color, linewidth=support_linewidth, title="US S3")
+plot(time >= us_open_time and time <= us_close_time ? us_support_4 : na, color=us_support_color, linewidth=support_linewidth, title="US S4")
+
+// Plot resistance lines
+plot(time >= asian_open_time and time <= asian_close_time ? asian_resistance_1 : na, color=asian_resistance_color, linewidth=resistance_linewidth, title="Asian R1")
+plot(time >= asian_open_time and time <= asian_close_time ? asian_resistance_2 : na, color=asian_resistance_color, linewidth=resistance_linewidth, title="Asian R2")
+plot(time >= asian_open_time and time <= asian_close_time ? asian_resistance_3 : na, color=asian_resistance_color, linewidth=resistance_linewidth, title="Asian R3")
+plot(time >= asian_open_time and time <= asian_close_time ? asian_resistance_4 : na, color=asian_resistance_color, linewidth=resistance_linewidth, title="Asian R4")
+
+plot(time >= european_open_time and time <= european_close_time ? european_resistance_1 : na, color=european_resistance_color, linewidth=resistance_linewidth, title="EU R1")
+plot(time >= european_open_time and time <= european_close_time ? european_resistance_2 : na, color=european_resistance_color, linewidth=resistance_linewidth, title="EU R2")
+plot(time >= european_open_time and time <= european_close_time ? european_resistance_3 : na, color=european_resistance_color, linewidth=resistance_linewidth, title="EU R3")
+plot(time >= european_open_time and time <= european_close_time ? european_resistance_4 : na, color=european_resistance_color, linewidth=resistance_linewidth, title="EU R4")
+
+plot(time >= us_open_time and time <= us_close_time ? us_resistance_1 : na, color=us_resistance_color, linewidth=resistance_linewidth, title="US R1")
+plot(time >= us_open_time and time <= us_close_time ? us_resistance_2 : na, color=us_resistance_color, linewidth=resistance_linewidth, title="US R2")
+plot(time >= us_open_time and time <= us_close_time ? us_resistance_3 : na, color=us_resistance_color, linewidth=resistance_linewidth, title="US R3")
+plot(time >= us_open_time and time <= us_close_time ? us_resistance_4 : na, color=us_resistance_color, linewidth=resistance_linewidth, title="US R4")
+
+// Draw vertical lines, labels, and alerts
+if (time == asian_open_time)
+    line.new(x1=bar_index, y1=low, x2=bar_index, y2=high, color=asian_open_color, width=2)
+    // Label for open line
+    label.new(x=bar_index + 5, y=asian_open_price, text="Open", color=asian_open_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=asian_open_price, text=str.tostring(asian_open_price, "#.####"), color=asian_open_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    // Support labels (rectangle using box.new) and price labels
+    box.new(left=bar_index, top=asian_support_1 + 0.0001, right=bar_index + 1, bottom=asian_support_1 - 0.0001, bgcolor=asian_support_color, border_color=asian_support_color)
+    label.new(x=bar_index + 5, y=asian_support_1, text="S1", color=asian_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=asian_support_1, text=str.tostring(asian_support_1, "#.####"), color=asian_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    box.new(left=bar_index, top=asian_support_2 + 0.0001, right=bar_index + 1, bottom=asian_support_2 - 0.0001, bgcolor=asian_support_color, border_color=asian_support_color)
+    label.new(x=bar_index + 5, y=asian_support_2, text="S2", color=asian_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=asian_support_2, text=str.tostring(asian_support_2, "#.####"), color=asian_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    box.new(left=bar_index, top=asian_support_3 + 0.0001, right=bar_index + 1, bottom=asian_support_3 - 0.0001, bgcolor=asian_support_color, border_color=asian_support_color)
+    label.new(x=bar_index + 5, y=asian_support_3, text="S3", color=asian_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=asian_support_3, text=str.tostring(asian_support_3, "#.####"), color=asian_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    box.new(left=bar_index, top=asian_support_4 + 0.0001, right=bar_index + 1, bottom=asian_support_4 - 0.0001, bgcolor=asian_support_color, border_color=asian_support_color)
+    label.new(x=bar_index + 5, y=asian_support_4, text="S4", color=asian_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=asian_support_4, text=str.tostring(asian_support_4, "#.####"), color=asian_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    // Resistance labels (rectangle using box.new) and price labels
+    box.new(left=bar_index, top=asian_resistance_1 + 0.0001, right=bar_index + 1, bottom=asian_resistance_1 - 0.0001, bgcolor=asian_resistance_color, border_color=asian_resistance_color)
+    label.new(x=bar_index + 5, y=asian_resistance_1, text="R1", color=asian_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=asian_resistance_1, text=str.tostring(asian_resistance_1, "#.####"), color=asian_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    box.new(left=bar_index, top=asian_resistance_2 + 0.0001, right=bar_index + 1, bottom=asian_resistance_2 - 0.0001, bgcolor=asian_resistance_color, border_color=asian_resistance_color)
+    label.new(x=bar_index + 5, y=asian_resistance_2, text="R2", color=asian_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=asian_resistance_2, text=str.tostring(asian_resistance_2, "#.####"), color=asian_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    box.new(left=bar_index, top=asian_resistance_3 + 0.0001, right=bar_index + 1, bottom=asian_resistance_3 - 0.0001, bgcolor=asian_resistance_color, border_color=asian_resistance_color)
+    label.new(x=bar_index + 5, y=asian_resistance_3, text="R3", color=asian_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=asian_resistance_3, text=str.tostring(asian_resistance_3, "#.####"), color=asian_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    box.new(left=bar_index, top=asian_resistance_4 + 0.0001, right=bar_index + 1, bottom=asian_resistance_4 - 0.0001, bgcolor=asian_resistance_color, border_color=asian_resistance_color)
+    label.new(x=bar_index + 5, y=asian_resistance_4, text="R4", color=asian_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=asian_resistance_4, text=str.tostring(asian_resistance_4, "#.####"), color=asian_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    // Alert for Asian session
+    alert_message = "إشعار تحليل الجلسة الآسيوية لهذا اليوم\nAsian Session Analysis Notice for Today\nالزوج: " + syminfo.ticker + "\nمنطقة الارتكاز: " + str.tostring(asian_open_price, "#.####") + "\nإذا كان السعر يتداول أعلى منطقة الارتكاز يكون الاتجاه إيجابي\nالمقاومة الأولى: " + str.tostring(asian_resistance_1, "#.####") + "\nالمقاومة الثانية: " + str.tostring(asian_resistance_2, "#.####") + "\nالمقاومة الثالثة: " + str.tostring(asian_resistance_3, "#.####") + "\nالمقاومة الرابعة: " + str.tostring(asian_resistance_4, "#.####") + "\nإذا كان السعر يتداول أسفل منطقة الارتكاز يكون الاتجاه سلبي\nالدعم الأول: " + str.tostring(asian_support_1, "#.####") + "\nالدعم الثاني: " + str.tostring(asian_support_2, "#.####") + "\nالدعم الثالث: " + str.tostring(asian_support_3, "#.####") + "\nالدعم الرابع: " + str.tostring(asian_support_4, "#.####") + "\nCurrency: " + syminfo.ticker + "\nAnchor Area: " + str.tostring(asian_open_price, "#.####") + "\nIf the price is trading above the anchor area, the trend is positive.\nFirst Resistance: " + str.tostring(asian_resistance_1, "#.####") + "\nSecond Resistance: " + str.tostring(asian_resistance_2, "#.####") + "\nThird Resistance: " + str.tostring(asian_resistance_3, "#.####") + "\nFourth Resistance: " + str.tostring(asian_resistance_4, "#.####") + "\nIf the price is trading below the anchor area, the trend is negative.\nFirst Support: " + str.tostring(asian_support_1, "#.####") + "\nSecond Support: " + str.tostring(asian_support_2, "#.####") + "\nThird Support: " + str.tostring(asian_support_3, "#.####") + "\nFourth Support: " + str.tostring(asian_support_4, "#.####")
+    alert(message=alert_message)
+
+if (time == european_open_time)
+    line.new(x1=bar_index, y1=low, x2=bar_index, y2=high, color=european_open_color, width=2)
+    // Label for open line
+    label.new(x=bar_index + 5, y=european_open_price, text="Open", color=european_open_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=european_open_price, text=str.tostring(european_open_price, "#.####"), color=european_open_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    // Support labels (rectangle using box.new) and price labels
+    box.new(left=bar_index, top=european_support_1 + 0.0001, right=bar_index + 1, bottom=european_support_1 - 0.0001, bgcolor=european_support_color, border_color=european_support_color)
+    label.new(x=bar_index + 5, y=european_support_1, text="S1", color=european_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=european_support_1, text=str.tostring(european_support_1, "#.####"), color=european_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    box.new(left=bar_index, top=european_support_2 + 0.0001, right=bar_index + 1, bottom=european_support_2 - 0.0001, bgcolor=european_support_color, border_color=european_support_color)
+    label.new(x=bar_index + 5, y=european_support_2, text="S2", color=european_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=european_support_2, text=str.tostring(european_support_2, "#.####"), color=european_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    box.new(left=bar_index, top=european_support_3 + 0.0001, right=bar_index + 1, bottom=european_support_3 - 0.0001, bgcolor=european_support_color, border_color=european_support_color)
+    label.new(x=bar_index + 5, y=european_support_3, text="S3", color=european_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=european_support_3, text=str.tostring(european_support_3, "#.####"), color=european_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    box.new(left=bar_index, top=european_support_4 + 0.0001, right=bar_index + 1, bottom=european_support_4 - 0.0001, bgcolor=european_support_color, border_color=european_support_color)
+    label.new(x=bar_index + 5, y=european_support_4, text="S4", color=european_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=european_support_4, text=str.tostring(european_support_4, "#.####"), color=european_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    // Resistance labels (rectangle using box.new) and price labels
+    box.new(left=bar_index, top=european_resistance_1 + 0.0001, right=bar_index + 1, bottom=european_resistance_1 - 0.0001, bgcolor=european_resistance_color, border_color=european_resistance_color)
+    label.new(x=bar_index + 5, y=european_resistance_1, text="R1", color=european_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=european_resistance_1, text=str.tostring(european_resistance_1, "#.####"), color=european_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    box.new(left=bar_index, top=european_resistance_2 + 0.0001, right=bar_index + 1, bottom=european_resistance_2 - 0.0001, bgcolor=european_resistance_color, border_color=european_resistance_color)
+    label.new(x=bar_index + 5, y=european_resistance_2, text="R2", color=european_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=european_resistance_2, text=str.tostring(european_resistance_2, "#.####"), color=european_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    box.new(left=bar_index, top=european_resistance_3 + 0.0001, right=bar_index + 1, bottom=european_resistance_3 - 0.0001, bgcolor=european_resistance_color, border_color=european_resistance_color)
+    label.new(x=bar_index + 5, y=european_resistance_3, text="R3", color=european_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=european_resistance_3, text=str.tostring(european_resistance_3, "#.####"), color=european_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    box.new(left=bar_index, top=european_resistance_4 + 0.0001, right=bar_index + 1, bottom=european_resistance_4 - 0.0001, bgcolor=european_resistance_color, border_color=european_resistance_color)
+    label.new(x=bar_index + 5, y=european_resistance_4, text="R4", color=european_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=european_resistance_4, text=str.tostring(european_resistance_4, "#.####"), color=european_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    // Alert for European session
+    alert_message = "إشعار تحليل الجلسة الأوروبية لهذا اليوم\nEuropean Session Analysis Notice for Today\nالزوج: " + syminfo.ticker + "\nمنطقة الارتكاز: " + str.tostring(european_open_price, "#.####") + "\nإذا كان السعر يتداول أعلى منطقة الارتكاز يكون الاتجاه إيجابي\nالمقاومة الأولى: " + str.tostring(european_resistance_1, "#.####") + "\nالمقاومة الثانية: " + str.tostring(european_resistance_2, "#.####") + "\nالمقاومة الثالثة: " + str.tostring(european_resistance_3, "#.####") + "\nالمقاومة الرابعة: " + str.tostring(european_resistance_4, "#.####") + "\nإذا كان السعر يتداول أسفل منطقة الارتكاز يكون الاتجاه سلبي\nالدعم الأول: " + str.tostring(european_support_1, "#.####") + "\nالدعم الثاني: " + str.tostring(european_support_2, "#.####") + "\nالدعم الثالث: " + str.tostring(european_support_3, "#.####") + "\nالدعم الرابع: " + str.tostring(european_support_4, "#.####") + "\nCurrency: " + syminfo.ticker + "\nAnchor Area: " + str.tostring(european_open_price, "#.####") + "\nIf the price is trading above the anchor area, the trend is positive.\nFirst Resistance: " + str.tostring(european_resistance_1, "#.####") + "\nSecond Resistance: " + str.tostring(european_resistance_2, "#.####") + "\nThird Resistance: " + str.tostring(european_resistance_3, "#.####") + "\nFourth Resistance: " + str.tostring(european_resistance_4, "#.####") + "\nIf the price is trading below the anchor area, the trend is negative.\nFirst Support: " + str.tostring(european_support_1, "#.####") + "\nSecond Support: " + str.tostring(european_support_2, "#.####") + "\nThird Support: " + str.tostring(european_support_3, "#.####") + "\nFourth Support: " + str.tostring(european_support_4, "#.####")
+    alert(message=alert_message)
+
+if (time == us_open_time)
+    line.new(x1=bar_index, y1=low, x2=bar_index, y2=high, color=us_open_color, width=2)
+    // Label for open line
+    label.new(x=bar_index + 5, y=us_open_price, text="Open", color=us_open_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=us_open_price, text=str.tostring(us_open_price, "#.####"), color=us_open_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    // Support labels (rectangle using box.new) and price labels
+    box.new(left=bar_index, top=us_support_1 + 0.0001, right=bar_index + 1, bottom=us_support_1 - 0.0001, bgcolor=us_support_color, border_color=us_support_color)
+    label.new(x=bar_index + 5, y=us_support_1, text="S1", color=us_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=us_support_1, text=str.tostring(us_support_1, "#.####"), color=us_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    box.new(left=bar_index, top=us_support_2 + 0.0001, right=bar_index + 1, bottom=us_support_2 - 0.0001, bgcolor=us_support_color, border_color=us_support_color)
+    label.new(x=bar_index + 5, y=us_support_2, text="S2", color=us_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=us_support_2, text=str.tostring(us_support_2, "#.####"), color=us_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    box.new(left=bar_index, top=us_support_3 + 0.0001, right=bar_index + 1, bottom=us_support_3 - 0.0001, bgcolor=us_support_color, border_color=us_support_color)
+    label.new(x=bar_index + 5, y=us_support_3, text="S3", color=us_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=us_support_3, text=str.tostring(us_support_3, "#.####"), color=us_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    box.new(left=bar_index, top=us_support_4 + 0.0001, right=bar_index + 1, bottom=us_support_4 - 0.0001, bgcolor=us_support_color, border_color=us_support_color)
+    label.new(x=bar_index + 5, y=us_support_4, text="S4", color=us_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=us_support_4, text=str.tostring(us_support_4, "#.####"), color=us_support_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    // Resistance labels (rectangle using box.new) and price labels
+    box.new(left=bar_index, top=us_resistance_1 + 0.0001, right=bar_index + 1, bottom=us_resistance_1 - 0.0001, bgcolor=us_resistance_color, border_color=us_resistance_color)
+    label.new(x=bar_index + 5, y=us_resistance_1, text="R1", color=us_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=us_resistance_1, text=str.tostring(us_resistance_1, "#.####"), color=us_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    box.new(left=bar_index, top=us_resistance_2 + 0.0001, right=bar_index + 1, bottom=us_resistance_2 - 0.0001, bgcolor=us_resistance_color, border_color=us_resistance_color)
+    label.new(x=bar_index + 5, y=us_resistance_2, text="R2", color=us_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=us_resistance_2, text=str.tostring(us_resistance_2, "#.####"), color=us_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    box.new(left=bar_index, top=us_resistance_3 + 0.0001, right=bar_index + 1, bottom=us_resistance_3 - 0.0001, bgcolor=us_resistance_color, border_color=us_resistance_color)
+    label.new(x=bar_index + 5, y=us_resistance_3, text="R3", color=us_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=us_resistance_3, text=str.tostring(us_resistance_3, "#.####"), color=us_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    box.new(left=bar_index, top=us_resistance_4 + 0.0001, right=bar_index + 1, bottom=us_resistance_4 - 0.0001, bgcolor=us_resistance_color, border_color=us_resistance_color)
+    label.new(x=bar_index + 5, y=us_resistance_4, text="R4", color=us_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    label.new(x=bar_index + 15, y=us_resistance_4, text=str.tostring(us_resistance_4, "#.#### Ah"), color=us_resistance_color, textcolor=label_textcolor, style=label.style_label_left, size=label_size, textalign=text.align_left)
+    // Alert for US session
+    alert_message = "إشعار تحليل الجلسة الأمريكية لهذا اليوم\nUS Session Analysis Notice for Today\nالزوج: " + syminfo.ticker + "\nمنطقة الارتكاز: " + str.tostring(us_open_price, "#.####") + "\nإذا كان السعر يتداول أعلى منطقة الارتكاز يكون الاتجاه إيجابي\nالمقاومة الأولى: " + str.tostring(us_resistance_1, "#.####") + "\nالمقاومة الثانية: " + str.tostring(us_resistance_2, "#.####") + "\nالمقاومة الثالثة: " + str.tostring(us_resistance_3, "#.####") + "\nالمقاومة الرابعة: " + str.tostring(us_resistance_4, "#.####") + "\nإذا كان السعر يتداول أسفل منطقة الارتكاز يكون الاتجاه سلبي\nالدعم الأول: " + str.tostring(us_support_1, "#.####") + "\nالدعم الثاني: " + str.tostring(us_support_2, "#.####") + "\nالدعم الثالث: " + str.tostring(us_support_3, "#.####") + "\nالدعم الرابع: " + str.tostring(us_support_4, "#.####") + "\nCurrency: " + syminfo.ticker + "\nAnchor Area: " + str.tostring(us_open_price, "#.####") + "\nIf the price is trading above the anchor area, the trend is positive.\nFirst Resistance: " + str.tostring(us_resistance_1, "#.####") + "\nSecond Resistance: " + str.tostring(us_resistance_2, "#.####") + "\nThird Resistance: " + str.tostring(us_resistance_3, "#.####") + "\nFourth Resistance: " + str.tostring(us_resistance_4, "#.####") + "\nIf the price is trading below the anchor area, the trend is negative.\nFirst Support: " + str.tostring(us_support_1, "#.####") + "\nSecond Support: " + str.tostring(us_support_2, "#.####") + "\nThird Support: " + str.tostring(us_support_3, "#.####") + "\nFourth Support: " + str.tostring(us_support_4, "#.####")
+    alert(message=alert_message)

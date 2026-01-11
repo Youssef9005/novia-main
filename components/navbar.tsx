@@ -68,7 +68,9 @@ export function Navbar() {
     { name: t('navbar.home'), href: "/" },
     { name: t('navbar.about'), href: "/about" },
     { name: t('navbar.contact'), href: "/contact" },
+    { name: t('navbar.economicCalendar'), href: "/economic-calendar" },
     { name: t('navbar.subscriptions'), href: "/#pricing" },
+    { name: t('navbar.chart'), href: "/chart" },
   ]
 
   return (
