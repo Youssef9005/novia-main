@@ -92,9 +92,10 @@ interface ResetPasswordData {
 }
 
 interface UpdatePasswordData {
-  currentPassword: string;
-  password: string;
-  passwordConfirm: string;
+  currentPassword?: string;
+  password?: string;
+  passwordConfirm?: string;
+  token?: string;
 }
 
 interface UpdateProfileData {
@@ -105,6 +106,8 @@ interface UpdateProfileData {
     countryCode: string;
     number: string;
   };
+  binanceWalletAddress?: string;
+  selectedAssets?: string[];
 }
 
 interface PaymentData {

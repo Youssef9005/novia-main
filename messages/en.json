@@ -225,7 +225,18 @@
     "notActive": "Not Active",
     "active": "Active",
     "cancelled": "Cancelled",
-    "expired": "Expired"
+    "expired": "Expired",
+    "goToChart": "Go to Chart",
+    "binanceWalletPlaceholder": "Your Binance Wallet Address (optional)",
+    "verificationCodePlaceholder": "Enter the code from your email",
+    "verificationEmailSentTitle": "Verification Email Sent",
+    "verificationEmailSentDescription": "Please check your email to confirm the password change.",
+    "passwordChangedDescription": "Password changed successfully",
+    "passwordMismatch": "New password and confirmation do not match",
+    "notificationPreferencesUpdated": "Notification preferences updated successfully",
+    "failedToUpdateNotificationPreferences": "Failed to update notification preferences",
+    "failedToRequestPasswordChange": "Failed to request password change",
+    "failedToVerifyPasswordChange": "Failed to verify password change"
   },
   "loginPage": {
     "back": "Back",

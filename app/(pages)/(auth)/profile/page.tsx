@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { User, Key, CreditCard, Settings, Bell, Loader2, Eye, EyeOff, AlertTriangle, Users, Send } from "lucide-react"
+import { User, Key, CreditCard, Settings, Bell, Loader2, Eye, EyeOff, AlertTriangle, Users, Send, ExternalLink } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { api } from '@/lib/api';
@@ -236,9 +236,9 @@ export default function ProfilePage() {
         phoneNumber: user.phoneNumber
       });
 
-      if (response.status === 'success') {
+      if (response.status === 'success' && response.data) {
         // Update local storage user data to reflect changes immediately
-        const updatedUser = { ...user, ...response.data.user };
+        const updatedUser = { ...user, ...response.data!.user };
         localStorage.setItem('user', JSON.stringify(updatedUser));
 
         setUser(updatedUser);
@@ -275,15 +275,17 @@ export default function ProfilePage() {
       }
 
       const response = await api.users.updateNotifications({
-        emailNotifications: user.notifications.marketing,
-        pushNotifications: user.notifications.assetAnalysis,
-        marketingEmails: user.notifications.priceAlerts
+        notifications: {
+          marketing: user.notifications.marketing,
+          assetAnalysis: user.notifications.assetAnalysis,
+          priceAlerts: user.notifications.priceAlerts
+        }
       });
 
       if (response.status === 'success') {
         toast({
-          title: "Success",
-          description: "Notification preferences updated successfully",
+          title: t('profilePage.success'),
+          description: t('profilePage.notificationPreferencesUpdated'),
         });
       } else {
         throw new Error(response.message || 'Failed to update notification preferences');
@@ -291,8 +293,8 @@ export default function ProfilePage() {
     } catch (err: any) {
       setError(err.message || 'Failed to update notification preferences');
       toast({
-        title: "Error",
-        description: err.message || "Failed to update notification preferences",
+        title: t('profilePage.error'),
+        description: err.message || t('profilePage.failedToUpdateNotificationPreferences'),
         variant: "destructive"
       });
     } finally {
@@ -309,7 +311,7 @@ export default function ProfilePage() {
     
     // Validate that passwords match
     if (passwordData.newPassword !== passwordData.passwordConfirm) {
-      setError("New password and confirmation do not match");
+      setError(t('profilePage.passwordMismatch'));
       setFormLoading(false);
       return;
     }
@@ -323,24 +325,24 @@ export default function ProfilePage() {
       // First, request password change verification
       const response = await api.users.updatePassword({
         currentPassword: passwordData.currentPassword,
-        newPassword: passwordData.newPassword,
-        confirmPassword: passwordData.passwordConfirm
+        password: passwordData.newPassword,
+        passwordConfirm: passwordData.passwordConfirm
       });
 
       if (response.status === 'success') {
         setVerificationSent(true);
         toast({
-          title: "Verification Email Sent",
-          description: "Please check your email to confirm the password change.",
+          title: t('profilePage.verificationEmailSent'),
+          description: t('profilePage.checkEmailDescription'),
         });
       } else {
-        throw new Error(response.message || 'Failed to request password change');
+        throw new Error(response.message || t('profilePage.failedToRequestPasswordChange'));
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to request password change');
+      setError(err.message || t('profilePage.failedToRequestPasswordChange'));
       toast({
-        title: "Error",
-        description: err.message || "Failed to request password change",
+        title: t('profilePage.error'),
+        description: err.message || t('profilePage.failedToRequestPasswordChange'),
         variant: "destructive"
       });
     } finally {
@@ -373,17 +375,17 @@ export default function ProfilePage() {
           passwordConfirm: ""
         });
         toast({
-          title: "Success",
-          description: "Password changed successfully",
+          title: t('profilePage.success'),
+          description: t('profilePage.passwordChangedDescription'),
         });
       } else {
-        throw new Error(response.message || 'Failed to verify password change');
+        throw new Error(response.message || t('profilePage.failedToVerifyPasswordChange'));
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to verify password change');
+      setError(err.message || t('profilePage.failedToVerifyPasswordChange'));
       toast({
-        title: "Error",
-        description: err.message || "Failed to verify password change",
+        title: t('profilePage.error'),
+        description: err.message || t('profilePage.failedToVerifyPasswordChange'),
         variant: "destructive"
       });
     } finally {
@@ -566,14 +568,14 @@ export default function ProfilePage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="binanceWalletAddress" className="text-gray-300">{t('profilePage.binanceWallet')}</Label>
-                    <Input 
-                      id="binanceWalletAddress" 
-                      type="text" 
-                      value={user.binanceWalletAddress} 
-                      onChange={(e) => setUser({ ...user, binanceWalletAddress: e.target.value })} 
-                      placeholder="Your Binance Wallet Address (optional)" 
-                      className="bg-gray-800 text-white border-gray-700"
-                    />
+                      <Input 
+                        id="binanceWalletAddress" 
+                        type="text" 
+                        value={user.binanceWalletAddress} 
+                        onChange={(e) => setUser({ ...user, binanceWalletAddress: e.target.value })} 
+                        placeholder={t('profilePage.binanceWalletPlaceholder')} 
+                        className="bg-gray-800 text-white border-gray-700"
+                      />
                   </div>
                   <Button type="submit" className="w-full bg-yellow-600 hover:bg-yellow-700 text-black" disabled={formLoading}>
                     {formLoading ? (
@@ -611,7 +613,7 @@ export default function ProfilePage() {
                 {!verificationSent ? (
                   <form onSubmit={handleChangePassword} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="currentPassword" className="text-gray-300">Current Password</Label>
+                      <Label htmlFor="currentPassword" className="text-gray-300">{t('profilePage.currentPassword')}</Label>
                       <div className="relative">
                         <Input 
                           id="currentPassword" 
@@ -630,7 +632,7 @@ export default function ProfilePage() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="newPassword" className="text-gray-300">New Password</Label>
+                      <Label htmlFor="newPassword" className="text-gray-300">{t('profilePage.newPassword')}</Label>
                       <div className="relative">
                         <Input 
                           id="newPassword" 
@@ -649,7 +651,7 @@ export default function ProfilePage() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="passwordConfirm" className="text-gray-300">Confirm New Password</Label>
+                      <Label htmlFor="passwordConfirm" className="text-gray-300">{t('profilePage.confirmNewPassword')}</Label>
                       <div className="relative">
                         <Input 
                           id="passwordConfirm" 
@@ -678,12 +680,12 @@ export default function ProfilePage() {
                 ) : (
                   <form onSubmit={handleVerifyPasswordChange} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="verificationToken" className="text-gray-300">Verification Code</Label>
+                      <Label htmlFor="verificationToken" className="text-gray-300">{t('profilePage.verificationCode')}</Label>
                       <Input 
                         id="verificationToken" 
                         value={verificationToken} 
                         onChange={(e) => setVerificationToken(e.target.value)} 
-                        placeholder="Enter the code from your email"
+                        placeholder={t('profilePage.verificationCodePlaceholder')}
                         className="bg-gray-800 text-white border-gray-700"
                       />
                     </div>
@@ -721,6 +723,15 @@ export default function ProfilePage() {
                 <CardDescription className="text-gray-400">{t('profilePage.manageSubscription')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {user.plan !== 'Free' && (
+                  <Button 
+                    onClick={() => router.push('/chart')}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white mb-4 flex items-center justify-center gap-2"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    {t('profilePage.goToChart')}
+                  </Button>
+                )}
                 <div className="space-y-2">
                   <Label className="text-gray-300">{t('profilePage.currentPlan')}</Label>
                   <p className="text-white text-lg font-semibold">
@@ -773,7 +784,7 @@ export default function ProfilePage() {
                         if (user.subscription?.paymentId) {
                           navigator.clipboard.writeText(user.subscription.paymentId);
                           toast({
-                            title: "Copied!",
+                            title: t('profilePage.copied'),
                             description: t('profilePage.paymentIdDescription'),
                           });
                         }
