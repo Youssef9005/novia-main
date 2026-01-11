@@ -13,21 +13,22 @@ export default function ChartPage() {
   const [selectedSignal, setSelectedSignal] = useState<any>(null);
 
   return (
-    <div className="flex flex-col h-screen bg-[#131722] overflow-hidden pt-[72px]">
+    <div className="flex flex-col h-screen bg-[#0b0e11] overflow-hidden pt-[80px]">
       <Navbar />
-      <main className="flex-1 flex w-full overflow-hidden">
-        {/* Chart Area - Takes remaining space */}
-        <div className="flex-1 h-full relative border-r border-[#2B2B43]">
+
+      <main className="flex-1 flex w-full overflow-hidden relative">
+        {/* Chart Area - Fluid Width */}
+        <div className="flex-1 h-full relative z-0 min-w-0">
           <InteractiveChart 
             symbol={selectedSignal ? selectedSignal.symbol : "XAUUSD"} 
             signal={selectedSignal}
           />
         </div>
         
-        {/* Signal List / Watchlist Panel - Fixed width */}
-        <div className="w-[320px] h-full bg-[#131722] flex flex-col shadow-xl z-20 border-l border-[#2B2B43]">
+        {/* Signal Feed Sidebar - Fixed Width */}
+        <aside className="w-[380px] h-full flex flex-col z-20 shadow-2xl shadow-black/50 border-l border-[#1f2937] bg-[#0b0e11]">
           <SignalList onSelectSignal={setSelectedSignal} />
-        </div>
+        </aside>
       </main>
     </div>
   );
