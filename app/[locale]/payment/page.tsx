@@ -29,6 +29,7 @@ export default function PaymentPage() {
 
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
+  const [activeWallets, setActiveWallets] = useState<Wallet[]>([]);
 
   useEffect(() => {
     const fetchWallets = async () => {
