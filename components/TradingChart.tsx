@@ -53,6 +53,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useAuth } from '@/hooks/useAuth';
 
 // Helper for Linear Regression Channel (Adaptive Trend Finder)
 const calculateLinearRegressionChannel = (data: CandleData[], length: number = 100, deviationMult: number = 2, useLog: boolean = false) => {
