@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useAuth } from '@/hooks/useAuth';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
+import Image from "next/image";
+
 export default function Header() {
   const t = useTranslations('Header');
   const tSwitcher = useTranslations('Switcher');
@@ -39,9 +41,14 @@ export default function Header() {
         <div className="flex h-14 items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link href={`/${locale}`} className="flex items-center gap-3">
-              <div className="relative flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-400 via-cyan-300 to-emerald-400 text-[10px] font-semibold tracking-[0.18em] text-[#010203]">
-                {t('brand_short')}
-                <span className="absolute -inset-px rounded-2xl border border-white/40/20" />
+              <div className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl">
+                 <Image 
+                   src="/logo.jpeg" 
+                   alt={t('brand_name')} 
+                   width={36} 
+                   height={36} 
+                   className="object-cover"
+                 />
               </div>
               <div className="flex flex-col items-start gap-0.5">
                 <span className="text-[13px] font-semibold tracking-[0.18em] uppercase text-white/90">

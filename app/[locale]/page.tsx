@@ -1,9 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from 'next-intl';
 import Link from "next/link";
-import { api } from "@/lib/api";
-import { toast } from "sonner";
 import { useParams } from "next/navigation";
 
 export default function Home() {
@@ -17,33 +15,7 @@ export default function Home() {
   const tDemo = useTranslations('Demo');
   const tAbout = useTranslations('About');
   const tDashboard = useTranslations('Dashboard');
-  const tPricing = useTranslations('Pricing');
   const tContact = useTranslations('Contact');
-
-  useEffect(() => {
-    const fetchPlans = async () => {
-      try {
-        const response = await api.plans.getAll();
-        console.log("Plans response:", response);
-        if (response.status === 'success') {
-          // Handle both array directly or nested in data object
-          const plansData = Array.isArray(response.data) 
-            ? response.data 
-            : (response.data?.plans && Array.isArray(response.data.plans)) 
-              ? response.data.plans 
-              : [];
-          
-          setPlans(plansData);
-        }
-      } catch (error) {
-        console.error("Failed to fetch plans:", error);
-      } finally {
-        setLoadingPlans(false);
-      }
-    };
-
-    fetchPlans();
-  }, []);
 
   const tabs = [
     {

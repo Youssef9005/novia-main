@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 
 export default function ChartPage() {
   const { user, loading } = useAuth();
+  const locale = useLocale();
 
   // Show loading state
   if (loading) {
