@@ -16,6 +16,13 @@ interface User {
   wallet?: string;
   phone?: string;
   selectedAssets?: string[];
+  subscription?: {
+    plan?: string | { title: string };
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+    _id?: string;
+  };
   [key: string]: unknown;
 }
 

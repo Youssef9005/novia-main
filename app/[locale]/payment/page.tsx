@@ -46,8 +46,15 @@ export default function PaymentPage() {
     const fetchPlans = async () => {
       try {
         const response = await api.plans.getAll();
-        if (response.status === 'success' && response.data) {
-          setPlans(response.data);
+        console.log("Plans response payment page:", response);
+        if (response.status === 'success') {
+          // Handle both array directly or nested in data object
+          const plansData = Array.isArray(response.data) 
+            ? response.data 
+            : (response.data?.plans && Array.isArray(response.data.plans)) 
+              ? response.data.plans 
+              : [];
+          setPlans(plansData);
         }
       } catch (error) {
         console.error("Failed to fetch plans:", error);

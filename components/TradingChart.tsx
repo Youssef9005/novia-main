@@ -17,9 +17,10 @@ import {
 } from 'lightweight-charts';
 import { FootprintSeries, FootprintData, FootprintLevel, FootprintSeriesOptions } from './plugins/FootprintSeries';
 import { Button } from '@/components/ui/button';
-import TradingViewWidget from './TradingViewWidget';
+import Link from 'next/link';
+import { Lock } from 'lucide-react';
 import SignalNotifications, { Signal } from './SignalNotifications';
-import TradingViewTechnicalAnalysis from './TradingViewTechnicalAnalysis';
+import TradingViewQuote from './TradingViewQuote';
 import { 
   Maximize2, 
   Camera, 
@@ -41,7 +42,6 @@ import {
   Check,
   Bell
 } from 'lucide-react';
-import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { 
   DropdownMenu,
@@ -54,6 +54,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
+import { useLocale } from 'next-intl';
 
 // Helper for Linear Regression Channel (Adaptive Trend Finder)
 const calculateLinearRegressionChannel = (data: CandleData[], length: number = 100, deviationMult: number = 2, useLog: boolean = false) => {
@@ -443,26 +444,48 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
   const [candleCountdown, setCandleCountdown] = useState<string | null>(null);
   const [showAnalysisLines, setShowAnalysisLines] = useState(true);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [allowedPairs, setAllowedPairs] = useState<string[]>(['XAUUSD', 'BTCUSDT', 'ETHUSDT', 'EURUSD', 'GBPUSD', 'US30', 'NAS100']);
+  // Start with empty allowed pairs to strictly follow user subscription
+  const [allowedPairs, setAllowedPairs] = useState<string[]>([]);
+  const locale = useLocale();
+  const { user } = useAuth();
 
-  // Fetch User Subscription for Allowed Pairs
+  // Validate Status from User Context directly
   useEffect(() => {
-    const fetchSubscription = async () => {
-      try {
-        const res = await api.plans.getMySubscription();
-        if (res && res.status === 'success' && res.data && Array.isArray(res.data.selectedPairs)) {
-          const pairs = res.data.selectedPairs;
-          if (pairs.length > 0) {
-            setAllowedPairs(pairs);
-            setSymbol(prev => pairs.includes(prev) ? prev : pairs[0]);
-          }
+    if (!user) {
+       setAllowedPairs([]);
+       return;
+    }
+
+    let isActive = false;
+
+    if (user.subscription) {
+        const sub = user.subscription;
+        const now = new Date();
+        const expiry = sub.endDate ? new Date(sub.endDate) : null;
+        
+        // Check if active and not expired
+        if (sub.status === 'active' && (!expiry || now <= expiry)) {
+            isActive = true;
         }
-      } catch (error) {
-        console.error("Failed to fetch subscription pairs:", error);
-      }
-    };
-    fetchSubscription();
-  }, []);
+    }
+
+    if (isActive && Array.isArray(user.selectedAssets) && user.selectedAssets.length > 0) {
+        // Handle "ALL" permission - Expand to all supported assets
+        if (user.selectedAssets.includes('ALL') || user.selectedAssets.includes('all')) {
+            const allAssets = ['XAUUSD', 'BTCUSD', 'ETHUSD', 'EURUSD', 'GBPUSD', 'US30', 'NAS100', 'SPX500', 'USDT'];
+            setAllowedPairs(allAssets);
+            // Default to XAUUSD if current symbol is invalid or "ALL"
+            setSymbol(prev => (allAssets.includes(prev) && prev !== 'ALL') ? prev : 'XAUUSD');
+        } else {
+            setAllowedPairs(user.selectedAssets);
+            const assets = user.selectedAssets;
+            setSymbol(prev => assets.includes(prev) ? prev : assets[0]);
+        }
+    } else {
+        // Subscription expired or invalid
+        setAllowedPairs([]);
+    }
+  }, [user]);
 
   const rawDataRef = useRef<CandleData[]>([]);
   
@@ -775,6 +798,16 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
     if (!chartContainerRef.current) return;
     if (chartContainerRef.current.clientWidth === 0) return;
 
+    // Prevent chart creation if no allowed pairs (subscription expired/invalid)
+    if (allowedPairs.length === 0) {
+        if (chartRef.current) {
+             chartRef.current.remove();
+             chartRef.current = null;
+             seriesRef.current = null;
+        }
+        return;
+    }
+
     try {
       // Dispose old chart if exists
       if (chartRef.current) {
@@ -975,7 +1008,9 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
         if (data.length > 0 && chartRef.current && series) {
           rawDataRef.current = data;
           
-          const adjustedData = data.map(d => ({
+          const adjustedData = data
+            .filter(d => d && d.time && !isNaN(d.open) && !isNaN(d.close) && !isNaN(d.high) && !isNaN(d.low))
+            .map(d => ({
             ...d,
             open: d.open + priceOffset,
             high: d.high + priceOffset,
@@ -984,17 +1019,24 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
           }));
 
           setCandleData(adjustedData);
-          if (chartType === 'area') {
-             const areaData = adjustedData.map(d => ({ time: d.time, value: d.close }));
-             series.setData(areaData);
-          } else {
-             series.setData(adjustedData);
+          
+          try {
+              if (chartType === 'area') {
+                 const areaData = adjustedData.map(d => ({ time: d.time, value: d.close }));
+                 series.setData(areaData);
+              } else {
+                 series.setData(adjustedData);
+              }
+          } catch (e) {
+              console.error("Chart SetData Error:", e);
           }
 
           // Set Footprint Data
           if (footprintSeriesRef.current) {
-              const footprintData = adjustedData.map(d => generateFootprintData(d));
-              footprintSeriesRef.current.setData(footprintData);
+              try {
+                  const footprintData = adjustedData.map(d => generateFootprintData(d));
+                  footprintSeriesRef.current.setData(footprintData);
+              } catch {}
           }
 
           if (candleData.length === 0) {
@@ -1031,7 +1073,13 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                            high: Math.max(lastCandle.high, price + priceOffset),
                            low: Math.min(lastCandle.low, price + priceOffset)
                        };
-                       seriesRef.current.update(updatedCandle);
+                       if (seriesRef.current) {
+                           try {
+                               seriesRef.current.update(updatedCandle);
+                           } catch (e) {
+                               // Silent update fail
+                           }
+                       }
                    }
                };
           } else {
@@ -1065,24 +1113,28 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                           close: rawCandle.close + priceOffset,
                       };
 
-                      if (seriesRef.current) {
-                          seriesRef.current.update(candle);
-                          
-                          // Update Footprint
-                          if (footprintSeriesRef.current) {
-                              const footprintCandle = generateFootprintData(candle);
-                              footprintSeriesRef.current.update(footprintCandle);
-                          }
-
-                          // Update current candle in state for indicators
-                          setCandleData(prev => {
-                              const last = prev[prev.length - 1];
-                              if (last && last.time === candle.time) {
-                                  return [...prev.slice(0, -1), candle];
-                              } else {
-                                  return [...prev, candle];
+                      if (seriesRef.current && candle && !isNaN(candle.close)) {
+                          try {
+                              seriesRef.current.update(candle);
+                              
+                              // Update Footprint
+                              if (footprintSeriesRef.current) {
+                                  const footprintCandle = generateFootprintData(candle);
+                                  footprintSeriesRef.current.update(footprintCandle);
                               }
-                          });
+
+                              // Update current candle in state for indicators
+                              setCandleData(prev => {
+                                  const last = prev[prev.length - 1];
+                                  if (last && last.time === candle.time) {
+                                      return [...prev.slice(0, -1), candle];
+                                  } else {
+                                      return [...prev, candle];
+                                  }
+                              });
+                          } catch (e) {
+                              // Ignore update errors for cleaner console
+                          }
                       }
                   }
               };
@@ -2022,9 +2074,45 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
 
   return (
     <div className="relative flex h-full w-full bg-[#020408] font-sans text-[#d1d4dc] overflow-hidden selection:bg-[#2962FF] selection:text-white group/chart">
+      
+      {/* Empty State / Expired Subscription Overlay */}
+      {allowedPairs.length === 0 && (
+          <div className="absolute inset-0 z-[100] flex items-center justify-center bg-[#020408] backdrop-blur-md">
+              <div className="relative z-10 max-w-md w-full text-center space-y-6 p-8 rounded-3xl border border-white/5 bg-[#0A0A0A]/80 shadow-2xl">
+                  {/* Icon */}
+                  <div className="mx-auto w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
+                      <Lock className="w-8 h-8 text-red-500" />
+                  </div>
+
+                  {/* Text */}
+                  <div className="space-y-3" dir="rtl">
+                      <h2 className="text-2xl font-black tracking-tight text-white">
+                          لا توجد أصول نشطة
+                      </h2>
+                      <p className="text-gray-400 text-base leading-relaxed">
+                          اشتراكك الحالي لا يتضمن أي أزواج تداول، أو أن خطتك قد انتهت.
+                      </p>
+                  </div>
+
+                  {/* Action */}
+                  <Button asChild className="w-full h-11 bg-[#2962FF] hover:bg-[#2962FF]/90 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(41,98,255,0.3)] transition-all hover:scale-[1.02]">
+                      <Link href={`/${locale}/payment`}>
+                          تحديث خطة الاشتراك
+                      </Link>
+                  </Button>
+              </div>
+          </div>
+      )}
+
       <style>{`
-        .tv-lightweight-charts a[href*="tradingview.com"] {
+        /* Hide TradingView Attribution */
+        .tv-lightweight-charts table tr td:last-child span a[href*="tradingview.com"],
+        .tv-lightweight-charts a[href*="tradingview.com"],
+        a[href*="tradingview.com"] {
             display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
         }
       `}</style>
       
@@ -2317,33 +2405,12 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                </div>
                
                <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
-                    {/* TradingView Widget Section */}
-                    <div className="rounded-xl overflow-hidden border border-white/5 bg-black/20 relative">
-                        <div className="absolute inset-0 bg-linear-to-b from-[#2962FF]/5 to-transparent pointer-events-none" />
-                        <div className="p-3 border-b border-white/5 flex items-center gap-2">
-                            <Activity size={14} className="text-[#2962FF]" />
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Market Overview</span>
-                        </div>
-                        <div className="h-[200px] flex items-center justify-center bg-[#020408]">
-                            <TradingViewWidget symbol={symbol} />
-                        </div>
-                    </div>
-
                     {/* Live Signals Section */}
-                    <div className="h-[450px] relative w-full">
+                    <div className="h-full relative w-full">
                          <SignalNotifications onSelectSignal={(sig) => setActiveSignal(sig)} />
                     </div>
-
-                    {/* Technical Analysis Section */}
-                    <div className="rounded-xl overflow-hidden border border-white/5 bg-black/20 relative">
-                        <div className="absolute inset-0 bg-linear-to-b from-[#9C27B0]/5 to-transparent pointer-events-none" />
-                        <div className="p-3 border-b border-white/5 flex items-center gap-2">
-                            <Activity size={14} className="text-[#9C27B0]" />
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Technical Analysis</span>
-                        </div>
-                        <div className="h-[300px] bg-[#020408]">
-                             <TradingViewTechnicalAnalysis interval={timeframe} />
-                        </div>
+                    <div className="w-full flex justify-center pb-4">
+                        <TradingViewQuote />
                     </div>
                </div>
              </div>

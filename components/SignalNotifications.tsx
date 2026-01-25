@@ -99,9 +99,9 @@ export default function SignalNotifications({ onSelectSignal }: SignalNotificati
             </div>
             <div>
                 <h3 className="font-black tracking-tight text-xl text-white uppercase leading-none">
-                  Live Signals
+                  إشارات حية
                 </h3>
-                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Real-time AI Feed</span>
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">تغذية ذكاء اصطناعي فورية</span>
             </div>
         </div>
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)] backdrop-blur-sm">
@@ -109,14 +109,14 @@ export default function SignalNotifications({ onSelectSignal }: SignalNotificati
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75"></span>
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
            </div>
-           <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">System Active</span>
+           <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">النظام نشط</span>
         </div>
       </div>
       
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-hide relative z-10">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-hide relative z-10" dir="rtl">
           {signals.length === 0 ? (
              <div className="flex items-center justify-center h-full text-gray-500 text-sm">
-               No active signals
+               لا توجد إشارات نشطة
              </div>
           ) : (
             signals.map((signal, index) => (
@@ -136,7 +136,7 @@ export default function SignalNotifications({ onSelectSignal }: SignalNotificati
                         </div>
                         <div className="flex flex-col">
                             <span className="font-black text-white tracking-tight text-lg leading-none">{signal.symbol}</span>
-                            <span className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${signal.type === 'buy' ? 'text-[#00E396]' : 'text-[#FF0057]'}`}>{signal.type === 'buy' ? 'Long Position' : 'Short Position'}</span>
+                            <span className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${signal.type === 'buy' ? 'text-[#00E396]' : 'text-[#FF0057]'}`}>{signal.type === 'buy' ? 'شراء (Long)' : 'بيع (Short)'}</span>
                         </div>
                     </div>
                     <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border backdrop-blur-md shadow-lg transition-transform group-hover:scale-105 ${
@@ -150,13 +150,13 @@ export default function SignalNotifications({ onSelectSignal }: SignalNotificati
 
                   <div className="grid grid-cols-2 gap-2">
                       <div className="bg-white/[0.03] rounded-xl p-3 border border-white/5 flex flex-col gap-1 group/item hover:bg-white/[0.05] transition-colors">
-                          <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Entry Price</span>
+                          <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">سعر الدخول</span>
                           <span className="font-mono text-sm font-bold text-white tracking-tight group-hover/item:text-[#2962FF] transition-colors">
                               {format.number(signal.price, {style: 'currency', currency: 'USD'})}
                           </span>
                       </div>
                       <div className="bg-white/[0.03] rounded-xl p-3 border border-white/5 flex flex-col gap-1 group/item hover:bg-white/[0.05] transition-colors">
-                          <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Time Ago</span>
+                          <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">منذ</span>
                           <span className="font-mono text-sm font-bold text-white tracking-tight flex items-center gap-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-gray-500 animate-pulse"></span>
                               {t('time_min', {count: signal.time})}
@@ -167,10 +167,10 @@ export default function SignalNotifications({ onSelectSignal }: SignalNotificati
                   <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-3">
                        <div className="flex items-center gap-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                            <span className="w-1.5 h-1.5 rounded-full bg-gray-600 group-hover:bg-[#2962FF] group-hover:shadow-[0_0_10px_rgba(41,98,255,0.8)] transition-all duration-300" />
-                           AI Confidence: 98%
+                           ثقة الذكاء الاصطناعي: 98%
                        </div>
                        <div className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0 ${signal.type === 'buy' ? 'text-[#00E396]' : 'text-[#FF0057]'}`}>
-                           Analyze <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                           تحليل <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-arrow-left"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
                        </div>
                   </div>
               </div>

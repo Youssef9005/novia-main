@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Loader2, Upload, Check, Copy, ArrowLeft, ShieldCheck, Wallet } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 
 interface Wallet {
   _id: string;
@@ -27,6 +28,7 @@ interface Plan {
 
 export default function CheckoutPage() {
   const { plan: planParam, locale } = useParams();
+  const t = useTranslations('Checkout');
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   
@@ -44,12 +46,19 @@ export default function CheckoutPage() {
     const fetchPlanDetails = async () => {
       try {
         const res = await api.plans.getAll();
-        if (res.status === 'success' && res.data) {
-          const found = res.data.find((p: Plan) => p._id === planParam || p.id === planParam);
+        if (res.status === 'success') {
+          // Handle both array directly or nested in data object
+          const plansData = Array.isArray(res.data) 
+            ? res.data 
+            : (res.data?.plans && Array.isArray(res.data.plans)) 
+              ? res.data.plans 
+              : [];
+              
+          const found = plansData.find((p: Plan) => p._id === planParam || p.id === planParam);
           if (found) {
             setPlanDetails(found);
           } else {
-             toast.error('Plan not found');
+             toast.error(t('errors.plan_not_found'));
           }
         }
       } catch (error) {
@@ -59,7 +68,7 @@ export default function CheckoutPage() {
     if (planParam) {
       fetchPlanDetails();
     }
-  }, [planParam]);
+  }, [planParam, t]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -80,11 +89,11 @@ export default function CheckoutPage() {
         }
       } catch (error) {
         console.error('Failed to fetch wallets:', error);
-        toast.error('Failed to load payment methods');
+        toast.error(t('errors.load_methods_failed'));
       }
     };
     fetchWallets();
-  }, []);
+  }, [t]);
 
   const handleCreatePayment = async () => {
     if (!selectedWallet || !user || !user._id || !planDetails) return;
@@ -103,16 +112,30 @@ export default function CheckoutPage() {
       };
 
       const res = await api.payments.create(data);
+      console.log("Payment create response:", res);
+      
       if (res.status === 'success') {
-        setPaymentId(res.data.payment._id || res.data.paymentId); // Check response structure
-        setStep(2); // Go to upload
-        toast.success('Order created. Please upload payment proof.');
+        // Try to find the ID in various possible locations
+        const pId = res.data?.payment?._id || 
+                    res.data?.payment?.id || 
+                    res.data?.paymentId || 
+                    res.data?._id || 
+                    res.data?.id;
+                    
+        if (pId) {
+          setPaymentId(pId);
+          setStep(2); // Go to upload
+          toast.success(t('errors.order_created'));
+        } else {
+          console.error("Could not extract payment ID from response", res);
+          toast.error(t('errors.payment_id_missing'));
+        }
       } else {
-        toast.error(res.message || 'Failed to create payment');
+        toast.error(res.message || t('errors.create_failed'));
       }
     } catch (error) {
       console.error(error);
-      toast.error('Something went wrong');
+      toast.error(t('errors.generic_error'));
     } finally {
       setLoading(false);
     }
@@ -128,7 +151,7 @@ export default function CheckoutPage() {
 
   const handleUploadScreenshot = async () => {
     if (!paymentId || !file) {
-      toast.error('Please select a file');
+      toast.error(t('errors.select_file'));
       return;
     }
 
@@ -141,11 +164,11 @@ export default function CheckoutPage() {
       if (res.status === 'success') {
         setStep(3); // Success
       } else {
-        toast.error(res.message || 'Failed to upload screenshot');
+        toast.error(res.message || t('errors.upload_failed'));
       }
     } catch (error) {
       console.error(error);
-      toast.error('Failed to upload screenshot');
+      toast.error(t('errors.upload_failed'));
     } finally {
       setLoading(false);
     }
@@ -153,7 +176,7 @@ export default function CheckoutPage() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.success('Address copied to clipboard');
+    toast.success(t('errors.address_copied'));
   };
 
   if (authLoading) {
@@ -176,8 +199,8 @@ export default function CheckoutPage() {
       <div className="relative mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <Link href={`/${locale}/payment`} className="inline-flex items-center text-gray-400 hover:text-white transition-colors">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Plans
+            <ArrowLeft className={`h-4 w-4 ${locale === 'ar' ? 'ml-2 rotate-180' : 'mr-2'}`} />
+            {t('back_to_plans')}
           </Link>
         </div>
 
@@ -190,26 +213,26 @@ export default function CheckoutPage() {
           {/* Left Column: Order Summary */}
           <div className="md:col-span-1">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-              <h2 className="text-xl font-bold text-white mb-4">Order Summary</h2>
+              <h2 className="text-xl font-bold text-white mb-4">{t('order_summary')}</h2>
               <div className="space-y-4">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-400">Plan</span>
+                  <span className="text-gray-400">{t('plan')}</span>
                   <span className="text-white font-medium">{planDetails?.title}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-400">Billing Cycle</span>
-                  <span className="text-white font-medium">Monthly</span>
+                  <span className="text-gray-400">{t('billing_cycle')}</span>
+                  <span className="text-white font-medium">{t('monthly')}</span>
                 </div>
                 <div className="border-t border-white/10 pt-4 mt-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-300 font-semibold">Total</span>
+                    <span className="text-gray-300 font-semibold">{t('total')}</span>
                     <span className="text-2xl font-bold text-emerald-400">${planDetails?.price}</span>
                   </div>
                 </div>
               </div>
               
               <div className="mt-6 pt-6 border-t border-white/10">
-                <h3 className="text-sm font-semibold text-white mb-3">Included Features:</h3>
+                <h3 className="text-sm font-semibold text-white mb-3">{t('included_features')}</h3>
                 <ul className="space-y-2 text-xs text-gray-400">
                   {planDetails?.features?.map((feature, i) => (
                     <li key={i} className="flex items-center">
@@ -226,12 +249,12 @@ export default function CheckoutPage() {
           <div className="md:col-span-2">
             {step === 1 && (
               <div className="rounded-2xl border border-white/10 bg-white/5 p-8">
-                <h1 className="text-2xl font-bold text-white mb-2">Select Payment Method</h1>
-                <p className="text-gray-400 mb-8">Choose a crypto wallet to make your payment.</p>
+                <h1 className="text-2xl font-bold text-white mb-2">{t('select_payment_method')}</h1>
+                <p className="text-gray-400 mb-8">{t('choose_wallet_desc')}</p>
 
                 {wallets.length === 0 ? (
                   <div className="text-center py-8 text-gray-400">
-                    Loading payment methods...
+                    {t('loading_methods')}
                   </div>
                 ) : (
                   <div className="space-y-4 mb-8">
@@ -252,7 +275,7 @@ export default function CheckoutPage() {
                         </div>
                         <div className="flex-1">
                           <h3 className="font-bold text-white">{wallet.currency}</h3>
-                          <p className="text-xs text-gray-400 uppercase">{wallet.network} Network</p>
+                          <p className="text-xs text-gray-400 uppercase">{wallet.network} {t('network')}</p>
                         </div>
                         <div className={`h-5 w-5 rounded-full border flex items-center justify-center ${
                           selectedWallet?._id === wallet._id ? 'border-emerald-500 bg-emerald-500' : 'border-gray-500'
@@ -266,7 +289,13 @@ export default function CheckoutPage() {
 
                 {selectedWallet && (
                   <div className="bg-black/30 rounded-xl p-4 mb-8 border border-white/10">
-                    <p className="text-sm text-gray-400 mb-2">Send <span className="text-white font-bold">${planDetails?.price}</span> worth of <span className="text-white font-bold">{selectedWallet.currency}</span> to:</p>
+                    <p className="text-sm text-gray-400 mb-2">
+                      {t.rich('send_instruction', {
+                        amount: planDetails?.price,
+                        currency: selectedWallet.currency,
+                        bold: (chunks) => <span className="text-white font-bold">{chunks}</span>
+                      })}
+                    </p>
                     <div className="flex items-center gap-2 bg-black/50 rounded-lg p-3 border border-white/5">
                       <code className="flex-1 text-sm text-emerald-400 font-mono break-all">
                         {selectedWallet.address}
@@ -280,7 +309,7 @@ export default function CheckoutPage() {
                     </div>
                     <p className="text-xs text-amber-400 mt-2 flex items-start">
                       <span className="mr-1">⚠️</span>
-                      Make sure to use the {selectedWallet.network} network. Sending via other networks may result in loss of funds.
+                      {t('network_warning', { network: selectedWallet.network })}
                     </p>
                   </div>
                 )}
@@ -290,15 +319,15 @@ export default function CheckoutPage() {
                   disabled={loading || !selectedWallet}
                   className="w-full flex justify-center items-center py-3 px-4 rounded-xl bg-emerald-500 text-black font-bold hover:bg-emerald-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'I have made the payment'}
+                  {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : t('i_made_payment')}
                 </button>
               </div>
             )}
 
             {step === 2 && (
               <div className="rounded-2xl border border-white/10 bg-white/5 p-8">
-                <h1 className="text-2xl font-bold text-white mb-2">Upload Proof</h1>
-                <p className="text-gray-400 mb-8">Please upload a screenshot of your transaction.</p>
+                <h1 className="text-2xl font-bold text-white mb-2">{t('upload_proof')}</h1>
+                <p className="text-gray-400 mb-8">{t('upload_desc')}</p>
 
                 <div className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center hover:border-emerald-500/50 transition-colors relative">
                   <input
@@ -322,8 +351,8 @@ export default function CheckoutPage() {
                       <div className="h-16 w-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
                         <Upload className="h-8 w-8 text-gray-400" />
                       </div>
-                      <p className="text-white font-medium mb-1">Click to upload or drag and drop</p>
-                      <p className="text-xs text-gray-500">PNG, JPG up to 5MB</p>
+                      <p className="text-white font-medium mb-1">{t('click_to_upload')}</p>
+                      <p className="text-xs text-gray-500">{t('file_limits')}</p>
                     </div>
                   )}
                 </div>
@@ -333,14 +362,14 @@ export default function CheckoutPage() {
                     onClick={() => setStep(1)}
                     className="flex-1 py-3 px-4 rounded-xl border border-white/10 text-white font-bold hover:bg-white/5 transition-colors"
                   >
-                    Back
+                    {t('back')}
                   </button>
                   <button
                     onClick={handleUploadScreenshot}
                     disabled={loading || !file}
                     className="flex-1 flex justify-center items-center py-3 px-4 rounded-xl bg-emerald-500 text-black font-bold hover:bg-emerald-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Confirm Payment'}
+                    {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : t('confirm_payment')}
                   </button>
                 </div>
               </div>
@@ -351,16 +380,16 @@ export default function CheckoutPage() {
                 <div className="h-20 w-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-6">
                   <ShieldCheck className="h-10 w-10 text-emerald-400" />
                 </div>
-                <h1 className="text-2xl font-bold text-white mb-4">Payment Submitted!</h1>
+                <h1 className="text-2xl font-bold text-white mb-4">{t('payment_submitted')}</h1>
                 <p className="text-gray-400 mb-8 max-w-md mx-auto">
-                  Your payment proof has been uploaded successfully. Our team will review it and activate your subscription shortly. You will receive an email confirmation.
+                  {t('success_desc')}
                 </p>
                 
                 <Link
-                  href="/dashboard"
+                  href="/profile"
                   className="inline-flex justify-center items-center py-3 px-8 rounded-xl bg-emerald-500 text-black font-bold hover:bg-emerald-400 transition-colors"
                 >
-                  Go to Dashboard
+                  {t('go_to_profile')}
                 </Link>
               </div>
             )}

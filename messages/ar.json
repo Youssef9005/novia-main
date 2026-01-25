@@ -92,7 +92,46 @@
     "contact_us": "تواصل معنا",
     "price_free": "$0",
     "price_pro": "$29",
-    "price_enterprise": "$99"
+    "price_enterprise": "$99",
+    "choose_plan": "اختر الخطة",
+    "plan_description_default": "اختر الخطة المثالية لاحتياجات التداول الخاصة بك."
+  },
+  "Checkout": {
+    "back_to_plans": "العودة للخطط",
+    "go_to_profile": "الذهاب للملف الشخصي",
+    "order_summary": "ملخص الطلب",
+    "plan": "الخطة",
+    "billing_cycle": "دورة الدفع",
+    "monthly": "شهري",
+    "total": "الإجمالي",
+    "included_features": "المميزات المشمولة:",
+    "select_payment_method": "اختر طريقة الدفع",
+    "choose_wallet_desc": "اختر محفظة رقمية لإتمام عملية الدفع.",
+    "loading_methods": "جاري تحميل طرق الدفع...",
+    "network": "الشبكة",
+    "send_instruction": "أرسل ما قيمته <bold>${amount}</bold> من عملة <bold>{currency}</bold> إلى:",
+    "network_warning": "تأكد من استخدام شبكة {network}. الإرسال عبر شبكات أخرى قد يؤدي إلى فقدان الأموال.",
+    "i_made_payment": "لقد قمت بالدفع",
+    "upload_proof": "رفع إثبات الدفع",
+    "upload_desc": "يرجى رفع لقطة شاشة لعملية التحويل.",
+    "click_to_upload": "اضغط للرفع أو اسحب الملف هنا",
+    "file_limits": "PNG, JPG بحد أقصى 5 ميجابايت",
+    "back": "رجوع",
+    "confirm_payment": "تأكيد الدفع",
+    "payment_submitted": "تم إرسال الدفع!",
+    "success_desc": "تم رفع إثبات الدفع بنجاح. سيقوم فريقنا بمراجعته وتفعيل اشتراكك قريباً. ستتلقى تأكيداً عبر البريد الإلكتروني.",
+    "go_to_dashboard": "الذهاب للوحة التحكم",
+    "errors": {
+        "plan_not_found": "الخطة غير موجودة",
+        "load_methods_failed": "فشل تحميل طرق الدفع",
+        "order_created": "تم إنشاء الطلب. يرجى رفع إثبات الدفع.",
+        "create_failed": "فشل إنشاء عملية الدفع",
+        "payment_id_missing": "تم إنشاء الدفع ولكن المعرف مفقود",
+        "generic_error": "حدث خطأ ما",
+        "select_file": "يرجى اختيار ملف",
+        "upload_failed": "فشل رفع لقطة الشاشة",
+        "address_copied": "تم نسخ العنوان"
+    }
   },
   "Contact": {
     "title_prefix": "ابدأ رحلتك مع",
@@ -247,11 +286,6 @@
       "1d": "1ي",
       "1w": "1أ"
     }
-  },
-  "TradingView": {
-    "economic_calendar": "التقويم الاقتصادي",
-    "technical_analysis": "التحليل الفني لـ {symbol}",
-    "by_tradingview": " بواسطة TradingView"
   },
   "News": {
     "title": "الأخبار",

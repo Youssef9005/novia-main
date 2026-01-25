@@ -51,12 +51,39 @@ class FootprintSeriesRenderer implements ICustomSeriesPaneRenderer {
         ctx.save();
 
         const barSpacing = this._data.barSpacing;
-        // Adjust width based on zoom
-        const cellWidth = barSpacing * 0.45; // Leave 10% gap
-        const fontSize = Math.min(11, Math.max(8, barSpacing * 0.18));
+        const isMobile = window.innerWidth < 768;
         
-        ctx.font = `bold ${fontSize}px "Roboto Mono", monospace`;
+        // Adjust thresholds for mobile to prevent clutter
+        // On mobile, we need more zoom (larger barSpacing) to start showing details
+        const detailsThreshold = isMobile ? 35 : 20; 
+        const textThreshold = isMobile ? 55 : 40;
+
+        // Adjust width based on zoom
+        const gap = 8; // Gap between Buy and Sell columns (Increased from 2)
+        const cellWidth = (barSpacing * 0.45) - (gap / 2); 
+        
+        // Dynamic font size calculation
+        // We want the font to fit within cellWidth with some padding
+        // Start with a rough estimate based on barSpacing
+        const calculatedFontSize = barSpacing * 0.35; // Increased from 0.3 for better visibility
+        
+        // Clamp font size
+        // Min size: 7px (barely readable) - below this we shouldn't render text
+        // Max size: 12px (desktop), 10px (mobile)
+        const minFontSize = 10; // Increased min size
+        const maxFontSize = isMobile ? 13 : 16; // Increased max size
+        
+        const fontSize = Math.min(maxFontSize, Math.max(minFontSize, calculatedFontSize));
+        
+        ctx.font = `bold ${fontSize.toFixed(1)}px "Roboto Mono", monospace`;
         ctx.textBaseline = 'middle';
+
+        // Helper to shorten large numbers
+        const formatVol = (v: number) => {
+            if (v >= 10000) return (v / 1000).toFixed(0) + 'k'; // 12k
+            if (v >= 1000) return (v / 1000).toFixed(1) + 'k'; // 1.2k
+            return v.toString();
+        };
 
         // Safe converter wrapper
         const toY = (price: number) => {
@@ -89,7 +116,7 @@ class FootprintSeriesRenderer implements ICustomSeriesPaneRenderer {
             ctx.stroke();
 
             // If zoomed out, draw regular candle body
-            if (barSpacing <= 20) {
+            if (barSpacing <= detailsThreshold) {
                  const bodyTop = Math.min(openY, closeY);
                  const bodyHeight = Math.max(1, Math.abs(closeY - openY));
                  ctx.fillStyle = isUp ? '#089981' : '#F23645';
@@ -132,8 +159,9 @@ class FootprintSeriesRenderer implements ICustomSeriesPaneRenderer {
 
                 const drawHeight = Math.max(14, rowHeight); 
                 
-                const leftX = x - cellWidth;
-                const rightX = x;
+                const halfGap = gap / 2;
+                const leftX = x - halfGap - cellWidth;
+                const rightX = x + halfGap;
 
                 // --- Backgrounds ---
                 // Imbalance Buy (Green)
@@ -153,35 +181,60 @@ class FootprintSeriesRenderer implements ICustomSeriesPaneRenderer {
                 if (isPOC) {
                     ctx.lineWidth = 2;
                     ctx.strokeStyle = '#FFD700'; // Gold
-                    ctx.strokeRect(leftX, y - drawHeight/2, cellWidth * 2, drawHeight);
+                    // POC covers both columns + gap
+                    ctx.strokeRect(leftX, y - drawHeight/2, (cellWidth * 2) + gap, drawHeight);
                 }
 
                 // Grid lines (Horizontal)
+                // Left side
                 ctx.beginPath();
                 ctx.moveTo(leftX, y + drawHeight/2);
-                ctx.lineTo(rightX + cellWidth, y + drawHeight/2);
+                ctx.lineTo(leftX + cellWidth, y + drawHeight/2);
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
                 ctx.lineWidth = 0.5;
                 ctx.stroke();
+                
+                // Right side
+                ctx.beginPath();
+                ctx.moveTo(rightX, y + drawHeight/2);
+                ctx.lineTo(rightX + cellWidth, y + drawHeight/2);
+                ctx.stroke();
 
                 // --- Text ---
-                if (barSpacing > 40) {
-                    // Sell Volume (Left)
-                    ctx.textAlign = 'center';
+                // Only render text if zoomed in enough AND calculated font size is >= minReadable
+                if (barSpacing > textThreshold && calculatedFontSize >= minFontSize) {
                     
-                    // Color logic: White if imbalance, Gray otherwise
-                    ctx.fillStyle = level.imbalance === 'sell' ? '#FFFFFF' : '#9ca3af';
-                    if (level.imbalance === 'sell') ctx.font = `bold ${fontSize}px "Roboto Mono", monospace`;
-                    else ctx.font = `${fontSize}px "Roboto Mono", monospace`;
+                    const sellText = formatVol(level.sell);
+                    const buyText = formatVol(level.buy);
 
-                    if (level.sell > 0) ctx.fillText(level.sell.toString(), leftX + cellWidth/2, y);
+                    // Check if text fits in cellWidth
+                    const sellWidth = ctx.measureText(sellText).width;
+                    const buyWidth = ctx.measureText(buyText).width;
+                    
+                    // Allow small overflow (10%) but not massive overlap
+                    const maxTextWidth = cellWidth * 1.1;
+
+                    // Sell Volume (Left)
+                    if (sellWidth <= maxTextWidth) {
+                        ctx.textAlign = 'center';
+                        
+                        // Color logic: White if imbalance, Gray otherwise
+                        ctx.fillStyle = level.imbalance === 'sell' ? '#FFFFFF' : '#9ca3af';
+                        if (level.imbalance === 'sell') ctx.font = `bold ${fontSize}px "Roboto Mono", monospace`;
+                        else ctx.font = `${fontSize}px "Roboto Mono", monospace`;
+
+                        if (level.sell > 0) ctx.fillText(sellText, leftX + cellWidth/2, y);
+                    }
                     
                     // Buy Volume (Right)
-                    ctx.fillStyle = level.imbalance === 'buy' ? '#FFFFFF' : '#9ca3af';
-                    if (level.imbalance === 'buy') ctx.font = `bold ${fontSize}px "Roboto Mono", monospace`;
-                    else ctx.font = `${fontSize}px "Roboto Mono", monospace`;
+                    if (buyWidth <= maxTextWidth) {
+                        ctx.textAlign = 'center';
+                        ctx.fillStyle = level.imbalance === 'buy' ? '#FFFFFF' : '#9ca3af';
+                        if (level.imbalance === 'buy') ctx.font = `bold ${fontSize}px "Roboto Mono", monospace`;
+                        else ctx.font = `${fontSize}px "Roboto Mono", monospace`;
 
-                    if (level.buy > 0) ctx.fillText(level.buy.toString(), rightX + cellWidth/2, y);
+                        if (level.buy > 0) ctx.fillText(buyText, rightX + cellWidth/2, y);
+                    }
                 }
             });
             

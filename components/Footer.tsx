@@ -1,10 +1,17 @@
 "use client";
 
 import { useTranslations } from 'next-intl';
+import { usePathname } from 'next/navigation';
 
 export default function Footer() {
   const t = useTranslations('Footer');
+  const pathname = usePathname();
   const currentYear = new Date().getFullYear();
+
+  // Hide footer on chart page
+  if (pathname.includes('/chart')) {
+    return null;
+  }
 
   return (
     <footer className="border-t border-white/10 bg-[#020305]">

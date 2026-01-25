@@ -36,31 +36,31 @@ export default function ProfilePage() {
   });
 
   useEffect(() => {
-    const fetchSubscription = async () => {
-      try {
-        const res = await api.plans.getMySubscription();
-        if (res.status === 'success' && res.data && res.data.subscription) {
-          const sub = res.data.subscription;
-          setSubscription({
-            status: sub.status,
-            plan: sub.plan?.title || 'Unknown Plan',
-            expiryDate: sub.endDate ? new Date(sub.endDate).toLocaleDateString() : 'N/A',
-            paymentId: sub._id,
-            currencies: user?.selectedAssets || []
-          });
-        } else {
-          setSubscription(null);
-        }
-      } catch (error) {
-        console.error('Failed to fetch subscription:', error);
-        setSubscription(null);
-      } finally {
-        setLoadingSubscription(false);
-      }
-    };
-
     if (user) {
-      fetchSubscription();
+      if (user.subscription && user.subscription.status === 'active') {
+        const sub = user.subscription;
+        
+        let planName = 'Unknown Plan';
+        if (typeof sub.plan === 'string') {
+             // Capitalize first letter
+             planName = sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1);
+        } else if (sub.plan && typeof sub.plan === 'object' && 'title' in sub.plan) {
+             // @ts-ignore
+             planName = sub.plan.title;
+        }
+
+        setSubscription({
+          status: sub.status || 'inactive',
+          plan: planName,
+          expiryDate: sub.endDate ? new Date(sub.endDate).toLocaleDateString() : 'N/A',
+          // @ts-ignore
+          paymentId: sub._id || '',
+          currencies: user.selectedAssets || []
+        });
+      } else {
+        setSubscription(null);
+      }
+      setLoadingSubscription(false);
     }
   }, [user]);
 

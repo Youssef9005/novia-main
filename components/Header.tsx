@@ -99,7 +99,7 @@ export default function Header() {
               <Link href={`/${locale}#chart`} className="rounded-full px-3 py-1.5 hover:bg-white/5">
                 {t('nav.dashboard')}
               </Link>
-              <Link href={`/${locale}#pricing`} className="rounded-full px-3 py-1.5 hover:bg-white/5">
+              <Link href={`/${locale}/payment`} className="rounded-full px-3 py-1.5 hover:bg-white/5">
                 {t('nav.pricing')}
               </Link>
               <Link href={`/${locale}/news`} className="rounded-full px-3 py-1.5 hover:bg-white/5">
@@ -133,9 +133,9 @@ export default function Header() {
                 <span className="whitespace-nowrap rounded-full bg-white/5 px-2.5 py-1">
                   {t('nav.dashboard')}
                 </span>
-                <span className="whitespace-nowrap rounded-full bg-white/5 px-2.5 py-1">
+                <Link href={`/${locale}/payment`} className="whitespace-nowrap rounded-full bg-white/5 px-2.5 py-1">
                   {t('nav.pricing')}
-                </span>
+                </Link>
               </div>
               <button 
                 onClick={switchLanguage}

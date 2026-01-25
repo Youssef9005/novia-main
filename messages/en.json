@@ -92,7 +92,46 @@
     "contact_us": "Contact Us",
     "price_free": "$0",
     "price_pro": "$29",
-    "price_enterprise": "$99"
+    "price_enterprise": "$99",
+    "choose_plan": "Choose Plan",
+    "plan_description_default": "Choose the perfect plan for your trading needs."
+  },
+  "Checkout": {
+    "back_to_plans": "Back to Plans",
+    "go_to_profile": "Go to Profile",
+    "order_summary": "Order Summary",
+    "plan": "Plan",
+    "billing_cycle": "Billing Cycle",
+    "monthly": "Monthly",
+    "total": "Total",
+    "included_features": "Included Features:",
+    "select_payment_method": "Select Payment Method",
+    "choose_wallet_desc": "Choose a crypto wallet to make your payment.",
+    "loading_methods": "Loading payment methods...",
+    "network": "Network",
+    "send_instruction": "Send <bold>${amount}</bold> worth of <bold>{currency}</bold> to:",
+    "network_warning": "Make sure to use the {network} network. Sending via other networks may result in loss of funds.",
+    "i_made_payment": "I have made the payment",
+    "upload_proof": "Upload Proof",
+    "upload_desc": "Please upload a screenshot of your transaction.",
+    "click_to_upload": "Click to upload or drag and drop",
+    "file_limits": "PNG, JPG up to 5MB",
+    "back": "Back",
+    "confirm_payment": "Confirm Payment",
+    "payment_submitted": "Payment Submitted!",
+    "success_desc": "Your payment proof has been uploaded successfully. Our team will review it and activate your subscription shortly. You will receive an email confirmation.",
+    "go_to_dashboard": "Go to Dashboard",
+    "errors": {
+        "plan_not_found": "Plan not found",
+        "load_methods_failed": "Failed to load payment methods",
+        "order_created": "Order created. Please upload payment proof.",
+        "create_failed": "Failed to create payment",
+        "payment_id_missing": "Payment created but ID is missing",
+        "generic_error": "Something went wrong",
+        "select_file": "Please select a file",
+        "upload_failed": "Failed to upload screenshot",
+        "address_copied": "Address copied to clipboard"
+    }
   },
   "Contact": {
     "title_prefix": "Start Your Journey with",
@@ -247,11 +286,6 @@
       "1d": "1d",
       "1w": "1w"
     }
-  },
-  "TradingView": {
-    "economic_calendar": "Economic Calendar",
-    "technical_analysis": "{symbol} technical analysis",
-    "by_tradingview": " by TradingView"
   },
   "News": {
     "title": "News",

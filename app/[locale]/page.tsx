@@ -6,22 +6,9 @@ import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useParams } from "next/navigation";
 
-interface Plan {
-  _id: string;
-  title: string;
-  description: string;
-  price: number;
-  duration: number;
-  features: string[];
-  maxTradingPairs: number;
-  assetType: string[];
-}
-
 export default function Home() {
   const [isDemoOpen, setIsDemoOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("charts");
-  const [plans, setPlans] = useState<Plan[]>([]);
-  const [loadingPlans, setLoadingPlans] = useState(true);
   
   const params = useParams();
   const locale = params.locale as string;
@@ -37,8 +24,16 @@ export default function Home() {
     const fetchPlans = async () => {
       try {
         const response = await api.plans.getAll();
-        if (response.status === 'success' && response.data) {
-          setPlans(response.data);
+        console.log("Plans response:", response);
+        if (response.status === 'success') {
+          // Handle both array directly or nested in data object
+          const plansData = Array.isArray(response.data) 
+            ? response.data 
+            : (response.data?.plans && Array.isArray(response.data.plans)) 
+              ? response.data.plans 
+              : [];
+          
+          setPlans(plansData);
         }
       } catch (error) {
         console.error("Failed to fetch plans:", error);
@@ -380,106 +375,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Pricing Section */}
-      <section id="pricing" className="relative overflow-hidden py-20 sm:py-32">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.05),transparent_70%)]" />
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              {tPricing('title_prefix')} <span className="text-emerald-400">{tPricing('title_highlight')}</span>
-            </h2>
-            <p className="mt-6 text-lg leading-8 text-white/60">
-              {tPricing('description')}
-            </p>
-          </div>
-
-          <div className="mx-auto mt-16 grid max-w-lg grid-cols-1 gap-8 lg:max-w-none lg:grid-cols-3">
-            {loadingPlans ? (
-              // Loading Skeleton
-              [1, 2, 3].map((i) => (
-                <div key={i} className="flex flex-col justify-between rounded-3xl border border-white/10 bg-white/5 p-8 animate-pulse">
-                  <div className="h-8 w-1/3 bg-white/10 rounded mb-4"></div>
-                  <div className="h-12 w-1/2 bg-white/10 rounded mb-6"></div>
-                  <div className="space-y-3">
-                    <div className="h-4 w-full bg-white/10 rounded"></div>
-                    <div className="h-4 w-full bg-white/10 rounded"></div>
-                    <div className="h-4 w-2/3 bg-white/10 rounded"></div>
-                  </div>
-                </div>
-              ))
-            ) : plans.length > 0 ? (
-              plans.map((plan) => (
-                <div 
-                  key={plan._id}
-                  className={`flex flex-col justify-between rounded-3xl border p-8 ring-1 transition 
-                    ${plan.title.toLowerCase().includes('pro') || plan.title.toLowerCase().includes('premium') 
-                      ? 'border-emerald-500/30 bg-black/40 ring-emerald-500/50 hover:bg-emerald-500/5 relative' 
-                      : 'border-white/10 bg-white/5 ring-white/10 hover:bg-white/10'
-                    }`}
-                >
-                  {(plan.title.toLowerCase().includes('pro') || plan.title.toLowerCase().includes('premium')) && (
-                    <div className="absolute -top-4 left-0 right-0 mx-auto w-32 rounded-full bg-emerald-500 px-3 py-1 text-center text-xs font-bold text-black">
-                      {tPricing('most_popular')}
-                    </div>
-                  )}
-                  
-                  <div>
-                    <h3 className="text-lg font-bold leading-8 text-white">{plan.title}</h3>
-                    <div className="mt-4 flex items-baseline gap-x-2">
-                      <span className="text-4xl font-bold tracking-tight text-white">${plan.price}</span>
-                      <span className="text-sm font-semibold leading-6 text-white/60">/{plan.duration} days</span>
-                    </div>
-                    <p className="mt-6 text-base leading-7 text-white/60">{plan.description}</p>
-                    <ul role="list" className="mt-8 space-y-3 text-sm leading-6 text-white/60">
-                      {plan.features.map((feature, idx) => (
-                        <li key={idx} className="flex gap-x-3">
-                          <svg className="h-6 w-5 flex-none text-emerald-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                            <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
-                          </svg>
-                          {feature}
-                        </li>
-                      ))}
-                      <li className="flex gap-x-3">
-                         <svg className="h-6 w-5 flex-none text-emerald-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                            <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
-                          </svg>
-                          {plan.maxTradingPairs === 0 ? 'Unlimited Pairs' : `${plan.maxTradingPairs} Trading Pairs`}
-                      </li>
-                      <li className="flex gap-x-3">
-                         <svg className="h-6 w-5 flex-none text-emerald-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                            <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
-                          </svg>
-                          {plan.assetType.join(', ')}
-                      </li>
-                    </ul>
-                  </div>
-                  <Link 
-                    href={`/${locale}/checkout/${plan._id}`}
-                    className={`mt-8 block rounded-xl px-3 py-2 text-center text-sm font-semibold leading-6 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600
-                      ${plan.title.toLowerCase().includes('pro') || plan.title.toLowerCase().includes('premium')
-                        ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20 hover:bg-emerald-400'
-                        : 'border border-white/20 text-white hover:bg-white/10'
-                      }`}
-                  >
-                    {plan.price === 0 ? tPricing('start_free') : tPricing('subscribe_now')}
-                  </Link>
-                </div>
-              ))
-            ) : (
-              // Fallback if no plans found (render nothing or a message)
-              <div className="col-span-3 text-center text-white/60">
-                No plans available at the moment.
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-
       {/* Contact Section */}
       <section id="contact" className="relative overflow-hidden py-24 sm:py-32">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-emerald-900/20" />
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+        <div className="relative z-10 mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
               {tContact('title_prefix')} <span className="text-emerald-400">Novia AI</span>
@@ -489,12 +388,12 @@ export default function Home() {
             </p>
             <div className="mt-10 flex items-center justify-center gap-x-6">
               <Link 
-                href="/login"
+                href="/signup"
                 className="rounded-full bg-emerald-500 px-8 py-3.5 text-sm font-bold text-black shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
               >
                 {tContact('open_account')}
               </Link>
-              <a href="#" className="text-sm font-semibold leading-6 text-white transition hover:text-emerald-400">
+              <a href="https://wa.me/905366977769" target="_blank" rel="noopener noreferrer" className="text-sm font-semibold leading-6 text-white transition hover:text-emerald-400">
                 {tContact('contact_support')} <span aria-hidden="true">←</span>
               </a>
             </div>
@@ -649,8 +548,59 @@ export default function Home() {
                 {activeTab === "analysis" && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <h3 className="text-xl font-bold text-white">{tDemo('analysis_title')}</h3>
-                    <div className="flex gap-4">
-                        {/* Placeholder for Analysis content */}
+                    <div className="grid gap-4">
+                        {/* Market Sentiment Card */}
+                        <div className="rounded-2xl border border-white/5 bg-white/5 p-5">
+                            <h4 className="text-sm font-bold text-white mb-4">Market Sentiment</h4>
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs text-emerald-400">Bullish (75%)</span>
+                                <span className="text-xs text-red-400">Bearish (25%)</span>
+                            </div>
+                            <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden flex">
+                                <div className="h-full bg-emerald-500 w-[75%] shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                                <div className="h-full bg-red-500 w-[25%]" />
+                            </div>
+                        </div>
+
+                        {/* Technical Indicators Card */}
+                        <div className="rounded-2xl border border-white/5 bg-white/5 p-5">
+                            <h4 className="text-sm font-bold text-white mb-4">Technical Summary</h4>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="text-center p-3 rounded-xl bg-white/5 border border-white/5">
+                                    <span className="block text-xs text-white/40 mb-1">RSI (14)</span>
+                                    <span className="text-sm font-bold text-emerald-400">62.5</span>
+                                </div>
+                                <div className="text-center p-3 rounded-xl bg-white/5 border border-white/5">
+                                    <span className="block text-xs text-white/40 mb-1">MACD</span>
+                                    <span className="text-sm font-bold text-emerald-400">Buy</span>
+                                </div>
+                                <div className="text-center p-3 rounded-xl bg-white/5 border border-white/5">
+                                    <span className="block text-xs text-white/40 mb-1">Trend</span>
+                                    <span className="text-sm font-bold text-emerald-400">Strong</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* AI Insight */}
+                        <div className="rounded-2xl border border-white/5 bg-white/5 p-5 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-3 opacity-10">
+                                <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M12 2a10 10 0 1 0 10 10H12V2z" />
+                                    <path d="M12 2a10 10 0 0 1 10 10" />
+                                    <path d="M12 12 2.1 12" />
+                                </svg>
+                            </div>
+                            <div className="flex items-center gap-2 mb-3">
+                                <span className="relative flex h-3 w-3">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-3 w-3 bg-purple-500"></span>
+                                </span>
+                                <h4 className="text-sm font-bold text-purple-400">AI Insight</h4>
+                            </div>
+                            <p className="text-sm text-white/70 leading-relaxed">
+                                Bitcoin is showing strong bullish momentum above the $64k support level. Increasing institutional volume suggests a potential breakout towards $68k in the next 24-48 hours.
+                            </p>
+                        </div>
                     </div>
                   </div>
                 )}
