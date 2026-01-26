@@ -28,7 +28,16 @@ async function fetchClient(endpoint: string, options: RequestInit = {}) {
     const text = await response.text();
     let data;
     try {
-      data = text ? JSON.parse(text) : {};
+      const cleanText = text.trim();
+      data = cleanText ? JSON.parse(cleanText) : {};
+
+      // If 200 OK but empty response (and not 204), it's likely an error for endpoints expecting JSON
+      if (response.ok && response.status !== 204 && Object.keys(data).length === 0) {
+         return { 
+          status: 'error', 
+          message: 'Server returned empty response' 
+        };
+      }
     } catch (e) {
       console.error('Failed to parse JSON response:', text);
       if (!response.ok) {
@@ -37,10 +46,11 @@ async function fetchClient(endpoint: string, options: RequestInit = {}) {
           message: `Server Error (${response.status}): ${text.slice(0, 100) || response.statusText}` 
         };
       }
-      // If 200 OK but invalid JSON, return empty or throw? 
-      // Safest is to treat as empty success or specific error.
-      // Let's assume empty object for safety if 200 OK but not JSON.
-      data = {};
+      // If 200 OK but invalid JSON
+      return { 
+          status: 'error', 
+          message: `Invalid JSON response from server (${response.status})` 
+      };
     }
 
     if (!response.ok) {

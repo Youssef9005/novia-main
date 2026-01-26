@@ -120,6 +120,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return res;
       }
       throw new Error(res.message || 'Login failed');
+    } catch (error) {
+      // Re-throw if it's already an Error, or create new one with message
+      throw error instanceof Error ? error : new Error(String(error));
     } finally {
       setLoading(false);
     }

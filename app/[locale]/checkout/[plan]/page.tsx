@@ -386,7 +386,7 @@ export default function CheckoutPage() {
                 </p>
                 
                 <Link
-                  href="/profile"
+                  href={`/${locale}/profile`}
                   className="inline-flex justify-center items-center py-3 px-8 rounded-xl bg-emerald-500 text-black font-bold hover:bg-emerald-400 transition-colors"
                 >
                   {t('go_to_profile')}

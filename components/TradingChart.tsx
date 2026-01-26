@@ -2408,11 +2408,11 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                     {/* Live Signals Section */}
                     <div className="h-full relative w-full">
                          <SignalNotifications onSelectSignal={(sig) => setActiveSignal(sig)} />
-                    </div>
-                    <div className="w-full flex justify-center pb-4">
-                        <TradingViewQuote />
-                    </div>
-               </div>
+          </div>
+          <div className="w-full flex justify-center pb-4">
+            <TradingViewQuote />
+          </div>
+        </div>
              </div>
           </div>
         </div>
