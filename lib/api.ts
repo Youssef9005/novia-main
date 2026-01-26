@@ -62,6 +62,14 @@ async function fetchClient(endpoint: string, options: RequestInit = {}) {
         // Don't auto redirect here, let the caller handle it or use an interceptor
       }
       
+      // If data is empty but we have an error status
+      if (Object.keys(data).length === 0) {
+        return { 
+          status: 'error', 
+          message: `Request failed with status ${response.status} (${response.statusText})` 
+        };
+      }
+      
       // Return the error response structure if possible, or throw
       // The backend returns { status: 'error' | 'fail', message: '...' }
       return data; 

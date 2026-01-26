@@ -119,7 +119,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         return res;
       }
-      throw new Error(res.message || 'Login failed');
+      // Pass the specific error message from backend
+      console.log('Login error response:', res);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const errorMsg = res.message || (res.data as any)?.message || `Login failed (Status: ${res.status})`;
+      throw new Error(errorMsg);
     } catch (error) {
       // Re-throw if it's already an Error, or create new one with message
       throw error instanceof Error ? error : new Error(String(error));

@@ -2407,11 +2407,11 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
                     {/* Live Signals Section */}
                     <div className="h-full relative w-full">
-                         <SignalNotifications onSelectSignal={(sig) => setActiveSignal(sig)} />
+            <SignalNotifications onSelectSignal={(sig) => setActiveSignal(sig)} />
           </div>
-          <div className="w-full flex justify-center pb-4">
+          {/* <div className="w-full flex justify-center pb-4">
             <TradingViewQuote />
-          </div>
+          </div> */}
         </div>
              </div>
           </div>
