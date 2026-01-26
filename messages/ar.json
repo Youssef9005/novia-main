@@ -221,7 +221,8 @@
     "remove_photo": "حذف",
     "joined": "تاريخ الانضمام",
     "membership_plan_name": "نوفيا برو",
-    "joined_date_mock": "مارس 2024"
+    "joined_date_mock": "مارس 2024",
+    "logout": "تسجيل خروج"
   },
   "Referrals": {
     "title": "نظام الإحالات",

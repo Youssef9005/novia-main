@@ -221,7 +221,8 @@
     "remove_photo": "Remove",
     "joined": "Joined",
     "membership_plan_name": "Novia Pro",
-    "joined_date_mock": "March 2024"
+    "joined_date_mock": "March 2024",
+    "logout": "Logout"
   },
   "Referrals": {
     "title": "Referral System",

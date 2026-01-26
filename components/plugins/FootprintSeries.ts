@@ -154,10 +154,12 @@ class FootprintSeriesRenderer implements ICustomSeriesPaneRenderer {
                      if (prevY !== null) rowHeight = Math.abs(y - prevY);
                 }
                 
-                // Fallback height if single level or calc failed
-                if (rowHeight === 0 || rowHeight > 50) rowHeight = 20; // Cap max height
+                // If rowHeight is invalid or 0, fallback
+                if (rowHeight <= 0) rowHeight = 20;
 
-                const drawHeight = Math.max(14, rowHeight); 
+                // FIX: Strictly limit drawHeight to rowHeight to prevent vertical overlap
+                // Subtract 1px for visual separation
+                const drawHeight = Math.max(1, rowHeight - 0.5); 
                 
                 const halfGap = gap / 2;
                 const leftX = x - halfGap - cellWidth;
@@ -166,12 +168,12 @@ class FootprintSeriesRenderer implements ICustomSeriesPaneRenderer {
                 // --- Backgrounds ---
                 // Imbalance Buy (Green)
                 if (level.imbalance === 'buy') {
-                    ctx.fillStyle = 'rgba(8, 153, 129, 0.3)'; // Green
+                    ctx.fillStyle = 'rgba(8, 153, 129, 0.5)'; // Increased opacity
                     ctx.fillRect(rightX, y - drawHeight/2, cellWidth, drawHeight);
                 }
                 // Imbalance Sell (Red)
                 else if (level.imbalance === 'sell') {
-                    ctx.fillStyle = 'rgba(242, 54, 69, 0.3)'; // Red
+                    ctx.fillStyle = 'rgba(242, 54, 69, 0.5)'; // Increased opacity
                     ctx.fillRect(leftX, y - drawHeight/2, cellWidth, drawHeight);
                 }
 
@@ -186,23 +188,27 @@ class FootprintSeriesRenderer implements ICustomSeriesPaneRenderer {
                 }
 
                 // Grid lines (Horizontal)
-                // Left side
-                ctx.beginPath();
-                ctx.moveTo(leftX, y + drawHeight/2);
-                ctx.lineTo(leftX + cellWidth, y + drawHeight/2);
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-                ctx.lineWidth = 0.5;
-                ctx.stroke();
-                
-                // Right side
-                ctx.beginPath();
-                ctx.moveTo(rightX, y + drawHeight/2);
-                ctx.lineTo(rightX + cellWidth, y + drawHeight/2);
-                ctx.stroke();
+                // Only draw if we have enough height
+                if (rowHeight > 4) {
+                    // Left side
+                    ctx.beginPath();
+                    ctx.moveTo(leftX, y + drawHeight/2);
+                    ctx.lineTo(leftX + cellWidth, y + drawHeight/2);
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                    ctx.lineWidth = 0.5;
+                    ctx.stroke();
+                    
+                    // Right side
+                    ctx.beginPath();
+                    ctx.moveTo(rightX, y + drawHeight/2);
+                    ctx.lineTo(rightX + cellWidth, y + drawHeight/2);
+                    ctx.stroke();
+                }
 
                 // --- Text ---
-                // Only render text if zoomed in enough AND calculated font size is >= minReadable
-                if (barSpacing > textThreshold && calculatedFontSize >= minFontSize) {
+                // FIX: Only render text if we have enough VERTICAL space
+                // AND enough horizontal space
+                if (barSpacing > textThreshold && calculatedFontSize >= minFontSize && rowHeight >= 12) {
                     
                     const sellText = formatVol(level.sell);
                     const buyText = formatVol(level.buy);
@@ -214,26 +220,50 @@ class FootprintSeriesRenderer implements ICustomSeriesPaneRenderer {
                     // Allow small overflow (10%) but not massive overlap
                     const maxTextWidth = cellWidth * 1.1;
 
+                    // Adjust font size to fit vertically
+                    // Ensure text doesn't bleed into next row
+                    const maxVerticalFontSize = rowHeight * 0.85;
+                    const finalFontSize = Math.min(fontSize, maxVerticalFontSize);
+
+                    // Skip if text would be too tiny
+                    if (finalFontSize < 9) return;
+
+                    const fontSpec = `bold ${finalFontSize.toFixed(1)}px "Roboto Mono", monospace`;
+
                     // Sell Volume (Left)
                     if (sellWidth <= maxTextWidth) {
                         ctx.textAlign = 'center';
                         
                         // Color logic: White if imbalance, Gray otherwise
                         ctx.fillStyle = level.imbalance === 'sell' ? '#FFFFFF' : '#9ca3af';
-                        if (level.imbalance === 'sell') ctx.font = `bold ${fontSize}px "Roboto Mono", monospace`;
-                        else ctx.font = `${fontSize}px "Roboto Mono", monospace`;
+                        if (level.imbalance === 'sell') ctx.font = fontSpec;
+                        else ctx.font = `${finalFontSize.toFixed(1)}px "Roboto Mono", monospace`;
+
+                        // Add shadow for better contrast
+                        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+                        ctx.shadowBlur = 2;
 
                         if (level.sell > 0) ctx.fillText(sellText, leftX + cellWidth/2, y);
+                        
+                        ctx.shadowColor = 'transparent'; // Reset
+                        ctx.shadowBlur = 0;
                     }
                     
                     // Buy Volume (Right)
                     if (buyWidth <= maxTextWidth) {
                         ctx.textAlign = 'center';
                         ctx.fillStyle = level.imbalance === 'buy' ? '#FFFFFF' : '#9ca3af';
-                        if (level.imbalance === 'buy') ctx.font = `bold ${fontSize}px "Roboto Mono", monospace`;
-                        else ctx.font = `${fontSize}px "Roboto Mono", monospace`;
+                        if (level.imbalance === 'buy') ctx.font = fontSpec;
+                        else ctx.font = `${finalFontSize.toFixed(1)}px "Roboto Mono", monospace`;
+
+                        // Add shadow for better contrast
+                        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+                        ctx.shadowBlur = 2;
 
                         if (level.buy > 0) ctx.fillText(buyText, rightX + cellWidth/2, y);
+
+                        ctx.shadowColor = 'transparent'; // Reset
+                        ctx.shadowBlur = 0;
                     }
                 }
             });

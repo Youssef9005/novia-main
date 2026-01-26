@@ -7,6 +7,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { LogOut } from 'lucide-react';
 
 interface SubscriptionState {
   status: string;
@@ -20,7 +22,17 @@ export default function ProfilePage() {
   const t = useTranslations('Profile');
   const locale = useLocale();
   const isRtl = locale === 'ar';
-  const { user, updateProfile, changePassword } = useAuth();
+  const { user, updateProfile, changePassword, logout } = useAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.push(`/${locale}/login`);
+    } catch (error) {
+      toast.error('Failed to logout');
+    }
+  };
 
   const [subscription, setSubscription] = useState<SubscriptionState | null>(null);
   const [loadingSubscription, setLoadingSubscription] = useState(true);
@@ -181,6 +193,13 @@ export default function ProfilePage() {
                 </button>
                 <button className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-bold text-black shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-400">
                   {t('upload_photo')}
+                </button>
+                <button 
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-bold text-red-500 transition hover:bg-red-500/20"
+                >
+                  <LogOut size={16} />
+                  {t('logout')}
                 </button>
               </div>
             </div>

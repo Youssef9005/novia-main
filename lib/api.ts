@@ -20,7 +20,28 @@ async function fetchClient(endpoint: string, options: RequestInit = {}) {
       headers,
     });
 
-    const data = await response.json();
+    // Handle 204 No Content
+    if (response.status === 204) {
+      return { status: 'success', data: null };
+    }
+
+    const text = await response.text();
+    let data;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch (e) {
+      console.error('Failed to parse JSON response:', text);
+      if (!response.ok) {
+        return { 
+          status: 'error', 
+          message: `Server Error (${response.status}): ${text.slice(0, 100) || response.statusText}` 
+        };
+      }
+      // If 200 OK but invalid JSON, return empty or throw? 
+      // Safest is to treat as empty success or specific error.
+      // Let's assume empty object for safety if 200 OK but not JSON.
+      data = {};
+    }
 
     if (!response.ok) {
       // If 401 Unauthorized, maybe clear token?
