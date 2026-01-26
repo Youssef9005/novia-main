@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from 'next-intl';
+import EconomicCalendar from '@/components/EconomicCalendar';
 
 export default function NewsPage() {
   const t = useTranslations('News');
@@ -17,8 +18,8 @@ export default function NewsPage() {
           </p>
         </div>
         
-        <div className="h-[800px] w-full flex items-center justify-center border border-white/10 rounded-2xl bg-[#05070a]">
-            <p className="text-gray-500">Coming Soon...</p>
+        <div className="w-full border border-white/10 rounded-2xl bg-[#05070a] overflow-hidden">
+            <EconomicCalendar />
         </div>
       </div>
     </div>
