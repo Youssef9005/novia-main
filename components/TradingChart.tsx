@@ -982,7 +982,16 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
             // Map Gold to PAXGUSDT for real market data (Proxy)
             if (symbol === 'XAUUSD' || symbol === 'GOLD') {
                 querySymbol = 'PAXGUSDT';
-            } else {
+            } 
+            // Map Forex pairs to USDT (Binance supports EURUSDT, GBPUSDT, etc.)
+            else if (['EURUSD', 'GBPUSD', 'AUDUSD', 'NZDUSD', 'USDCAD', 'USDCHF', 'USDJPY'].includes(symbol)) {
+                 querySymbol = symbol.replace('USD', 'USDT');
+            }
+            // Map Crypto pairs to USDT if they don't already have it (e.g. BTCUSD -> BTCUSDT)
+            else if (['BTCUSD', 'ETHUSD', 'LTCUSD', 'XRPUSD', 'SOLUSD', 'DOGEUSD'].includes(symbol)) {
+                 querySymbol = symbol.replace('USD', 'USDT');
+            }
+            else {
                 querySymbol = symbol.toUpperCase().replace('/', '');
             }
 
