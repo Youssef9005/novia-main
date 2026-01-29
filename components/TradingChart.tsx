@@ -121,6 +121,70 @@ const calculateLinearRegressionChannel = (data: CandleData[], length: number = 1
   return { basis, upper, lower };
 };
 
+// Helper for Binance Symbol Mapping
+const getBinanceSymbol = (symbol: string): string => {
+    if (!symbol) return 'BTCUSDT';
+    
+    // Gold
+    if (symbol === 'XAUUSD' || symbol === 'GOLD') return 'PAXGUSDT';
+    
+    // USDT itself (Show USDC/USDT pair as proxy for stability check)
+    if (symbol === 'USDT') return 'USDCUSDT';
+    
+    // Forex Pairs -> Map to USDT
+    const forexPairs = ['EURUSD', 'GBPUSD', 'AUDUSD', 'NZDUSD', 'USDCAD', 'USDCHF', 'USDJPY'];
+    if (forexPairs.includes(symbol)) {
+         return symbol.replace('USD', 'USDT');
+    }
+    
+    // Crypto Pairs -> Map to USDT
+    const cryptoPairs = ['BTCUSD', 'ETHUSD', 'LTCUSD', 'XRPUSD', 'SOLUSD', 'DOGEUSD'];
+    if (cryptoPairs.includes(symbol)) {
+         return symbol.replace('USD', 'USDT');
+    }
+    
+    return symbol.toUpperCase().replace('/', '');
+ };
+ 
+ // 100% Reliable Symbol Map for Twelve Data
+  // Keys: Display Names (what user sees)
+  // Values: API Symbols (what TwelveData needs)
+  const SYMBOL_MAP: Record<string, string> = {
+      'XAUUSD': 'XAU/USD', // Gold
+      'BTCUSD': 'BTC/USD', // Bitcoin
+      'ETHUSD': 'ETH/USD', // Ethereum
+      'EURUSD': 'EUR/USD', // Euro
+      'GBPUSD': 'GBP/USD', // British Pound
+      'US30': 'DIA',       // Dow Jones ETF (Reliable Proxy)
+      'NAS100': 'QQQ',     // Nasdaq 100 ETF (Reliable Proxy)
+      'SPX500': 'SPY',     // S&P 500 ETF (Reliable Proxy)
+      'USDT': 'USDT/USD'   // Tether
+  };
+
+  const SYMBOL_CATEGORIES: Record<string, string> = {
+      'XAUUSD': 'Metals',
+      'BTCUSD': 'Crypto',
+      'ETHUSD': 'Crypto',
+      'USDT': 'Crypto',
+      'EURUSD': 'Forex',
+      'GBPUSD': 'Forex',
+      'US30': 'Indices',
+      'NAS100': 'Indices',
+      'SPX500': 'Indices'
+  };
+
+  // Helper for TwelveData Symbol Mapping
+  const getTwelveDataSymbol = (symbol: string): string => {
+     // Direct lookup from our verified map
+     if (SYMBOL_MAP[symbol]) {
+         return SYMBOL_MAP[symbol];
+     }
+     
+     // Fallbacks (should not be reached if allowedPairs is strict)
+     if (!symbol) return 'BTC/USD';
+     return symbol;
+  };
+
 
 
 // Helper for Fractals (Support & Resistance)
@@ -427,8 +491,8 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
   const [candleData, setCandleData] = useState<CandleData[]>([]);
   const [showOrderflow, setShowOrderflow] = useState(false);
   const [priceOffset, setPriceOffset] = useState(0);
-  const [dataSource, setDataSource] = useState<'binance' | 'twelvedata'>('binance');
-  const [twelveDataApiKey, setTwelveDataApiKey] = useState('');
+  const [dataSource, setDataSource] = useState<'binance' | 'twelvedata'>('twelvedata');
+  const [twelveDataApiKey, setTwelveDataApiKey] = useState('4e7ad076c8744b6a9d268ea547395835');
   const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useState(false); // For continuous calibration
   const [candleUpColor] = useState('#089981');
   const [candleDownColor] = useState('#F23645');
@@ -472,14 +536,17 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
     if (isActive && Array.isArray(user.selectedAssets) && user.selectedAssets.length > 0) {
         // Handle "ALL" permission - Expand to all supported assets
         if (user.selectedAssets.includes('ALL') || user.selectedAssets.includes('all')) {
-            const allAssets = ['XAUUSD', 'BTCUSD', 'ETHUSD', 'EURUSD', 'GBPUSD', 'US30', 'NAS100', 'SPX500', 'USDT'];
+            const allAssets = Object.keys(SYMBOL_MAP);
             setAllowedPairs(allAssets);
             // Default to XAUUSD if current symbol is invalid or "ALL"
             setSymbol(prev => (allAssets.includes(prev) && prev !== 'ALL') ? prev : 'XAUUSD');
         } else {
-            setAllowedPairs(user.selectedAssets);
-            const assets = user.selectedAssets;
-            setSymbol(prev => assets.includes(prev) ? prev : assets[0]);
+            // Filter user assets to only allow supported ones
+            const supportedAssets = user.selectedAssets.filter((s: string) => SYMBOL_MAP[s]);
+            setAllowedPairs(supportedAssets);
+            
+            // Set default symbol from allowed list
+            setSymbol(prev => supportedAssets.includes(prev) ? prev : (supportedAssets[0] || 'XAUUSD'));
         }
     } else {
         // Subscription expired or invalid
@@ -941,7 +1008,7 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
         // --- TwelveData Source ---
         if (dataSource === 'twelvedata' && twelveDataApiKey) {
             try {
-                const tdSymbol = symbol === 'XAUUSD' || symbol === 'GOLD' ? 'XAU/USD' : symbol;
+                const tdSymbol = getTwelveDataSymbol(symbol);
                 // Map timeframe to TwelveData interval
                 const intervalMap: Record<string, string> = {
                     '1m': '1min',
@@ -959,8 +1026,9 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                 const res = await fetch(`https://api.twelvedata.com/time_series?symbol=${tdSymbol}&interval=${tdInterval}&apikey=${twelveDataApiKey}&outputsize=1000`);
                 const json = await res.json();
                 
-                if (json.code === 401 || json.code === 400) {
-                     toast.error(`TwelveData Error: ${json.message}`);
+                if (json.code === 401 || json.code === 400 || json.code === 404) {
+                     console.error(`TwelveData Error: ${json.message}`);
+                     // Don't show toast on every error to avoid spam, but log it
                 } else if (json.values && Array.isArray(json.values)) {
                     data = json.values.reverse().map((v: { datetime: string; open: string; high: string; low: string; close: string }) => ({
                         time: (new Date(v.datetime).getTime() / 1000) as Time,
@@ -972,45 +1040,58 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                 }
             } catch {
                 console.error("TwelveData fetch error");
-                toast.error("Failed to fetch from TwelveData");
             }
         } 
         // --- Binance Source (Default) ---
         else {
-            let querySymbol = symbol;
-            
-            // Map Gold to PAXGUSDT for real market data (Proxy)
-            if (symbol === 'XAUUSD' || symbol === 'GOLD') {
-                querySymbol = 'PAXGUSDT';
-            } 
-            // Map Forex pairs to USDT (Binance supports EURUSDT, GBPUSDT, etc.)
-            else if (['EURUSD', 'GBPUSD', 'AUDUSD', 'NZDUSD', 'USDCAD', 'USDCHF', 'USDJPY'].includes(symbol)) {
-                 querySymbol = symbol.replace('USD', 'USDT');
-            }
-            // Map Crypto pairs to USDT if they don't already have it (e.g. BTCUSD -> BTCUSDT)
-            else if (['BTCUSD', 'ETHUSD', 'LTCUSD', 'XRPUSD', 'SOLUSD', 'DOGEUSD'].includes(symbol)) {
-                 querySymbol = symbol.replace('USD', 'USDT');
-            }
-            else {
-                querySymbol = symbol.toUpperCase().replace('/', '');
-            }
+            // Special handling for Indices (US30, NAS100, SPX500) which are not on Binance
+            // If the user has a TwelveData key, we try to use it even if source is Binance
+            if (['US30', 'NAS100', 'SPX500'].includes(symbol) && twelveDataApiKey) {
+                 try {
+                    const tdSymbol = symbol; // TwelveData uses US30, NAS100, SPX500 usually
+                    // Map timeframe
+                    const intervalMap: Record<string, string> = {
+                        '1m': '1min', '3m': '3min', '5m': '5min', '15m': '15min',
+                        '30m': '30min', '1h': '1h', '4h': '4h', '1d': '1day', '1w': '1week'
+                    };
+                    const tdInterval = intervalMap[timeframe] || '1min';
+                    
+                    const res = await fetch(`https://api.twelvedata.com/time_series?symbol=${tdSymbol}&interval=${tdInterval}&apikey=${twelveDataApiKey}&outputsize=1000`);
+                    const json = await res.json();
+                    
+                    if (json.values && Array.isArray(json.values)) {
+                        data = json.values.reverse().map((v: { datetime: string; open: string; high: string; low: string; close: string }) => ({
+                            time: (new Date(v.datetime).getTime() / 1000) as Time,
+                            open: parseFloat(v.open),
+                            high: parseFloat(v.high),
+                            low: parseFloat(v.low),
+                            close: parseFloat(v.close),
+                        }));
+                    }
+                 } catch (e) {
+                     console.error("Fallback TwelveData fetch error", e);
+                 }
+            } else {
+                // Use Standard Binance Mapping
+                const querySymbol = getBinanceSymbol(symbol);
 
-            try {
-                const binanceInterval = timeframe === '1d' ? '1d' : timeframe;
-                const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${querySymbol}&interval=${binanceInterval}&limit=1000`);
-                const klines = await res.json();
-                
-                if (Array.isArray(klines)) {
-                    data = klines.map((k: (string | number)[]) => ({
-                        time: (Number(k[0]) / 1000) as Time,
-                        open: parseFloat(k[1] as string),
-                        high: parseFloat(k[2] as string),
-                        low: parseFloat(k[3] as string),
-                        close: parseFloat(k[4] as string),
-                    }));
+                try {
+                    const binanceInterval = timeframe === '1d' ? '1d' : timeframe;
+                    const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${querySymbol}&interval=${binanceInterval}&limit=1000`);
+                    const klines = await res.json();
+                    
+                    if (Array.isArray(klines)) {
+                        data = klines.map((k: (string | number)[]) => ({
+                            time: (Number(k[0]) / 1000) as Time,
+                            open: parseFloat(k[1] as string),
+                            high: parseFloat(k[2] as string),
+                            low: parseFloat(k[3] as string),
+                            close: parseFloat(k[4] as string),
+                        }));
+                    }
+                } catch {
+                    console.log("Failed to fetch market data");
                 }
-            } catch {
-                console.log("Failed to fetch market data");
             }
         }
         
@@ -1060,11 +1141,12 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
       // WebSocket for Real-time Updates
       let ws: WebSocket | null = null;
       try {
-          if (dataSource === 'twelvedata' && twelveDataApiKey) {
+          // Use TwelveData WS if source is TwelveData OR if we are using fallback for Indices
+          if ((dataSource === 'twelvedata' || (['US30', 'NAS100', 'SPX500'].includes(symbol))) && twelveDataApiKey) {
                // TwelveData WebSocket
                ws = new WebSocket(`wss://ws.twelvedata.com/v1/quotes?apikey=${twelveDataApiKey}`);
                ws.onopen = () => {
-                   const tdSymbol = symbol === 'XAUUSD' || symbol === 'GOLD' ? 'XAU/USD' : symbol;
+                   const tdSymbol = getTwelveDataSymbol(symbol);
                    ws?.send(JSON.stringify({
                        action: "subscribe",
                        params: { symbols: tdSymbol }
@@ -1092,12 +1174,8 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                    }
                };
           } else {
-              let wsSymbol = symbol;
-              if (symbol === 'XAUUSD' || symbol === 'GOLD') {
-                  wsSymbol = 'PAXGUSDT';
-              } else {
-                  wsSymbol = symbol.toUpperCase().replace('/', '');
-              }
+              // Binance WebSocket
+              const wsSymbol = getBinanceSymbol(symbol);
               
               const wsInterval = timeframe === '1d' ? '1d' : timeframe;
               ws = new WebSocket(`wss://stream.binance.com:9443/ws/${wsSymbol.toLowerCase()}@kline_${wsInterval}`);
@@ -2142,17 +2220,28 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                     <ChevronDown size={14} className="text-gray-500 ml-1 group-hover:text-white transition-colors" />
                 </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="min-w-[160px] border border-white/10 bg-[#0A0A0A]/95 backdrop-blur-xl p-1 text-gray-200 shadow-[0_20px_50px_rgba(0,0,0,0.8)] rounded-xl z-50">
-                {allowedPairs.map((s) => (
-                    <DropdownMenuItem 
-                        key={s}
-                        onClick={() => setSymbol(s)}
-                        className={`cursor-pointer rounded-lg px-3 py-2.5 text-xs hover:bg-white/5 focus:bg-white/5 font-bold transition-colors flex items-center justify-between ${symbol === s ? 'text-[#2962FF] bg-[#2962FF]/10' : 'text-gray-300'}`}
-                    >
-                        {s}
-                        {symbol === s && <Check size={14} />}
-                    </DropdownMenuItem>
-                ))}
+            <DropdownMenuContent className="min-w-[160px] border border-white/10 bg-[#0A0A0A]/95 backdrop-blur-xl p-1 text-gray-200 shadow-[0_20px_50px_rgba(0,0,0,0.8)] rounded-xl z-50 max-h-[400px] overflow-y-auto">
+                {['Metals', 'Crypto', 'Forex', 'Indices'].map(category => {
+                    const categorySymbols = allowedPairs.filter(s => SYMBOL_CATEGORIES[s] === category);
+                    if (categorySymbols.length === 0) return null;
+                    
+                    return (
+                        <div key={category}>
+                             <DropdownMenuLabel className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2 py-1.5 mt-1">{category}</DropdownMenuLabel>
+                             {categorySymbols.map(s => (
+                                <DropdownMenuItem 
+                                    key={s}
+                                    onClick={() => setSymbol(s)}
+                                    className={`cursor-pointer rounded-lg px-3 py-2 text-xs hover:bg-white/5 focus:bg-white/5 font-bold transition-colors flex items-center justify-between ${symbol === s ? 'text-[#2962FF] bg-[#2962FF]/10' : 'text-gray-300'}`}
+                                >
+                                    {s}
+                                    {symbol === s && <Check size={14} />}
+                                </DropdownMenuItem>
+                             ))}
+                             <div className="h-px bg-white/5 mx-2 my-1" />
+                        </div>
+                    );
+                })}
             </DropdownMenuContent>
         </DropdownMenu>
 
@@ -2363,6 +2452,8 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
             >
                 {renderSVGElements}
             </svg>
+
+
             
              {/* Selected Drawing Edit HUD */}
              {selectedDrawingId && (
@@ -2414,13 +2505,13 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                </div>
                
                <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
-                    {/* Live Signals Section */}
-                    <div className="h-full relative w-full">
+          <div className="w-full flex justify-center mb-4 rounded-xl overflow-hidden border border-white/5 bg-[#0A0A0A]/50 shadow-lg shrink-0">
+            <TradingViewQuote />
+          </div>
+          {/* Live Signals Section */}
+          <div className="h-full relative w-full">
             <SignalNotifications onSelectSignal={(sig) => setActiveSignal(sig)} />
           </div>
-          {/* <div className="w-full flex justify-center pb-4">
-            <TradingViewQuote />
-          </div> */}
         </div>
              </div>
           </div>
