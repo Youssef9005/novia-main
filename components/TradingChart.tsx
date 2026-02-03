@@ -20,7 +20,6 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Lock } from 'lucide-react';
 import SignalNotifications, { Signal } from './SignalNotifications';
-import TradingViewQuote from './TradingViewQuote';
 import { 
   Maximize2, 
   Camera, 
@@ -138,7 +137,7 @@ const getBinanceSymbol = (symbol: string): string => {
     }
     
     // Crypto Pairs -> Map to USDT
-    const cryptoPairs = ['BTCUSD', 'ETHUSD', 'LTCUSD', 'XRPUSD', 'SOLUSD', 'DOGEUSD'];
+    const cryptoPairs = ['BTCUSD', 'ETHUSD', 'LTCUSD', 'XRPUSD', 'SOLUSD', 'DOGEUSD', 'BNBUSD'];
     if (cryptoPairs.includes(symbol)) {
          return symbol.replace('USD', 'USDT');
     }
@@ -150,27 +149,74 @@ const getBinanceSymbol = (symbol: string): string => {
   // Keys: Display Names (what user sees)
   // Values: API Symbols (what TwelveData needs)
   const SYMBOL_MAP: Record<string, string> = {
+      // Metals
       'XAUUSD': 'XAU/USD', // Gold
+      'XAGUSD': 'XAG/USD', // Silver
+
+      // Crypto
       'BTCUSD': 'BTC/USD', // Bitcoin
       'ETHUSD': 'ETH/USD', // Ethereum
+      'SOLUSD': 'SOL/USD',
+      'XRPUSD': 'XRP/USD',
+      'DOGEUSD': 'DOGE/USD',
+      'LTCUSD': 'LTC/USD',
+      'BNBUSD': 'BNB/USD',
+      'USDT': 'USDT/USD',   // Tether
+
+      // Forex
       'EURUSD': 'EUR/USD', // Euro
       'GBPUSD': 'GBP/USD', // British Pound
+      'USDJPY': 'USD/JPY',
+      'USDCAD': 'USD/CAD',
+      'USDCHF': 'USD/CHF',
+      'AUDUSD': 'AUD/USD',
+      'NZDUSD': 'NZD/USD',
+      'EURGBP': 'EUR/GBP',
+      'EURJPY': 'EUR/JPY',
+      'GBPJPY': 'GBP/JPY',
+
+      // Indices
       'US30': 'DIA',       // Dow Jones ETF (Reliable Proxy)
       'NAS100': 'QQQ',     // Nasdaq 100 ETF (Reliable Proxy)
       'SPX500': 'SPY',     // S&P 500 ETF (Reliable Proxy)
-      'USDT': 'USDT/USD'   // Tether
+      'UK100': 'UK100',
+      'DEU40': 'DAX',
+
+      // Commodities
+      'USOIL': 'WTI'
   };
 
   const SYMBOL_CATEGORIES: Record<string, string> = {
       'XAUUSD': 'Metals',
+      'XAGUSD': 'Metals',
+
       'BTCUSD': 'Crypto',
       'ETHUSD': 'Crypto',
+      'SOLUSD': 'Crypto',
+      'XRPUSD': 'Crypto',
+      'DOGEUSD': 'Crypto',
+      'LTCUSD': 'Crypto',
+      'BNBUSD': 'Crypto',
       'USDT': 'Crypto',
+
       'EURUSD': 'Forex',
       'GBPUSD': 'Forex',
+      'USDJPY': 'Forex',
+      'USDCAD': 'Forex',
+      'USDCHF': 'Forex',
+      'AUDUSD': 'Forex',
+      'NZDUSD': 'Forex',
+      'EURGBP': 'Forex',
+      'EURJPY': 'Forex',
+      'GBPJPY': 'Forex',
+
       'US30': 'Indices',
       'NAS100': 'Indices',
-      'SPX500': 'Indices'
+      'SPX500': 'Indices',
+      'UK100': 'Indices',
+      'DEU40': 'Indices',
+
+      'USOIL': 'Commodities'
   };
 
   // Helper for TwelveData Symbol Mapping
@@ -236,7 +282,6 @@ interface Drawing {
 
 const TIMEFRAMES = [
   { label: '1m', value: '1m' },
-  { label: '3m', value: '3m' },
   { label: '5m', value: '5m' },
   { label: '15m', value: '15m' },
   { label: '30m', value: '30m' },
@@ -2505,9 +2550,6 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                </div>
                
                <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
-          <div className="w-full flex justify-center mb-4 rounded-xl overflow-hidden border border-white/5 bg-[#0A0A0A]/50 shadow-lg shrink-0">
-            <TradingViewQuote />
-          </div>
           {/* Live Signals Section */}
           <div className="h-full relative w-full">
             <SignalNotifications onSelectSignal={(sig) => setActiveSignal(sig)} />

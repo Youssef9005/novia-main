@@ -5,10 +5,82 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
-import { Loader2, Upload, Check, Copy, ArrowLeft, ShieldCheck, Wallet } from 'lucide-react';
+import { Loader2, Upload, Check, Copy, ArrowLeft, ShieldCheck, Wallet, Search, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+
+// Asset Constants
+const SYMBOL_MAP: Record<string, string> = {
+  // Metals
+  'XAUUSD': 'XAU/USD', // Gold
+  'XAGUSD': 'XAG/USD', // Silver
+
+  // Crypto
+  'BTCUSD': 'BTC/USD', // Bitcoin
+  'ETHUSD': 'ETH/USD', // Ethereum
+  'SOLUSD': 'SOL/USD',
+  'XRPUSD': 'XRP/USD',
+  'DOGEUSD': 'DOGE/USD',
+  'LTCUSD': 'LTC/USD',
+  'BNBUSD': 'BNB/USD',
+  'USDT': 'USDT/USD',   // Tether
+
+  // Forex
+  'EURUSD': 'EUR/USD', // Euro
+  'GBPUSD': 'GBP/USD', // British Pound
+  'USDJPY': 'USD/JPY',
+  'USDCAD': 'USD/CAD',
+  'USDCHF': 'USD/CHF',
+  'AUDUSD': 'AUD/USD',
+  'NZDUSD': 'NZD/USD',
+  'EURGBP': 'EUR/GBP',
+  'EURJPY': 'EUR/JPY',
+  'GBPJPY': 'GBP/JPY',
+
+  // Indices
+  'US30': 'DIA',       // Dow Jones ETF
+  'NAS100': 'QQQ',     // Nasdaq 100 ETF
+  'SPX500': 'SPY',     // S&P 500 ETF
+  'UK100': 'UK100',
+  'DEU40': 'DAX',
+
+  // Commodities
+  'USOIL': 'WTI'
+};
+
+const SYMBOL_CATEGORIES: Record<string, string> = {
+  'XAUUSD': 'Metals',
+  'XAGUSD': 'Metals',
+
+  'BTCUSD': 'Crypto',
+  'ETHUSD': 'Crypto',
+  'SOLUSD': 'Crypto',
+  'XRPUSD': 'Crypto',
+  'DOGEUSD': 'Crypto',
+  'LTCUSD': 'Crypto',
+  'BNBUSD': 'Crypto',
+  'USDT': 'Crypto',
+
+  'EURUSD': 'Forex',
+  'GBPUSD': 'Forex',
+  'USDJPY': 'Forex',
+  'USDCAD': 'Forex',
+  'USDCHF': 'Forex',
+  'AUDUSD': 'Forex',
+  'NZDUSD': 'Forex',
+  'EURGBP': 'Forex',
+  'EURJPY': 'Forex',
+  'GBPJPY': 'Forex',
+
+  'US30': 'Indices',
+  'NAS100': 'Indices',
+  'SPX500': 'Indices',
+  'UK100': 'Indices',
+  'DEU40': 'Indices',
+
+  'USOIL': 'Commodities'
+};
 
 interface Wallet {
   _id: string;
@@ -33,12 +105,14 @@ export default function CheckoutPage() {
   const { user, loading: authLoading } = useAuth();
   
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1); // 1: Select Wallet, 2: Upload Screenshot, 3: Success
+  const [step, setStep] = useState(1); // 1: Select Assets, 2: Select Wallet, 3: Upload Screenshot, 4: Success
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [selectedWallet, setSelectedWallet] = useState<Wallet | null>(null);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const [planDetails, setPlanDetails] = useState<Plan | null>(null);
 
@@ -98,6 +172,12 @@ export default function CheckoutPage() {
   const handleCreatePayment = async () => {
     if (!selectedWallet || !user || !user._id || !planDetails) return;
     
+    // Validate asset selection
+    if (selectedAssets.length === 0) {
+      toast.error(locale === 'ar' ? 'يرجى اختيار أصل واحد على الأقل' : 'Please select at least one asset');
+      return;
+    }
+
     setLoading(true);
     try {
       const data = {
@@ -108,7 +188,7 @@ export default function CheckoutPage() {
         network: selectedWallet.network,
         currency: selectedWallet.currency,
         senderAddress: '',
-        selectedPairs: ['ALL']
+        selectedPairs: selectedAssets
       };
 
       const res = await api.payments.create(data);
@@ -124,7 +204,7 @@ export default function CheckoutPage() {
                     
         if (pId) {
           setPaymentId(pId);
-          setStep(2); // Go to upload
+          setStep(3); // Go to upload
           toast.success(t('errors.order_created'));
         } else {
           console.error("Could not extract payment ID from response", res);
@@ -162,7 +242,7 @@ export default function CheckoutPage() {
       
       const res = await api.payments.uploadScreenshot(paymentId, formData);
       if (res.status === 'success') {
-        setStep(3); // Success
+        setStep(4); // Success
       } else {
         toast.error(res.message || t('errors.upload_failed'));
       }
@@ -173,6 +253,30 @@ export default function CheckoutPage() {
       setLoading(false);
     }
   };
+
+  const toggleAsset = (symbol: string) => {
+    if (selectedAssets.includes(symbol)) {
+      setSelectedAssets(prev => prev.filter(s => s !== symbol));
+    } else {
+      if (selectedAssets.length >= 5) {
+        toast.error(locale === 'ar' ? 'يمكنك اختيار 5 أصول فقط' : 'You can only select up to 5 assets');
+        return;
+      }
+      setSelectedAssets(prev => [...prev, symbol]);
+    }
+  };
+
+  const filteredAssets = Object.keys(SYMBOL_MAP).filter(symbol => 
+    symbol.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    SYMBOL_MAP[symbol].toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const groupedAssets = filteredAssets.reduce((acc, symbol) => {
+    const category = SYMBOL_CATEGORIES[symbol] || 'Other';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(symbol);
+    return acc;
+  }, {} as Record<string, string[]>);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -249,8 +353,133 @@ export default function CheckoutPage() {
           <div className="md:col-span-2">
             {step === 1 && (
               <div className="rounded-2xl border border-white/10 bg-white/5 p-8">
-                <h1 className="text-2xl font-bold text-white mb-2">{t('select_payment_method')}</h1>
-                <p className="text-gray-400 mb-8">{t('choose_wallet_desc')}</p>
+                <h1 className="text-2xl font-bold text-white mb-2">
+                  {locale === 'ar' ? 'اختر الأصول (حد أقصى 5)' : 'Select Assets (Max 5)'}
+                </h1>
+                <p className="text-gray-400 mb-6">
+                  {locale === 'ar' 
+                    ? 'يرجى اختيار العملات التي تريد تداولها ضمن اشتراكك.' 
+                    : 'Please select the assets you want to include in your subscription.'}
+                </p>
+
+                {/* Search Bar */}
+                <div className="relative mb-6">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder={locale === 'ar' ? 'بحث عن أصل...' : 'Search assets...'}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full bg-black/30 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500/50 transition-colors"
+                  />
+                </div>
+
+                {/* Selected Count Badge */}
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-sm text-gray-400">
+                    {locale === 'ar' ? 'الأصول المختارة:' : 'Selected Assets:'}
+                  </span>
+                  <span className={`px-2 py-1 rounded-md text-xs font-medium ${
+                    selectedAssets.length === 5 ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'
+                  }`}>
+                    {selectedAssets.length} / 5
+                  </span>
+                </div>
+
+                {/* Selected Assets Tags */}
+                {selectedAssets.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    {selectedAssets.map(asset => (
+                      <div key={asset} className="flex items-center gap-1 bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full text-sm border border-emerald-500/30">
+                        <span>{asset}</span>
+                        <button onClick={() => toggleAsset(asset)} className="hover:text-white transition-colors">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Asset Grid */}
+                <div className="space-y-6 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                  {Object.entries(groupedAssets).map(([category, symbols]) => (
+                    <div key={category}>
+                      <h3 className="text-sm font-semibold text-gray-500 mb-3 sticky top-0 bg-[#0c0c0c] py-2 z-10">{category}</h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {symbols.map((symbol) => {
+                          const isSelected = selectedAssets.includes(symbol);
+                          const isDisabled = !isSelected && selectedAssets.length >= 5;
+                          
+                          return (
+                            <div
+                              key={symbol}
+                              onClick={() => !isDisabled && toggleAsset(symbol)}
+                              className={`
+                                relative p-3 rounded-xl border cursor-pointer transition-all duration-200
+                                ${isSelected 
+                                  ? 'bg-emerald-500/10 border-emerald-500/50' 
+                                  : isDisabled
+                                    ? 'bg-white/5 border-white/5 opacity-50 cursor-not-allowed'
+                                    : 'bg-white/5 border-white/10 hover:border-white/20 hover:bg-white/10'
+                                }
+                              `}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className={`font-medium ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+                                  {symbol}
+                                </span>
+                                {isSelected && (
+                                  <div className="h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                                    <Check className="h-3 w-3 text-black" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1 truncate">
+                                {SYMBOL_MAP[symbol]}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {Object.keys(groupedAssets).length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      {locale === 'ar' ? 'لا توجد نتائج' : 'No assets found'}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-8 flex justify-end">
+                  <button
+                    onClick={() => {
+                      if (selectedAssets.length > 0) {
+                        setStep(2);
+                      } else {
+                        toast.error(locale === 'ar' ? 'يرجى اختيار أصل واحد على الأقل' : 'Please select at least one asset');
+                      }
+                    }}
+                    disabled={selectedAssets.length === 0}
+                    className="bg-emerald-500 text-black font-bold py-3 px-8 rounded-xl hover:bg-emerald-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {locale === 'ar' ? 'متابعة للدفع' : 'Continue to Payment'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-8">
+                <div className="flex items-center gap-4 mb-6">
+                  <button 
+                    onClick={() => setStep(1)}
+                    className="p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
+                  >
+                    <ArrowLeft className={`h-5 w-5 ${locale === 'ar' ? 'rotate-180' : ''}`} />
+                  </button>
+                  <h1 className="text-2xl font-bold text-white">{t('select_payment_method')}</h1>
+                </div>
 
                 {wallets.length === 0 ? (
                   <div className="text-center py-8 text-gray-400">
@@ -357,39 +586,37 @@ export default function CheckoutPage() {
                   )}
                 </div>
 
-                <div className="mt-8 flex gap-4">
-                  <button
-                    onClick={() => setStep(1)}
-                    className="flex-1 py-3 px-4 rounded-xl border border-white/10 text-white font-bold hover:bg-white/5 transition-colors"
-                  >
-                    {t('back')}
-                  </button>
-                  <button
-                    onClick={handleUploadScreenshot}
-                    disabled={loading || !file}
-                    className="flex-1 flex justify-center items-center py-3 px-4 rounded-xl bg-emerald-500 text-black font-bold hover:bg-emerald-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : t('confirm_payment')}
-                  </button>
-                </div>
+                <button
+                  onClick={handleUploadScreenshot}
+                  disabled={!file || loading}
+                  className="w-full bg-emerald-500 text-black font-bold py-4 rounded-xl hover:bg-emerald-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <>
+                      {t('complete_order')}
+                      <Check className="h-5 w-5" />
+                    </>
+                  )}
+                </button>
               </div>
             )}
 
-            {step === 3 && (
+            {step === 4 && (
               <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
-                <div className="h-20 w-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-6">
-                  <ShieldCheck className="h-10 w-10 text-emerald-400" />
+                <div className="h-20 w-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Check className="h-10 w-10 text-emerald-500" />
                 </div>
-                <h1 className="text-2xl font-bold text-white mb-4">{t('payment_submitted')}</h1>
+                <h1 className="text-2xl font-bold text-white mb-4">{t('order_success_title')}</h1>
                 <p className="text-gray-400 mb-8 max-w-md mx-auto">
-                  {t('success_desc')}
+                  {t('order_success_desc')}
                 </p>
-                
-                <Link
-                  href={`/${locale}/profile`}
-                  className="inline-flex justify-center items-center py-3 px-8 rounded-xl bg-emerald-500 text-black font-bold hover:bg-emerald-400 transition-colors"
+                <Link 
+                  href={`/${locale}/dashboard`}
+                  className="inline-flex items-center justify-center bg-white text-black font-bold py-3 px-8 rounded-xl hover:bg-gray-200 transition-colors"
                 >
-                  {t('go_to_profile')}
+                  {t('go_to_dashboard')}
                 </Link>
               </div>
             )}
