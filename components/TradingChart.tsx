@@ -13,9 +13,12 @@ import {
   LineSeries,
   Time,
   IPriceLine,
-  WhitespaceData
 } from 'lightweight-charts';
-import { FootprintSeries, FootprintData, FootprintLevel, FootprintSeriesOptions } from './plugins/FootprintSeries';
+import { AnalysisOverlay, AnalysisLevel } from './plugins/AnalysisOverlay';
+import { FootprintSeries } from './plugins/FootprintSeries';
+import { HTFCandleProfileSeries } from './plugins/HTFCandleProfileSeries';
+import { generateFootprintCandle } from '@/lib/footprint/generator';
+import { aggregateToHTF } from '@/lib/htf/aggregator';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Lock } from 'lucide-react';
@@ -32,14 +35,14 @@ import {
   Minus,
   Square,
   Trash2,
-  Footprints,
   ChevronDown,
   Settings,
   X,
   Clock,
   AlignJustify,
   Check,
-  Bell
+  Bell,
+  Table
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
@@ -54,6 +57,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocale } from 'next-intl';
+import { useChartStore } from '@/store/useChartStore';
 
 // Helper for Linear Regression Channel (Adaptive Trend Finder)
 const calculateLinearRegressionChannel = (data: CandleData[], length: number = 100, deviationMult: number = 2, useLog: boolean = false) => {
@@ -273,7 +277,7 @@ interface CandleData {
 
 interface Drawing {
   id: string;
-  type: 'trend' | 'rectangle' | 'fib' | 'long' | 'volprofile' | 'footprint';
+  type: 'trend' | 'rectangle' | 'fib' | 'long' | 'volprofile';
   p1: { time: Time; price: number };
   p2: { time: Time; price: number };
   color: string;
@@ -429,55 +433,6 @@ const calculateRSI = (data: CandleData[], period: number) => {
     };
   };
 
-  // Generate Footprint Data (Mock)
-  const generateFootprintData = (candle: CandleData): FootprintData => {
-      const levels: FootprintLevel[] = [];
-      
-      // Dynamic tick size based on price magnitude
-      let tickSize = 0.5;
-      const range = candle.high - candle.low;
-      
-      if (range < 1) tickSize = 0.01;
-      else if (range < 10) tickSize = 0.1;
-      else if (range > 1000) tickSize = 5;
-      
-      // Ensure we don't have too many levels (performance)
-      if (range / tickSize > 50) {
-          tickSize = range / 20;
-      }
-      
-      // Generate levels from Low to High
-      for (let p = candle.low; p <= candle.high; p += tickSize) {
-          // Random volumes
-          const vol = Math.floor(Math.random() * 500) + 10;
-          const buy = Math.floor(vol * Math.random());
-          const sell = vol - buy;
-          
-          // Random imbalance
-          let imbalance: 'buy' | 'sell' | 'none' = 'none';
-          if (buy > sell * 3 && buy > 100) imbalance = 'buy';
-          if (sell > buy * 3 && sell > 100) imbalance = 'sell';
-
-          levels.push({
-              price: p,
-              buy,
-              sell,
-              volume: vol,
-              imbalance
-          });
-      }
-
-      return {
-          time: candle.time,
-          open: candle.open,
-          high: candle.high,
-          low: candle.low,
-          close: candle.close,
-          profile: levels
-      };
-  };
-
-
   // Generate Alert Message (Exact Replica)
   const generateSessionAlert = (session: { type: string; openPrice: number; resistances: number[]; supports: number[] }, symbol: string) => {
     // Match Pine Script's #.#### format (up to 4 decimals, no trailing zeros)
@@ -522,9 +477,11 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick" | "Area"> | null>(null);
-  const footprintSeriesRef = useRef<ISeriesApi<"Custom", Time, FootprintData | WhitespaceData<Time>, FootprintSeriesOptions> | null>(null);
+  const analysisOverlayRef = useRef<AnalysisOverlay | null>(null);
   const indicatorSeriesRef = useRef<Map<string, ISeriesApi<"Line">>>(new Map());
   const priceLinesRef = useRef<IPriceLine[]>([]);
+  const footprintSeriesRef = useRef<FootprintSeries | null>(null);
+  const htfProfileSeriesRef = useRef<HTFCandleProfileSeries | null>(null);
   
   const [symbol, setSymbol] = useState(propSymbol);
   const [activeSignal, setActiveSignal] = useState<Signal | null>(null);
@@ -534,7 +491,6 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
   const [crosshairMode] = useState<CrosshairMode>(CrosshairMode.Normal);
   const [activeIndicators, setActiveIndicators] = useState<string[]>([]);
   const [candleData, setCandleData] = useState<CandleData[]>([]);
-  const [showOrderflow, setShowOrderflow] = useState(false);
   const [priceOffset, setPriceOffset] = useState(0);
   const [dataSource, setDataSource] = useState<'binance' | 'twelvedata'>('twelvedata');
   const [twelveDataApiKey, setTwelveDataApiKey] = useState('4e7ad076c8744b6a9d268ea547395835');
@@ -544,12 +500,10 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
   const [showSupportResistance] = useState(false);
   const [showTrendFinder, setShowTrendFinder] = useState(false);
 
-  const [footprintFontScale, setFootprintFontScale] = useState(1.4);
   const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [initialDrawingState, setInitialDrawingState] = useState<Drawing | null>(null);
-  const analysisLinesRef = useRef<IPriceLine[]>([]);
   const [candleCountdown, setCandleCountdown] = useState<string | null>(null);
   const [showAnalysisLines, setShowAnalysisLines] = useState(true);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -557,6 +511,10 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
   const [allowedPairs, setAllowedPairs] = useState<string[]>([]);
   const locale = useLocale();
   const { user } = useAuth();
+  const { 
+    footprintSettings, toggleFootprint, setFootprintSettings,
+    htfSettings, toggleHTF, setHTFSettings 
+  } = useChartStore();
 
   // Validate Status from User Context directly
   useEffect(() => {
@@ -634,7 +592,7 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
   }, [isAutoSyncEnabled]);
   
   // Drawing Tools State
-  const [drawingTool, setDrawingTool] = useState<'cursor' | 'horizontal' | 'trend' | 'rectangle' | 'fib' | 'long' | 'volprofile' | 'footprint'>('cursor');
+  const [drawingTool, setDrawingTool] = useState<'cursor' | 'horizontal' | 'trend' | 'rectangle' | 'fib' | 'long' | 'volprofile'>('cursor');
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [currentDrawing, setCurrentDrawing] = useState<Partial<Drawing> | null>(null);
   const [chartUpdateTrigger, setChartUpdateTrigger] = useState(0);
@@ -748,26 +706,17 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
   // Draw Analysis Lines
   useEffect(() => {
     if (!seriesRef.current || !activeSignal?.message || !showAnalysisLines) {
-      // Clear lines if no signal or no message
-      analysisLinesRef.current.forEach(line => {
-        try {
-            seriesRef.current?.removePriceLine(line);
-        } catch {}
-      });
-      analysisLinesRef.current = [];
+      if (analysisOverlayRef.current) {
+         analysisOverlayRef.current.updateLevels([]);
+      }
       return;
     }
 
     const levels = parseAnalysisLevels(activeSignal.message);
-    if (!levels) return;
-
-    // Clear existing lines
-    analysisLinesRef.current.forEach(line => {
-        try {
-            seriesRef.current?.removePriceLine(line);
-        } catch {}
-      });
-      analysisLinesRef.current = [];
+    if (!levels) {
+        if (analysisOverlayRef.current) analysisOverlayRef.current.updateLevels([]);
+        return;
+    }
 
     // Colors based on Session Type
     // Asian: Purple (#9C27B0)
@@ -780,44 +729,48 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
     if (levels.type === 'European') openColor = '#00E5FF';
     if (levels.type === 'US') openColor = '#FFEB3B';
 
-    // Draw Anchor
+    const overlayLevels: AnalysisLevel[] = [];
+
+    // Anchor
     if (levels.anchor) {
-      const line = seriesRef.current.createPriceLine({
-        price: levels.anchor,
-        color: openColor,
-        lineWidth: 3,
-        lineStyle: LineStyle.Solid,
-        axisLabelVisible: true,
-        title: `${levels.type} Entry`,
+      // Add transparency to openColor for "wide and transparent" look
+      const transparentColor = openColor.length === 7 ? openColor + '66' : openColor; // Add 40% alpha if hex
+      overlayLevels.push({
+          price: levels.anchor,
+          color: transparentColor,
+          width: 50,
+          label: `${levels.type} Entry`,
+          textColor: openColor
       });
-      analysisLinesRef.current.push(line);
     }
 
     // Draw Resistances
+    const transparentMainColor = mainColor.length === 7 ? mainColor + '4D' : mainColor; // 30% alpha for R/S
+
     levels.resistances.forEach((price, i) => {
-      const line = seriesRef.current!.createPriceLine({
-        price: price,
-        color: mainColor,
-        lineWidth: 2,
-        lineStyle: LineStyle.Solid,
-        axisLabelVisible: true,
-        title: `R${i + 1}`,
-      });
-      analysisLinesRef.current.push(line);
+        overlayLevels.push({
+            price: price,
+            color: transparentMainColor,
+            width: 20,
+            label: `R${i + 1}`,
+            textColor: mainColor
+        });
     });
 
     // Draw Supports
     levels.supports.forEach((price, i) => {
-      const line = seriesRef.current!.createPriceLine({
-        price: price,
-        color: mainColor,
-        lineWidth: 2,
-        lineStyle: LineStyle.Solid,
-        axisLabelVisible: true,
-        title: `S${i + 1}`,
-      });
-      analysisLinesRef.current.push(line);
+        overlayLevels.push({
+            price: price,
+            color: transparentMainColor,
+            width: 20,
+            label: `S${i + 1}`,
+            textColor: mainColor
+        });
     });
+
+    if (analysisOverlayRef.current) {
+        analysisOverlayRef.current.updateLevels(overlayLevels);
+    }
 
   }, [activeSignal, chartUpdateTrigger, showAnalysisLines]);
 
@@ -1008,16 +961,24 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
 
       chartRef.current = chart;
       seriesRef.current = series;
+      
+      // Add Analysis Overlay
+      const analysisOverlay = new AnalysisOverlay([]);
+      series.attachPrimitive(analysisOverlay);
+      analysisOverlayRef.current = analysisOverlay;
 
       // Add Footprint Series
-      const footprintSeries = chart.addCustomSeries(new FootprintSeries(), {
-        // Custom series options
-      });
+      const footprintSeries = new FootprintSeries(chart, series, footprintSettings);
+      series.attachPrimitive(footprintSeries);
       footprintSeriesRef.current = footprintSeries;
-       footprintSeries.applyOptions({ visible: showOrderflow });
+
+      // Add HTF Candle Profile Series
+      const htfProfileSeries = new HTFCandleProfileSeries(chart, series, htfSettings);
+      series.attachPrimitive(htfProfileSeries);
+      htfProfileSeriesRef.current = htfProfileSeries;
        
        // Ensure correct initial visibility for candles
-      series.applyOptions({ visible: !showOrderflow });
+      series.applyOptions({ visible: true });
 
       // Subscribe to visible range changes to update drawings
       chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
@@ -1168,10 +1129,40 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
 
           // Set Footprint Data
           if (footprintSeriesRef.current) {
-              try {
-                  const footprintData = adjustedData.map(d => generateFootprintData(d));
-                  footprintSeriesRef.current.setData(footprintData);
-              } catch {}
+              const footprintData = adjustedData.map(d => generateFootprintCandle({
+                  ...d,
+                  time: d.time as number
+              }));
+              footprintSeriesRef.current.updateData(footprintData);
+
+              // Set HTF Data if enabled
+              if (htfProfileSeriesRef.current && htfSettings.enabled) {
+                  // Determine timeframe minutes
+                  let tfMinutes = 60; // Default 1h
+                  if (timeframe === '1m') tfMinutes = 1;
+                  if (timeframe === '5m') tfMinutes = 5;
+                  if (timeframe === '15m') tfMinutes = 15;
+                  if (timeframe === '1h') tfMinutes = 60;
+                  if (timeframe === '4h') tfMinutes = 240;
+                  if (timeframe === '1d') tfMinutes = 1440;
+
+                  // Auto HTF Logic: 
+                  // If 'Auto', pick higher timeframe based on current
+                  let targetMinutes = tfMinutes * 4; 
+                  if (htfSettings.timeframe !== 'Auto') {
+                      if (htfSettings.timeframe === '1H') targetMinutes = 60;
+                      if (htfSettings.timeframe === '4H') targetMinutes = 240;
+                      if (htfSettings.timeframe === '1D') targetMinutes = 1440;
+                  }
+
+                  // Only aggregate if target > current
+                  if (targetMinutes > tfMinutes) {
+                      const htfData = aggregateToHTF(footprintData, targetMinutes);
+                      htfProfileSeriesRef.current.updateData(htfData);
+                  } else {
+                       htfProfileSeriesRef.current.updateData([]);
+                  }
+              }
           }
 
           if (candleData.length === 0) {
@@ -1212,6 +1203,12 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                        if (seriesRef.current) {
                            try {
                                seriesRef.current.update(updatedCandle);
+                               if (footprintSeriesRef.current) {
+                                   footprintSeriesRef.current.updateLastCandle(generateFootprintCandle({
+                                       ...updatedCandle,
+                                       time: updatedCandle.time as number
+                                   }));
+                               }
                            } catch (e) {
                                // Silent update fail
                            }
@@ -1251,8 +1248,12 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                               
                               // Update Footprint
                               if (footprintSeriesRef.current) {
-                                  const footprintCandle = generateFootprintData(candle);
-                                  footprintSeriesRef.current.update(footprintCandle);
+                                  const candleWithVol = { 
+                                      ...candle, 
+                                      time: candle.time as number,
+                                      volume: parseFloat(message.k.v) 
+                                  };
+                                  footprintSeriesRef.current.updateLastCandle(generateFootprintCandle(candleWithVol));
                               }
 
                               // Update current candle in state for indicators
@@ -1319,15 +1320,36 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol, timeframe, chartType, crosshairMode, priceOffset, dataSource, twelveDataApiKey, candleUpColor, candleDownColor]); 
 
-  // Toggle Footprint Visibility
+  // Footprint Settings Update
   useEffect(() => {
-    if (footprintSeriesRef.current) {
-        footprintSeriesRef.current.applyOptions({ visible: showOrderflow });
+    if (footprintSeriesRef.current && seriesRef.current) {
+      footprintSeriesRef.current.updateSettings(footprintSettings);
+      
+      // Adjust main series visibility based on footprint
+      if (footprintSettings.enabled) {
+         seriesRef.current.applyOptions({
+             upColor: 'transparent',
+             downColor: 'transparent',
+             borderVisible: false,
+             wickVisible: true // Keep wicks for context
+         });
+      } else {
+         seriesRef.current.applyOptions({
+             upColor: candleUpColor,
+             downColor: candleDownColor,
+             borderVisible: false,
+             wickVisible: true
+         });
+      }
     }
-    if (seriesRef.current) {
-        seriesRef.current.applyOptions({ visible: !showOrderflow });
+  }, [footprintSettings, candleUpColor, candleDownColor]);
+
+  // HTF Settings Update
+  useEffect(() => {
+    if (htfProfileSeriesRef.current) {
+      htfProfileSeriesRef.current.updateSettings(htfSettings);
     }
-  }, [showOrderflow]);
+  }, [htfSettings]);
 
   // Handle Indicators
   useEffect(() => {
@@ -1874,129 +1896,7 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
         });
     }
 
-    // Orderflow / Footprint Mode
-    let orderflowElements = null;
-    let volumeTableElements = null;
-
-    if (showOrderflow && candleData.length > 0) {
-        const visibleCandles = candleData.filter(c => {
-            const x = chartRef.current?.timeScale().timeToCoordinate(c.time);
-            return x !== null && x !== undefined && x >= -50 && x <= (chartContainerRef.current?.clientWidth || 0) + 50;
-        });
-
-        const elements: React.ReactNode[] = [];
-        const tableElements: React.ReactNode[] = [];
-        
-        const chartHeight = chartContainerRef.current?.clientHeight || 0;
-        const tableHeight = 110;
-        const tableY = chartHeight - tableHeight;
-
-        tableElements.push(
-            <rect key="table-bg" x="0" y={tableY} width="100%" height={tableHeight} fill="#0b0e11" opacity="0.95" />
-        );
-        tableElements.push(
-            <line key="table-line" x1="0" y1={tableY} x2="100%" y2={tableY} stroke="#374151" strokeWidth="2" />
-        );
-
-        visibleCandles.forEach((c) => {
-            const x = chartRef.current?.timeScale().timeToCoordinate(c.time);
-            const yHigh = seriesRef.current?.priceToCoordinate(c.high);
-            const yLow = seriesRef.current?.priceToCoordinate(c.low);
-            
-            if (x === null || x === undefined || yHigh === null || yHigh === undefined || yLow === null || yLow === undefined) return;
-
-            const height = Math.abs(yLow - yHigh);
-            const seed = (c.time as number) + c.open;
-            const rand = (n: number) => {
-                const sin = Math.sin(seed * n);
-                return sin - Math.floor(sin);
-            };
-
-            const numRows = Math.max(1, Math.floor(height / 22)); 
-            const rowHeight = height / numRows;
-            // Increased base font size and max size for better visibility
-            const fontSize = Math.max(12, Math.floor(rowHeight * 0.9 * footprintFontScale));
-            
-            let totalAsk = 0;
-            let totalBid = 0;
-
-            for (let r = 0; r < numRows; r++) {
-                const rowY = yHigh + r * rowHeight;
-                const isGreen = c.close > c.open;
-                const bias = isGreen ? 0.6 : 0.4;
-                const volBase = Math.floor(rand(r + 1) * 100) + 10;
-                
-                const ask = Math.floor(volBase * bias * (rand(r + 2) + 0.5));
-                const bid = Math.floor(volBase * (1 - bias) * (rand(r + 3) + 0.5));
-                
-                totalAsk += ask;
-                totalBid += bid;
-
-                const isImbalance = ask > bid * 2.5 || bid > ask * 2.5;
-            const fillUrl = isImbalance ? (ask > bid ? 'url(#grad-buy-3d)' : 'url(#grad-sell-3d)') : 'rgba(255, 255, 255, 0.02)';
-            const strokeColor = isImbalance ? (ask > bid ? '#00E396' : '#FF4560') : 'rgba(255, 255, 255, 0.1)';
-            
-            // 3D Block Effect
-            if (isImbalance) {
-                elements.push(
-                    <g key={`fp-bg-${c.time}-${r}`} filter="url(#glow-3d)">
-                        <rect 
-                            x={x - 24} y={rowY + 1} width={48} height={rowHeight - 2} rx="4" 
-                            fill={fillUrl} 
-                            stroke={strokeColor} 
-                            strokeWidth="1.5"
-                            strokeOpacity="0.8" 
-                        />
-                        {/* Inner Glass Highlight */}
-                        <path d={`M ${x - 24} ${rowY + 2} Q ${x} ${rowY + rowHeight} ${x + 24} ${rowY + 2} v 2 Q ${x} ${rowY + rowHeight + 4} ${x - 24} ${rowY + 4} Z`} fill="white" fillOpacity="0.15" />
-                    </g>
-                );
-            } else {
-                 elements.push(
-                    <rect 
-                        key={`fp-bg-neutral-${c.time}-${r}`}
-                        x={x - 24} y={rowY + 1} width={48} height={rowHeight - 2} rx="2" 
-                        fill={fillUrl} 
-                        stroke={strokeColor}
-                        strokeWidth="0.5" 
-                    />
-                );
-            }
-
-            elements.push(
-                <g key={`fp-${c.time}-${r}`}>
-                    <text x={x - 3} y={rowY + rowHeight / 1.5 + 1} textAnchor="end" fontSize={fontSize} fill={bid > ask ? "#FF4560" : "#ffffff"} className="font-mono font-bold" style={{textShadow: '0px 0px 2px rgba(0,0,0,0.8)'}}>{bid}</text>
-                    <text x={x + 3} y={rowY + rowHeight / 1.5 + 1} textAnchor="start" fontSize={fontSize} fill={ask > bid ? "#00E396" : "#ffffff"} className="font-mono font-bold" style={{textShadow: '0px 0px 2px rgba(0,0,0,0.8)'}}>{ask}</text>
-                </g>
-            );
-            }
-
-            const delta = totalAsk - totalBid;
-            const deltaColor = delta > 0 ? '#089981' : '#F23645';
-            
-            tableElements.push(
-                <g key={`tb-${c.time}`}>
-                    <text x={x} y={tableY + 25} textAnchor="middle" fontSize="10" fill="#d1d4dc" fontWeight="bold">{totalAsk}</text>
-                    <text x={x} y={tableY + 45} textAnchor="middle" fontSize="10" fill="#9ca3af" fontWeight="bold">{totalBid}</text>
-                    <rect x={x - 20} y={tableY + 55} width={40} height={18} rx="4" fill={deltaColor} fillOpacity="0.15" stroke={deltaColor} strokeOpacity="0.3" />
-                    <text x={x} y={tableY + 67} textAnchor="middle" fontSize="10" fill={deltaColor} fontWeight="bold">{delta > 0 ? '+' : ''}{delta}</text>
-                    <line x1={x + 35} y1={tableY} x2={x + 35} y2={tableY + tableHeight} stroke="#1f2937" strokeWidth="0.5" strokeDasharray="2 2" />
-                </g>
-            );
-        });
-        
-         tableElements.push(
-             <g key="table-headers">
-                 <rect x="0" y={tableY} width="70" height={tableHeight} fill="#0b0e11" opacity="1" stroke="#2a2e39" />
-                 <text x="10" y={tableY + 25} textAnchor="start" fontSize="10" fill="#6b7280" fontWeight="bold">ASK VOL</text>
-                 <text x="10" y={tableY + 45} textAnchor="start" fontSize="10" fill="#6b7280" fontWeight="bold">BID VOL</text>
-                 <text x="10" y={tableY + 67} textAnchor="start" fontSize="10" fill="#6b7280" fontWeight="bold">DELTA</text>
-             </g>
-        );
-
-        orderflowElements = elements;
-        volumeTableElements = tableElements;
-    }
+    // Orderflow / Footprint Mode removed
 
     return (
         <>
@@ -2054,11 +1954,9 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
             {signalLineElements}
             {fractalElements}
             {drawingElements}
-            {orderflowElements}
-            {volumeTableElements}
         </>
     );
-  }, [drawings, currentDrawing, candleData, activeSignal, showSignalLines, showOrderflow, selectedDrawingId, showSupportResistance, footprintFontScale]);
+  }, [drawings, currentDrawing, candleData, activeSignal, showSignalLines, selectedDrawingId, showSupportResistance]);
 
   // Handlers
   const handleScreenshot = () => {
@@ -2150,7 +2048,7 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
   };
 
   // Drawing Tool Helper
-  const toggleDrawingTool = (tool: 'cursor' | 'horizontal' | 'trend' | 'rectangle' | 'fib' | 'long' | 'volprofile' | 'footprint') => {
+  const toggleDrawingTool = (tool: 'cursor' | 'horizontal' | 'trend' | 'rectangle' | 'fib' | 'long' | 'volprofile') => {
       setDrawingTool(tool === drawingTool ? 'cursor' : tool);
       if (tool !== 'cursor') {
           toast.info(`Select two points for ${tool}`);
@@ -2209,7 +2107,7 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
       
       {/* Empty State / Expired Subscription Overlay */}
       {allowedPairs.length === 0 && (
-          <div className="absolute inset-0 z-[100] flex items-center justify-center bg-[#020408] backdrop-blur-md">
+          <div className="absolute inset-0 z-100 flex items-center justify-center bg-[#020408] backdrop-blur-md">
               <div className="relative z-10 max-w-md w-full text-center space-y-6 p-8 rounded-3xl border border-white/5 bg-[#0A0A0A]/80 shadow-2xl">
                   {/* Icon */}
                   <div className="mx-auto w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
@@ -2265,7 +2163,7 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                     <ChevronDown size={14} className="text-gray-500 ml-1 group-hover:text-white transition-colors" />
                 </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="min-w-[160px] border border-white/10 bg-[#0A0A0A]/95 backdrop-blur-xl p-1 text-gray-200 shadow-[0_20px_50px_rgba(0,0,0,0.8)] rounded-xl z-50 max-h-[400px] overflow-y-auto">
+            <DropdownMenuContent className="min-w-40 border border-white/10 bg-[#0A0A0A]/95 backdrop-blur-xl p-1 text-gray-200 shadow-[0_20px_50px_rgba(0,0,0,0.8)] rounded-xl z-50 max-h-100 overflow-y-auto">
                 {['Metals', 'Crypto', 'Forex', 'Indices'].map(category => {
                     const categorySymbols = allowedPairs.filter(s => SYMBOL_CATEGORIES[s] === category);
                     if (categorySymbols.length === 0) return null;
@@ -2350,7 +2248,7 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                      <Settings size={16} />
                   </button>
                 </DropdownMenuTrigger>
-                  <DropdownMenuContent className="min-w-[260px] border border-white/10 bg-[#0A0A0A]/95 backdrop-blur-xl p-2 text-gray-200 shadow-[0_20px_50px_rgba(0,0,0,0.8)] rounded-xl z-50">
+                  <DropdownMenuContent className="min-w-65 border border-white/10 bg-[#0A0A0A]/95 backdrop-blur-xl p-2 text-gray-200 shadow-[0_20px_50px_rgba(0,0,0,0.8)] rounded-xl z-50">
                    <DropdownMenuLabel className="px-2 py-2 text-[10px] font-black uppercase tracking-widest text-gray-500">Indicators</DropdownMenuLabel>
                    
 
@@ -2367,22 +2265,123 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                           {ind}
                        </DropdownMenuCheckboxItem>
                    ))}
+                   
                    <div className="h-px w-full bg-white/5 my-2" />
-                   <div className="px-2 py-2">
-                        <Label className="text-[10px] font-black uppercase text-gray-500 mb-2 block tracking-widest">Footprint Font Scale</Label>
-                        <div className="flex items-center gap-2">
-                            <Input
-                                type="range"
-                                min="0.5"
-                                max="3"
-                                step="0.1"
-                                className="h-2 flex-1 accent-[#2962FF] bg-white/10 rounded-full appearance-none cursor-pointer"
-                                value={footprintFontScale}
-                                onChange={(e) => setFootprintFontScale(parseFloat(e.target.value))}
-                            />
-                            <span className="text-[10px] font-mono font-bold w-8 text-right">{footprintFontScale.toFixed(1)}x</span>
-                        </div>
+                   <DropdownMenuLabel className="px-2 py-2 text-[10px] font-black uppercase tracking-widest text-gray-500">Footprint</DropdownMenuLabel>
+                   <div className="px-2 pb-2 space-y-3">
+                       <div className="flex items-center justify-between">
+                           <Label className="text-xs text-gray-300 font-medium">Font Size</Label>
+                           <Input 
+                               type="number" 
+                               className="h-7 w-16 bg-[#050505] border-white/10 text-xs text-right"
+                               value={footprintSettings.fontSize}
+                               onChange={(e) => setFootprintSettings({ fontSize: Number(e.target.value) })}
+                           />
+                       </div>
+                       <div className="flex items-center justify-between">
+                           <Label className="text-xs text-gray-300 font-medium">Imbalance Ratio</Label>
+                           <Input 
+                               type="number" 
+                               step="0.1"
+                               className="h-7 w-16 bg-[#050505] border-white/10 text-xs text-right"
+                               value={footprintSettings.imbalanceRatio}
+                               onChange={(e) => setFootprintSettings({ imbalanceRatio: Number(e.target.value) })}
+                           />
+                       </div>
+                       <DropdownMenuCheckboxItem
+                            checked={footprintSettings.showDeltaSummary}
+                            onCheckedChange={(c) => setFootprintSettings({ showDeltaSummary: !!c })}
+                            className="cursor-pointer rounded-lg px-2 py-1.5 text-xs hover:bg-white/5 data-[state=checked]:text-[#2962FF]"
+                       >
+                            Show Delta Summary
+                       </DropdownMenuCheckboxItem>
                    </div>
+
+                   <div className="h-px w-full bg-white/5 my-2" />
+                   <DropdownMenuLabel className="px-2 py-2 text-[10px] font-black uppercase tracking-widest text-gray-500">HTF Profile</DropdownMenuLabel>
+                   <div className="px-2 pb-2 space-y-3">
+                       <DropdownMenuCheckboxItem
+                            checked={htfSettings.enabled}
+                            onCheckedChange={(c) => setHTFSettings({ enabled: !!c })}
+                            className="cursor-pointer rounded-lg px-2 py-1.5 text-xs hover:bg-white/5 data-[state=checked]:text-[#2962FF]"
+                       >
+                            Enable HTF Profile
+                       </DropdownMenuCheckboxItem>
+                       
+                       {htfSettings.enabled && (
+                           <>
+                               <div className="flex items-center justify-between">
+                                   <Label className="text-xs text-gray-300 font-medium">Timeframe</Label>
+                                   <div className="flex gap-1">
+                                       {['Auto', '1H', '4H', '1D'].map((tf) => (
+                                           <button
+                                               key={tf}
+                                               onClick={() => setHTFSettings({ timeframe: tf as any })}
+                                               className={`px-2 py-1 text-[10px] rounded border transition-colors ${
+                                                   htfSettings.timeframe === tf 
+                                                   ? 'bg-[#2962FF] border-[#2962FF] text-white' 
+                                                   : 'bg-transparent border-white/10 text-gray-400 hover:text-white hover:bg-white/5'
+                                               }`}
+                                           >
+                                               {tf}
+                                           </button>
+                                       ))}
+                                   </div>
+                               </div>
+
+                               <div className="flex items-center justify-between">
+                                   <Label className="text-xs text-gray-300 font-medium">Width %</Label>
+                                   <Input 
+                                       type="number" 
+                                       min="10" max="100"
+                                       className="h-7 w-16 bg-[#050505] border-white/10 text-xs text-right"
+                                       value={htfSettings.widthPercentage}
+                                       onChange={(e) => setHTFSettings({ widthPercentage: Number(e.target.value) })}
+                                   />
+                               </div>
+
+                               <div className="flex flex-col gap-2 pt-1">
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-xs text-gray-300 font-medium">Align Right</Label>
+                                        <input 
+                                            type="checkbox"
+                                            checked={htfSettings.align === 'right'}
+                                            onChange={(e) => setHTFSettings({ align: e.target.checked ? 'right' : 'left' })}
+                                            className="accent-[#2962FF] h-3 w-3 cursor-pointer"
+                                        />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-xs text-gray-300 font-medium">Show Profile</Label>
+                                        <input 
+                                            type="checkbox"
+                                            checked={htfSettings.showProfile}
+                                            onChange={(e) => setHTFSettings({ showProfile: e.target.checked })}
+                                            className="accent-[#2962FF] h-3 w-3 cursor-pointer"
+                                        />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-xs text-gray-300 font-medium">Show Outline</Label>
+                                        <input 
+                                            type="checkbox"
+                                            checked={htfSettings.showOutline}
+                                            onChange={(e) => setHTFSettings({ showOutline: e.target.checked })}
+                                            className="accent-[#2962FF] h-3 w-3 cursor-pointer"
+                                        />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-xs text-gray-300 font-medium">Show POC</Label>
+                                        <input 
+                                            type="checkbox"
+                                            checked={htfSettings.showPOC}
+                                            onChange={(e) => setHTFSettings({ showPOC: e.target.checked })}
+                                            className="accent-[#2962FF] h-3 w-3 cursor-pointer"
+                                        />
+                                    </div>
+                               </div>
+                           </>
+                       )}
+                   </div>
+
                    <div className="h-px w-full bg-white/5 my-2" />
                    <div className="px-2 py-2">
                         <Label className="text-[10px] font-black uppercase text-gray-500 mb-2 block tracking-widest">Calibration</Label>
@@ -2446,7 +2445,7 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                            ? 'text-white bg-linear-to-br from-[#2962FF] to-[#0039CB] shadow-[0_0_15px_#2962FF]' 
                            : 'text-gray-400 hover:text-white hover:bg-white/10'
                        }`}
-                       onClick={() => tool.id === 'cursor' ? setDrawingTool('cursor') : tool.id === 'horizontal' ? setDrawingTool('horizontal') : toggleDrawingTool(tool.id as 'trend' | 'rectangle' | 'fib' | 'long' | 'volprofile' | 'footprint')}
+                       onClick={() => tool.id === 'cursor' ? setDrawingTool('cursor') : tool.id === 'horizontal' ? setDrawingTool('horizontal') : toggleDrawingTool(tool.id as 'trend' | 'rectangle' | 'fib' | 'long' | 'volprofile')}
                        title={tool.label}
                     >
                        <tool.icon size={18} className={`transition-transform duration-300 ${tool.rotate ? 'rotate-90' : ''} ${drawingTool === tool.id ? 'scale-110' : 'group-hover/tool:scale-110'}`} />
@@ -2461,20 +2460,20 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                 {/* Footprint Toggle */}
                 <div 
                    className={`relative flex items-center justify-center rounded-full h-9 w-9 cursor-pointer transition-all duration-300 group/tool ${
-                       showOrderflow 
+                       footprintSettings.enabled 
                        ? 'text-white bg-linear-to-br from-[#2962FF] to-[#0039CB] shadow-[0_0_15px_#2962FF]' 
                        : 'text-gray-400 hover:text-white hover:bg-white/10'
                    }`}
-                   onClick={() => setShowOrderflow(!showOrderflow)}
-                   title="Footprint / Orderflow"
+                   onClick={toggleFootprint}
+                   title="Toggle Footprint"
                 >
-                   <Footprints size={18} className={`transition-transform duration-300 ${showOrderflow ? 'scale-110' : 'group-hover/tool:scale-110'}`} />
+                   <Table size={18} className={`transition-transform duration-300 ${footprintSettings.enabled ? 'scale-110' : 'group-hover/tool:scale-110'}`} />
                    
-                   {/* Tooltip */}
                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 md:left-full md:ml-4 md:bottom-auto md:mb-0 md:translate-x-0 px-2 py-1 rounded bg-black border border-white/10 text-[10px] font-bold text-white opacity-0 group-hover/tool:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
                        Footprint
                    </div>
                 </div>
+
                 <div className="md:h-px md:w-full md:my-1 w-px h-6 mx-1 bg-white/10" />
                 <div 
                    className="flex items-center justify-center rounded-full h-9 w-9 cursor-pointer text-gray-500 hover:text-red-500 hover:bg-red-500/10 transition-colors"
@@ -2533,8 +2532,8 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
         </div>
 
           {/* Notifications Slide-over Sidebar */}
-          <div className={`h-full bg-[#050505]/95 backdrop-blur-xl border-l border-white/10 z-50 transition-all duration-300 ease-in-out flex flex-col shadow-[-20px_0_50px_rgba(0,0,0,0.5)] ${showNotifications ? 'w-[380px] opacity-100' : 'w-0 opacity-0 overflow-hidden'}`}>
-               <div className="w-[380px] h-full flex flex-col min-w-[380px]">
+          <div className={`h-full bg-[#050505]/95 backdrop-blur-xl border-l border-white/10 z-50 transition-all duration-300 ease-in-out flex flex-col shadow-[-20px_0_50px_rgba(0,0,0,0.5)] ${showNotifications ? 'w-95 opacity-100' : 'w-0 opacity-0 overflow-hidden'}`}>
+               <div className="w-95 h-full flex flex-col min-w-95">
                <div className="flex items-center justify-between p-4 border-b border-white/5">
                    <div className="flex items-center gap-2">
                        <div className="p-2 rounded-lg bg-[#2962FF]/10 text-[#2962FF]">

@@ -5,18 +5,8 @@ import {
   ConfluenceSettings, LiquiditySettings, SmartAlert, PivotSettings, EntryLineSettings
 } from '@/types';
 import { SRSettings, TradeSetup } from '@/types/srTypes';
-// Deprecated but needed for now
-interface FootprintSettings {
-  enabled: boolean;
-  priceStep: number | 'auto';
-  showDeltaTotal: boolean;
-  showImbalances: boolean;
-  imbalanceRatio: number;
-  fontSize: number;
-  cellPadding: number;
-  intensityScale: 'auto' | 'manual';
-  maxCandlesRendered: number;
-}
+import { FootprintSettings } from '@/types/footprintTypes';
+import { HTFSettings } from '@/types/htfTypes';
 
 interface ChartState {
   // Chart Config
@@ -46,10 +36,15 @@ interface ChartState {
   availableSetups: TradeSetup[];
   setAvailableSetups: (setups: TradeSetup[]) => void;
 
-  // Footprint (Deprecated but kept for type safety until full cleanup)
+  // Footprint
   footprintSettings: FootprintSettings;
   setFootprintSettings: (settings: Partial<FootprintSettings>) => void;
   toggleFootprint: () => void;
+
+  // HTF Candle Profile
+  htfSettings: HTFSettings;
+  setHTFSettings: (settings: Partial<HTFSettings>) => void;
+  toggleHTF: () => void;
 
   // Confluence
   confluenceSettings: ConfluenceSettings;
@@ -197,20 +192,54 @@ export const useChartStore = create<ChartState>()(
       // Footprint
       footprintSettings: {
         enabled: false,
-        priceStep: 'auto',
-        showDeltaTotal: true,
-        showImbalances: true,
+        mode: 'bid_ask',
+        showText: true,
+        showDeltaSummary: true,
         imbalanceRatio: 3.0,
-        fontSize: 11,
-        cellPadding: 2,
-        intensityScale: 'auto',
-        maxCandlesRendered: 30, // Reduced from 80 for performance/loading safety
+        fontSize: 10,
+        rowHeight: 'auto',
+        colorScheme: {
+          buy: '#B2DFDB', // Light Teal
+          sell: '#FFCDD2', // Light Red
+          imbalanceBuy: '#00897B', // Strong Teal
+          imbalanceSell: '#E53935', // Strong Red
+          text: '#000000', // Default text color
+          background: 'transparent'
+        }
       },
-      setFootprintSettings: (settings) => set((state) => ({ 
-        footprintSettings: { ...state.footprintSettings, ...settings } 
+      setFootprintSettings: (settings) => set((state) => ({
+        footprintSettings: { ...state.footprintSettings, ...settings }
       })),
-      toggleFootprint: () => set((state) => ({ 
-        footprintSettings: { ...state.footprintSettings, enabled: !state.footprintSettings.enabled } 
+      toggleFootprint: () => set((state) => ({
+        footprintSettings: { ...state.footprintSettings, enabled: !state.footprintSettings.enabled }
+      })),
+
+      // HTF Candle Profile
+      htfSettings: {
+        enabled: false,
+        timeframe: 'Auto',
+        showOutline: true,
+        showProfile: true,
+        showPOC: true,
+        showValueArea: false,
+        widthPercentage: 50,
+        align: 'right',
+        colorScheme: {
+          outlineUp: '#089981',
+          outlineDown: '#F23645',
+          profileUp: '#B2DFDB',
+          profileDown: '#FFCDD2',
+          poc: '#FFFF00', // Yellow
+          val: '#808080',
+          vah: '#808080',
+          background: 'transparent'
+        }
+      },
+      setHTFSettings: (settings) => set((state) => ({
+        htfSettings: { ...state.htfSettings, ...settings }
+      })),
+      toggleHTF: () => set((state) => ({
+        htfSettings: { ...state.htfSettings, enabled: !state.htfSettings.enabled }
       })),
 
       // Confluence

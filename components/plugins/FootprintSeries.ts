@@ -1,323 +1,310 @@
-
 import {
-	CustomSeriesPricePlotValues,
-	ICustomSeriesPaneView,
-	PaneRendererCustomData,
-	Time,
-	WhitespaceData,
-    ICustomSeriesPaneRenderer,
-    CustomSeriesOptions,
+    ISeriesPrimitive,
+    IPrimitivePaneRenderer,
+    IPrimitivePaneView,
+    ISeriesApi,
+    SeriesOptionsMap,
+    Time,
+    IChartApi,
+    PrimitivePaneViewZOrder,
 } from 'lightweight-charts';
+import { FootprintCandle, FootprintSettings } from '@/types/footprintTypes';
 
-export interface FootprintLevel {
-    price: number;
-    buy: number;
-    sell: number;
-    volume: number;
-    imbalance?: 'buy' | 'sell' | 'none'; // 300% ratio
+interface CanvasRenderingTarget2D {
+    useMediaCoordinateSpace: (callback: (scope: { context: CanvasRenderingContext2D, mediaSize: { width: number, height: number } }) => void) => void;
 }
 
-export interface FootprintData {
-	time: Time;
-	open: number;
-	high: number;
-	low: number;
-	close: number;
-    profile: FootprintLevel[];
-    // Add custom color if needed for CustomData compatibility
-    color?: string; 
-}
+// Helper for volume formatting (K/M)
+const formatVolume = (num: number): string => {
+    if (num === 0) return '0';
+    if (Math.abs(num) >= 1_000_000) {
+        return (num / 1_000_000).toFixed(3) + ' M';
+    }
+    if (Math.abs(num) >= 1_000) {
+        return (num / 1_000).toFixed(3) + ' K';
+    }
+    return num.toString();
+};
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface FootprintSeriesOptions extends CustomSeriesOptions {
-    // Custom options specific to footprint
-}
+class FootprintRenderer implements IPrimitivePaneRenderer {
+    _data: FootprintCandle[] = [];
+    _settings: FootprintSettings;
+    _chart: IChartApi;
+    _series: ISeriesApi<keyof SeriesOptionsMap>;
 
-class FootprintSeriesRenderer implements ICustomSeriesPaneRenderer {
-	_data: PaneRendererCustomData<Time, FootprintData> | null = null;
-	_options: FootprintSeriesOptions | null = null;
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-	draw(target: any, priceConverter: any): void {
-		target.useMediaCoordinateSpace(({ context: ctx }: { context: CanvasRenderingContext2D }) => {
-            this._drawImpl(ctx, priceConverter);
-        });
+    constructor(chart: IChartApi, series: ISeriesApi<keyof SeriesOptionsMap>, settings: FootprintSettings) {
+        this._chart = chart;
+        this._series = series;
+        this._settings = {
+            ...settings,
+            colorScheme: settings.colorScheme || {
+                buy: '#B2DFDB',
+                sell: '#FFCDD2',
+                imbalanceBuy: '#00897B',
+                imbalanceSell: '#E53935',
+                text: '#000000',
+                background: 'transparent'
+            }
+        };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    _drawImpl(ctx: CanvasRenderingContext2D, priceConverter: any): void {
-		if (!this._data || this._data.bars.length === 0) return;
-		
-        ctx.save();
-
-        const barSpacing = this._data.barSpacing;
-        const isMobile = window.innerWidth < 768;
-        
-        // Adjust thresholds for mobile to prevent clutter
-        // On mobile, we need more zoom (larger barSpacing) to start showing details
-        const detailsThreshold = isMobile ? 35 : 20; 
-        const textThreshold = isMobile ? 55 : 40;
-
-        // Adjust width based on zoom
-        const gap = 8; // Gap between Buy and Sell columns (Increased from 2)
-        const cellWidth = (barSpacing * 0.45) - (gap / 2); 
-        
-        // Dynamic font size calculation
-        // We want the font to fit within cellWidth with some padding
-        // Start with a rough estimate based on barSpacing
-        const calculatedFontSize = barSpacing * 0.35; // Increased from 0.3 for better visibility
-        
-        // Clamp font size
-        // Min size: 7px (barely readable) - below this we shouldn't render text
-        // Max size: 12px (desktop), 10px (mobile)
-        const minFontSize = 10; // Increased min size
-        const maxFontSize = isMobile ? 13 : 16; // Increased max size
-        
-        const fontSize = Math.min(maxFontSize, Math.max(minFontSize, calculatedFontSize));
-        
-        ctx.font = `bold ${fontSize.toFixed(1)}px "Roboto Mono", monospace`;
-        ctx.textBaseline = 'middle';
-
-        // Helper to shorten large numbers
-        const formatVol = (v: number) => {
-            if (v >= 10000) return (v / 1000).toFixed(0) + 'k'; // 12k
-            if (v >= 1000) return (v / 1000).toFixed(1) + 'k'; // 1.2k
-            return v.toString();
-        };
-
-        // Safe converter wrapper
-        const toY = (price: number) => {
-            if (typeof priceConverter === 'function') return priceConverter(price);
-            if (priceConverter?.convert) return priceConverter.convert(price);
-            return null;
-        };
-
-		this._data.bars.forEach(bar => {
-            if (!bar.originalData || !bar.originalData.profile) return;
-            
-            const data = bar.originalData;
-            const x = bar.x;
-            const isUp = data.close >= data.open;
-            
-            // Calculate Candle Body & Wick
-            const highY = toY(data.high);
-            const lowY = toY(data.low);
-            const openY = toY(data.open);
-            const closeY = toY(data.close);
-            
-            if (highY === null || lowY === null || openY === null || closeY === null) return;
-
-            // Draw Wick
-            ctx.beginPath();
-            ctx.moveTo(x, highY);
-            ctx.lineTo(x, lowY);
-            ctx.strokeStyle = isUp ? '#089981' : '#F23645';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-
-            // If zoomed out, draw regular candle body
-            if (barSpacing <= detailsThreshold) {
-                 const bodyTop = Math.min(openY, closeY);
-                 const bodyHeight = Math.max(1, Math.abs(closeY - openY));
-                 ctx.fillStyle = isUp ? '#089981' : '#F23645';
-                 ctx.fillRect(x - barSpacing * 0.25, bodyTop, barSpacing * 0.5, bodyHeight);
-                 return; // Skip footprint details
+    update(data: FootprintCandle[], settings: FootprintSettings) {
+        this._data = data;
+        // Ensure colorScheme exists with defaults to prevent runtime errors
+        this._settings = {
+            ...settings,
+            colorScheme: settings.colorScheme || {
+                buy: '#B2DFDB', 
+                sell: '#FFCDD2', 
+                imbalanceBuy: '#00897B', 
+                imbalanceSell: '#E53935', 
+                text: '#000000', 
+                background: 'transparent'
             }
-            
-            // Find POC (Max Volume)
-            let maxVol = 0;
-            // let pocIndex = -1;
-            data.profile.forEach((level) => {
-                if (level.volume > maxVol) {
-                    maxVol = level.volume;
-                    // pocIndex = idx;
-                }
-            });
+        };
+    }
 
-            // Sort profile for rendering (High Price to Low Price usually, but Y coordinates handle this)
-            // We iterate profile.
-            
-            const sortedProfile = [...data.profile].sort((a, b) => b.price - a.price);
+    draw(target: CanvasRenderingTarget2D) {
+        target.useMediaCoordinateSpace(({ context: ctx, mediaSize }: { context: CanvasRenderingContext2D, mediaSize: { width: number, height: number } }) => {
+            if (!this._data || this._data.length === 0 || !this._settings.enabled) return;
 
-            sortedProfile.forEach((level, index) => {
-                const y = toY(level.price);
-                if (y === null) return;
+            const timeScale = this._chart.timeScale();
+            // Check if we have visible range
+            if (timeScale.getVisibleLogicalRange() === null) return;
 
-                // Determine row height
-                // Estimate based on previous/next
-                let rowHeight = 0;
-                if (index < sortedProfile.length - 1) {
-                    const nextY = toY(sortedProfile[index + 1].price);
-                    if (nextY !== null) rowHeight = Math.abs(nextY - y);
-                } else if (index > 0) {
-                     const prevY = toY(sortedProfile[index - 1].price);
-                     if (prevY !== null) rowHeight = Math.abs(y - prevY);
-                }
-                
-                // If rowHeight is invalid or 0, fallback
-                if (rowHeight <= 0) rowHeight = 20;
+            // Ensure settings and color scheme are fully populated
+            const colorScheme = this._settings.colorScheme || {};
+            const colors = {
+                buy: colorScheme.buy || '#B2DFDB',
+                sell: colorScheme.sell || '#FFCDD2',
+                imbalanceBuy: colorScheme.imbalanceBuy || '#00897B',
+                imbalanceSell: colorScheme.imbalanceSell || '#E53935',
+                text: colorScheme.text || '#000000',
+                background: colorScheme.background || 'transparent'
+            };
 
-                // FIX: Strictly limit drawHeight to rowHeight to prevent vertical overlap
-                // Subtract 1px for visual separation
-                const drawHeight = Math.max(1, rowHeight - 0.5); 
-                
-                const halfGap = gap / 2;
-                const leftX = x - halfGap - cellWidth;
-                const rightX = x + halfGap;
+            ctx.save();
+            ctx.font = `${this._settings.fontSize}px sans-serif`; // e.g. "10px sans-serif"
+            ctx.textBaseline = 'middle';
 
-                // --- Backgrounds ---
-                // Imbalance Buy (Green)
-                if (level.imbalance === 'buy') {
-                    ctx.fillStyle = 'rgba(8, 153, 129, 0.5)'; // Increased opacity
-                    ctx.fillRect(rightX, y - drawHeight/2, cellWidth, drawHeight);
-                }
-                // Imbalance Sell (Red)
-                else if (level.imbalance === 'sell') {
-                    ctx.fillStyle = 'rgba(242, 54, 69, 0.5)'; // Increased opacity
-                    ctx.fillRect(leftX, y - drawHeight/2, cellWidth, drawHeight);
+            // Constants
+            const barSpacing = timeScale.options().barSpacing;
+            // The total width available for the footprint columns
+            const barWidth = Math.max(1, barSpacing * 0.95); 
+            const gap = 2; // Gap between Bid and Ask columns
+            const columnWidth = (barWidth - gap) / 2;
+
+            // Visibility checks
+            // Show text if we have enough space. 
+            // Force text to show even if tight, unless disabled by user
+            const showText = this._settings.showText !== false; // Default to true if undefined
+
+            this._data.forEach(candle => {
+                const x = timeScale.timeToCoordinate(candle.time as Time);
+                // Visibility check
+                if (x === null || x < -barWidth || x > mediaSize.width + barWidth) return;
+
+                // 1. Calculate Tick Size (Row Height)
+                let tickSize = 0.1;
+                if (candle.levels.length > 1) {
+                    tickSize = Math.abs(candle.levels[1].price - candle.levels[0].price);
                 }
 
-                // POC Highlight (Yellow Border)
-                const isPOC = level.volume === maxVol;
-                
-                if (isPOC) {
-                    ctx.lineWidth = 2;
-                    ctx.strokeStyle = '#FFD700'; // Gold
-                    // POC covers both columns + gap
-                    ctx.strokeRect(leftX, y - drawHeight/2, (cellWidth * 2) + gap, drawHeight);
-                }
+                // 2. Identify Point of Control (POC) - Level with Max Volume
+                let maxVol = 0;
+                let pocIndex = -1;
+                candle.levels.forEach((lvl, idx) => {
+                    if (lvl.volume > maxVol) {
+                        maxVol = lvl.volume;
+                        pocIndex = idx;
+                    }
+                });
 
-                // Grid lines (Horizontal)
-                // Only draw if we have enough height
-                if (rowHeight > 4) {
-                    // Left side
-                    ctx.beginPath();
-                    ctx.moveTo(leftX, y + drawHeight/2);
-                    ctx.lineTo(leftX + cellWidth, y + drawHeight/2);
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-                    ctx.lineWidth = 0.5;
-                    ctx.stroke();
-                    
-                    // Right side
-                    ctx.beginPath();
-                    ctx.moveTo(rightX, y + drawHeight/2);
-                    ctx.lineTo(rightX + cellWidth, y + drawHeight/2);
-                    ctx.stroke();
-                }
+                // 3. Draw Levels
+                candle.levels.forEach((level, index) => {
+                    const y = this._series.priceToCoordinate(level.price);
+                    if (y === null) return;
 
-                // --- Text ---
-                // FIX: Only render text if we have enough VERTICAL space
-                // AND enough horizontal space
-                if (barSpacing > textThreshold && calculatedFontSize >= minFontSize && rowHeight >= 12) {
-                    
-                    const sellText = formatVol(level.sell);
-                    const buyText = formatVol(level.buy);
-
-                    // Check if text fits in cellWidth
-                    const sellWidth = ctx.measureText(sellText).width;
-                    const buyWidth = ctx.measureText(buyText).width;
-                    
-                    // Allow small overflow (10%) but not massive overlap
-                    const maxTextWidth = cellWidth * 1.1;
-
-                    // Adjust font size to fit vertically
-                    // Ensure text doesn't bleed into next row
-                    const maxVerticalFontSize = rowHeight * 0.85;
-                    const finalFontSize = Math.min(fontSize, maxVerticalFontSize);
-
-                    // Skip if text would be too tiny
-                    if (finalFontSize < 9) return;
-
-                    const fontSpec = `bold ${finalFontSize.toFixed(1)}px "Roboto Mono", monospace`;
-
-                    // Sell Volume (Left)
-                    if (sellWidth <= maxTextWidth) {
-                        ctx.textAlign = 'center';
-                        
-                        // Color logic: White if imbalance, Gray otherwise
-                        ctx.fillStyle = level.imbalance === 'sell' ? '#FFFFFF' : '#9ca3af';
-                        if (level.imbalance === 'sell') ctx.font = fontSpec;
-                        else ctx.font = `${finalFontSize.toFixed(1)}px "Roboto Mono", monospace`;
-
-                        // Add shadow for better contrast
-                        ctx.shadowColor = 'rgba(0,0,0,0.8)';
-                        ctx.shadowBlur = 2;
-
-                        if (level.sell > 0) ctx.fillText(sellText, leftX + cellWidth/2, y);
-                        
-                        ctx.shadowColor = 'transparent'; // Reset
-                        ctx.shadowBlur = 0;
+                    // Calculate cell height
+                    const nextPriceY = this._series.priceToCoordinate(level.price + tickSize);
+                    let cellHeight = 14; 
+                    if (nextPriceY !== null) {
+                        cellHeight = Math.abs(y - nextPriceY);
                     }
                     
-                    // Buy Volume (Right)
-                    if (buyWidth <= maxTextWidth) {
+                    // Min height constraint for visibility
+                    const minVisibleHeight = 2;
+                    if (cellHeight < minVisibleHeight) cellHeight = minVisibleHeight;
+
+                    // Text visibility threshold based on height
+                    const textFitsHeight = cellHeight >= 10;
+                    const effectiveShowText = showText && textFitsHeight;
+
+                    // Coordinates
+                    const topY = y - cellHeight / 2;
+                    // const bottomY = y + cellHeight / 2;
+
+                    // --- Left (Bid/Sell) ---
+                    const xLeft = x - (gap / 2) - columnWidth;
+                    
+                    // Color Logic for Bid
+                    let bidBg = colors.sell; 
+                    let bidText = colors.text;
+
+                    // Imbalance (Stronger Red)
+                    if (level.imbalance === 'bid') {
+                        bidBg = colors.imbalanceSell;
+                        bidText = '#FFFFFF'; // White text on dark bg
+                    }
+                    // POC (Black) - Overrides imbalance color for background usually, or just highlights
+                    if (index === pocIndex) {
+                        // In some charts POC is a border, in the image provided some cells are black. 
+                        // Let's assume black cell = POC or very high volume.
+                        // We'll treat POC as Black background.
+                        bidBg = '#000000';
+                        bidText = '#FFFFFF';
+                    }
+
+                    ctx.fillStyle = bidBg;
+                    // Add a tiny padding between rows (0.5px)
+                    ctx.fillRect(xLeft, topY + 0.5, columnWidth, cellHeight - 1);
+
+                    if (effectiveShowText) {
+                        ctx.fillStyle = bidText;
                         ctx.textAlign = 'center';
-                        ctx.fillStyle = level.imbalance === 'buy' ? '#FFFFFF' : '#9ca3af';
-                        if (level.imbalance === 'buy') ctx.font = fontSpec;
-                        else ctx.font = `${finalFontSize.toFixed(1)}px "Roboto Mono", monospace`;
+                        ctx.font = `500 ${this._settings.fontSize}px sans-serif`; // Bold-ish
+                        // Always draw if showText is true
+                        ctx.fillText(formatVolume(level.bid), xLeft + columnWidth / 2, y);
+                    }
 
-                        // Add shadow for better contrast
-                        ctx.shadowColor = 'rgba(0,0,0,0.8)';
-                        ctx.shadowBlur = 2;
+                    // --- Right (Ask/Buy) ---
+                    const xRight = x + (gap / 2);
 
-                        if (level.buy > 0) ctx.fillText(buyText, rightX + cellWidth/2, y);
+                    // Color Logic for Ask
+                    let askBg = colors.buy; 
+                    let askText = colors.text; 
 
-                        ctx.shadowColor = 'transparent'; // Reset
-                        ctx.shadowBlur = 0;
+                    // Imbalance (Stronger Teal)
+                    if (level.imbalance === 'ask') {
+                        askBg = colors.imbalanceBuy;
+                        askText = '#FFFFFF';
+                    }
+                    // POC (Black)
+                    if (index === pocIndex) {
+                        askBg = '#000000';
+                        askText = '#FFFFFF';
+                    }
+
+                    ctx.fillStyle = askBg;
+                    ctx.fillRect(xRight, topY + 0.5, columnWidth, cellHeight - 1);
+
+                    if (effectiveShowText) {
+                        ctx.fillStyle = askText;
+                        ctx.textAlign = 'center';
+                        ctx.font = `500 ${this._settings.fontSize}px sans-serif`;
+                        // Always draw if showText is true
+                        ctx.fillText(formatVolume(level.ask), xRight + columnWidth / 2, y);
+                    }
+                });
+
+                // 4. Draw Delta Summary Box
+                if (this._settings.showDeltaSummary) {
+                    const yLow = this._series.priceToCoordinate(candle.low);
+                    if (yLow !== null) {
+                        const boxY = yLow + 20; 
+                        const boxWidth = Math.max(80, barWidth * 1.2); // Min width or proportional
+                        const boxHeight = 36;
+                        const boxX = x - boxWidth / 2;
+
+                        // Only draw if we have enough horizontal space or if it's the hovered candle (not handled here yet)
+                        // Lower threshold to ensure it shows up more often
+                        if (barSpacing > 40) {
+                            // Draw Shadow/Border
+                            ctx.shadowColor = 'rgba(0,0,0,0.1)';
+                            ctx.shadowBlur = 4;
+                            ctx.shadowOffsetY = 2;
+                            
+                            ctx.fillStyle = '#FFFFFF';
+                            ctx.beginPath();
+                            ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 4);
+                            ctx.fill();
+                            
+                            ctx.shadowColor = 'transparent'; // Reset shadow
+
+                            // Text
+                            ctx.textAlign = 'center';
+                            
+                            // Delta Line
+                            ctx.font = '600 10px sans-serif';
+                            ctx.fillStyle = candle.delta > 0 ? '#00897B' : '#E53935'; // Strong Teal or Red
+                            ctx.fillText(`Delta  ${formatVolume(candle.delta)}`, x, boxY + 12);
+
+                            // Total Line
+                            ctx.fillStyle = '#000000';
+                            ctx.font = '600 10px sans-serif';
+                            ctx.fillText(`Total  ${formatVolume(candle.volume)}`, x, boxY + 26);
+                        }
                     }
                 }
             });
-            
-            // Draw Box around the profile for this bar
-            if (barSpacing > 40 && sortedProfile.length > 0) {
-                const topY = toY(sortedProfile[0].price);
-                const bottomY = toY(sortedProfile[sortedProfile.length-1].price);
-                if (topY !== null && bottomY !== null) {
-                    // Outer border
-                    // ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-                    // ctx.strokeRect(x - cellWidth, topY - 10, cellWidth * 2, (bottomY - topY) + 20);
-                }
-            }
-		});
 
-		ctx.restore();
-	}
-
-	update(data: PaneRendererCustomData<Time, FootprintData>, options: FootprintSeriesOptions): void {
-		this._data = data;
-		this._options = options;
-	}
+            ctx.restore();
+        });
+    }
 }
 
-export class FootprintSeries implements ICustomSeriesPaneView<Time, FootprintData, FootprintSeriesOptions> {
-	_renderer: FootprintSeriesRenderer;
+export class FootprintSeries implements ISeriesPrimitive {
+    _chart: IChartApi;
+    _series: ISeriesApi<keyof SeriesOptionsMap>;
+    _settings: FootprintSettings;
+    _data: FootprintCandle[] = [];
+    _paneViews: IPrimitivePaneView[];
+    _renderer: FootprintRenderer;
 
-	constructor() {
-		this._renderer = new FootprintSeriesRenderer();
-	}
+    constructor(chart: IChartApi, series: ISeriesApi<keyof SeriesOptionsMap>, settings: FootprintSettings) {
+        this._chart = chart;
+        this._series = series;
+        this._settings = settings;
+        
+        this._renderer = new FootprintRenderer(chart, series, settings);
+        
+        this._paneViews = [{
+            renderer: () => this._renderer,
+            zOrder: () => 'top' as PrimitivePaneViewZOrder, 
+        }];
+    }
 
-	priceValueBuilder(plotRow: FootprintData): CustomSeriesPricePlotValues {
-		return [plotRow.high, plotRow.low, plotRow.close];
-	}
+    updateData(data: FootprintCandle[]) {
+        this._data = data;
+        this._updateRenderer();
+    }
 
-	isWhitespace(data: FootprintData | WhitespaceData): data is WhitespaceData {
-		return (data as Partial<FootprintData>).close === undefined;
-	}
+    updateLastCandle(candle: FootprintCandle) {
+        if (this._data.length === 0) {
+            this._data.push(candle);
+        } else {
+            const last = this._data[this._data.length - 1];
+            if (last.time === candle.time) {
+                this._data[this._data.length - 1] = candle;
+            } else {
+                this._data.push(candle);
+            }
+        }
+        this._updateRenderer();
+    }
+    
+    updateSettings(settings: FootprintSettings) {
+        this._settings = settings;
+        this._updateRenderer();
+    }
 
-	renderer(): ICustomSeriesPaneRenderer {
-		return this._renderer;
-	}
+    _updateRenderer() {
+        this._renderer.update(this._data, this._settings);
+        // Force chart redraw
+        this._series.applyOptions({}); 
+    }
 
-	update(
-		data: PaneRendererCustomData<Time, FootprintData>,
-		options: FootprintSeriesOptions
-	): void {
-		this._renderer.update(data, options);
-	}
-
-	defaultOptions(): FootprintSeriesOptions {
-		return {
-			...this._renderer._options,
-		} as FootprintSeriesOptions;
-	}
+    paneViews() {
+        return this._paneViews;
+    }
 }
