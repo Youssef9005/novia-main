@@ -32,6 +32,12 @@ class HTFProfileRenderer implements IPrimitivePaneRenderer {
         this._settings = settings;
     }
 
+    _formatVolume(num: number): string {
+        if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+        if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+        return num.toString();
+    }
+
     draw(target: CanvasRenderingTarget2D) {
         target.useMediaCoordinateSpace(({ context: ctx, mediaSize }: { context: CanvasRenderingContext2D, mediaSize: { width: number, height: number } }) => {
             if (!this._data || this._data.length === 0 || !this._settings.enabled) return;
@@ -41,142 +47,174 @@ class HTFProfileRenderer implements IPrimitivePaneRenderer {
             if (timeScale.getVisibleLogicalRange() === null) return;
 
             const colors = this._settings.colorScheme;
-            const alignRight = this._settings.align === 'right';
             const widthPct = this._settings.widthPercentage / 100;
 
-            this._data.forEach(htf => {
-                const startTime = htf.time as Time;
-                // We need to find the X coordinate range for this HTF candle.
-                // Since lightweight-charts doesn't strictly map arbitrary timestamps to X if they aren't in the series data,
-                // we assume the main series has data covering these times.
-                
-                const xStart = timeScale.timeToCoordinate(startTime);
-                
-                // Calculate End X.
-                // Ideally, it's the coordinate of the next HTF start or the current candle's end time.
-                // We'll try to get the coordinate of the end time.
-                // If the end time is not in the data (e.g. future), we might need to project.
-                // A safer way is to measure duration in bars if possible, or just look at the next HTF candle in the list.
-                
-                let xEnd: number | null = null;
-                
-                // Try direct mapping
-                // Note: htf.endTime is exclusive usually, so we might want the coordinate of the last bar in the interval.
-                // Let's assume htf.endTime is the start of the next period.
-                const endTime = htf.endTime as Time;
-                const potentialEnd = timeScale.timeToCoordinate(endTime);
-                
-                if (potentialEnd !== null) {
-                    xEnd = potentialEnd;
-                } else {
-                    // If we can't find the end coordinate (e.g. rightmost edge), use the latest visible coordinate + projection?
-                    // Or just default to a fixed width if we can't determine.
-                    // Let's try to find the coordinate of the last data point in this HTF candle.
-                    // This is hard without the raw list of candles in the renderer.
-                    // Workaround: Use barSpacing * duration_in_bars (approx) or just xStart + fixed pixels? No.
-                    // Better: If xStart is valid, and this is the last candle, extend to the right edge or some reasonable width.
-                    if (xStart !== null) {
-                        // Estimate based on time difference?
-                        // For now, let's look for the next HTF candle in the list
-                        const nextHTF = this._data.find(c => c.time > htf.time);
-                        if (nextHTF) {
-                            const nextX = timeScale.timeToCoordinate(nextHTF.time as Time);
-                            if (nextX !== null) xEnd = nextX;
-                        }
+            // Only process the LATEST HTF candle (the active one)
+            // And anchor it to the RIGHT side of the screen
+            if (this._data.length === 0) return;
+            const htf = this._data[this._data.length - 1]; // Latest one
+
+            // X Coordinates - Fixed to Right Side
+            // mediaSize.width is the right edge
+            const xRight = mediaSize.width;
+            // Increased width limit for "non-compact" view (was 0.3/30%, now 0.5/50%)
+            const width = mediaSize.width * widthPct * 0.5; 
+            
+            const screenWidthUsage = Math.min(0.6, widthPct); // Max 60% of screen
+            const profileWidthPixels = mediaSize.width * screenWidthUsage;
+
+            const xStart = xRight - profileWidthPixels;
+            
+            // Candle Body / Box Vertical Range
+            const yHigh = this._series.priceToCoordinate(htf.high);
+            const yLow = this._series.priceToCoordinate(htf.low);
+            
+            if (yHigh === null || yLow === null) return;
+
+            const height = yLow - yHigh; // y is inverted (0 at top)
+            
+            // Draw Box/Outline (Optional for right-side profile? Maybe just profile lines)
+            if (this._settings.showOutline) {
+                ctx.strokeStyle = htf.close >= htf.open ? colors.outlineUp : colors.outlineDown;
+                ctx.lineWidth = 1;
+                ctx.strokeRect(xStart, yHigh, profileWidthPixels, height);
+            }
+
+            // Draw Profile
+            if (this._settings.showProfile && htf.levels.length > 0) {
+                // Find max volume in this profile for scaling
+                const maxVol = Math.max(...htf.levels.map(l => l.volume));
+
+                // Detect tick size (min diff)
+                let tickSize = 0;
+                if (htf.levels.length > 1) {
+                    const prices = htf.levels.map(l => l.price).sort((a, b) => a - b);
+                    let minDiff = Infinity;
+                    for (let i = 1; i < prices.length; i++) {
+                        const diff = prices[i] - prices[i - 1];
+                        if (diff > 0 && diff < minDiff) minDiff = diff;
                     }
-                }
-                
-                // If still null (maybe typically for the last candle), use the latest coordinate of the chart?
-                if (xEnd === null && xStart !== null) {
-                    // Just extend to current scroll position or a bit further
-                    // Or use a default width based on the visible range?
-                    // Let's skip if we can't determine width properly, or default to xStart + 50 (bad).
-                    // Actually, if we are at the rightmost, xEnd could be mediaSize.width or similar if zoomed in?
-                    // Let's try to get the coordinate of the *last* candle in the series if it's within this HTF.
-                    // If htf is the latest, xEnd can be the coordinate of the last series bar + half bar width.
-                    // Simplified:
-                    // If xStart is visible, draw.
+                    if (minDiff !== Infinity) tickSize = minDiff;
                 }
 
-                if (xStart === null) return;
-                
-                // Default width if xEnd is missing (e.g. latest candle)
-                const effectiveXEnd = xEnd !== null ? xEnd : (xStart + 100); // Fallback
-                
-                const width = effectiveXEnd - xStart;
-                if (width <= 0) return;
+                htf.levels.forEach(level => {
+                    const y = this._series.priceToCoordinate(level.price);
+                    if (y === null) return;
+                    
+                    // Calculate bar height based on tick size or fallback
+                    let barHeight = 1;
+                    if (tickSize > 0) {
+                        const nextY = this._series.priceToCoordinate(level.price + tickSize);
+                        if (nextY !== null) {
+                            barHeight = Math.abs(y - nextY);
+                        }
+                    } else {
+                        barHeight = Math.max(1, (height / htf.levels.length) - 0.5);
+                    }
+                    
+                    // Value Area Logic
+                    const inVA = (htf.valueAreaHigh !== undefined && htf.valueAreaLow !== undefined) &&
+                                    (level.price <= htf.valueAreaHigh && level.price >= htf.valueAreaLow);
+                    
+                    // Set Global Alpha based on VA - Slightly transparent for all, more opaque for VA
+                    const alpha = (this._settings.showValueArea && inVA) ? 0.9 : 0.5;
+                    ctx.globalAlpha = alpha;
 
-                // Candle Body / Box
-                // High/Low
-                const yHigh = this._series.priceToCoordinate(htf.high);
-                const yLow = this._series.priceToCoordinate(htf.low);
-                
-                if (yHigh === null || yLow === null) return;
+                    // Calculate bar length based on volume
+                    const barLen = (level.volume / maxVol) * profileWidthPixels;
+                    const barY = y - (barHeight / 2);
 
-                const height = yLow - yHigh; // y is inverted (0 at top)
+                    // Always align Right for this mode
+                    const barX = xRight - barLen;
+
+                    // 3D Transparent Blue Gradient (Professional Look)
+                    const gradient = ctx.createLinearGradient(barX, barY, barX, barY + barHeight);
+                    // Top: Light Blue Highlight
+                    gradient.addColorStop(0, 'rgba(64, 196, 255, 0.7)'); 
+                    // Middle: Rich Blue
+                    gradient.addColorStop(0.5, 'rgba(33, 150, 243, 0.5)'); 
+                    // Bottom: Deep Blue Shadow
+                    gradient.addColorStop(1, 'rgba(13, 71, 161, 0.7)');
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(barX, barY, barLen, barHeight);
+
+                    // Subtle Border for definition
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                    ctx.lineWidth = 0.5;
+                    ctx.strokeRect(barX, barY, barLen, barHeight);
+
+                    // Draw Volume Text (White, Inside Tube, Professional Style)
+                    if (barHeight >= 12) { 
+                         // Reset alpha for text to be fully opaque and crisp
+                         ctx.globalAlpha = 1.0;
+                         
+                         ctx.fillStyle = '#FFFFFF';
+                         // System UI font stack for professional look
+                         ctx.font = '700 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+                         
+                         // Enhanced Shadow for readability against blue
+                         ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+                         ctx.shadowBlur = 3;
+                         ctx.shadowOffsetY = 1;
+                         
+                         ctx.textAlign = 'right';
+                         ctx.textBaseline = 'middle';
+                         const volText = this._formatVolume(level.volume);
+                         
+                         // Draw inside the bar, aligned to right edge with balanced padding
+                         ctx.fillText(volText, xRight - 8, barY + barHeight / 2);
+                         
+                         // Reset shadow
+                         ctx.shadowColor = 'transparent';
+                         ctx.shadowBlur = 0;
+                         ctx.shadowOffsetY = 0;
+                         
+                         // Restore alpha for next iteration (though loop resets it)
+                         ctx.globalAlpha = alpha;
+                    }
+                });
                 
-                // Draw Box/Outline
-                if (this._settings.showOutline) {
-                    ctx.strokeStyle = htf.close >= htf.open ? colors.outlineUp : colors.outlineDown;
+                ctx.globalAlpha = 1.0;
+
+                // Draw VA Lines if enabled
+                if (this._settings.showValueArea && htf.valueAreaHigh !== undefined && htf.valueAreaLow !== undefined) {
+                    const yVah = this._series.priceToCoordinate(htf.valueAreaHigh);
+                    const yVal = this._series.priceToCoordinate(htf.valueAreaLow);
+                    
                     ctx.lineWidth = 1;
-                    ctx.strokeRect(xStart, yHigh, width, height);
-                }
-
-                // Draw Profile
-                if (this._settings.showProfile && htf.levels.length > 0) {
-                    // Find max volume in this profile for scaling
-                    const maxVol = Math.max(...htf.levels.map(l => l.volume));
-                    const profileWidth = width * widthPct; // e.g. 70% of the box width
-
-                    // Calculate tick height (approx)
-                    const tickHeight = height / htf.levels.length; 
-                    // Or better: calculate from price difference of levels if available
-                    // For rendering, we'll iterate levels
+                    ctx.setLineDash([2, 2]);
                     
-                    ctx.fillStyle = htf.close >= htf.open ? colors.profileUp : colors.profileDown;
-                    ctx.globalAlpha = 0.5; // Transparent profile
-
-                    htf.levels.forEach(level => {
-                        const y = this._series.priceToCoordinate(level.price);
-                        if (y === null) return;
-                        
-                        // Height of one level bar. 
-                        // If levels are dense, this might be small. 
-                        // We can calculate it based on next level price or just fixed 1px min.
-                        // Let's try to infer from neighbors or passed tick size? 
-                        // We don't have tick size here. Let's assume uniform distribution or simple 1px lines if dense.
-                        // Better: Draw a rect centered at y.
-                        
-                        // Calculate bar length based on volume
-                        const barLen = (level.volume / maxVol) * profileWidth;
-                        
-                        const barHeight = Math.max(1, (height / htf.levels.length) - 0.5);
-                        const barY = y - (barHeight / 2);
-
-                        const barX = alignRight 
-                            ? (xStart + width) - barLen 
-                            : xStart;
-
-                        ctx.fillRect(barX, barY, barLen, barHeight);
-                    });
-                    
-                    ctx.globalAlpha = 1.0;
-                }
-
-                // Draw POC
-                if (this._settings.showPOC) {
-                    const yPoc = this._series.priceToCoordinate(htf.pocPrice);
-                    if (yPoc !== null) {
-                        ctx.strokeStyle = colors.poc;
-                        ctx.lineWidth = 2;
+                    if (yVah !== null) {
+                        ctx.strokeStyle = colors.vah || '#808080';
                         ctx.beginPath();
-                        ctx.moveTo(xStart, yPoc);
-                        ctx.lineTo(xStart + width, yPoc);
+                        ctx.moveTo(xStart, yVah);
+                        ctx.lineTo(xRight, yVah);
                         ctx.stroke();
                     }
+                    if (yVal !== null) {
+                        ctx.strokeStyle = colors.val || '#808080';
+                        ctx.beginPath();
+                        ctx.moveTo(xStart, yVal);
+                        ctx.lineTo(xRight, yVal);
+                        ctx.stroke();
+                    }
+                    ctx.setLineDash([]);
                 }
+            }
 
-            });
+            // Draw POC
+            if (this._settings.showPOC) {
+                const yPoc = this._series.priceToCoordinate(htf.pocPrice);
+                if (yPoc !== null) {
+                    ctx.strokeStyle = colors.poc;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(xStart, yPoc);
+                    ctx.lineTo(xRight, yPoc);
+                    ctx.stroke();
+                }
+            }
         });
     }
 }

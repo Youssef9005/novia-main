@@ -199,11 +199,11 @@ export const useChartStore = create<ChartState>()(
         fontSize: 10,
         rowHeight: 'auto',
         colorScheme: {
-          buy: '#B2DFDB', // Light Teal
-          sell: '#FFCDD2', // Light Red
-          imbalanceBuy: '#00897B', // Strong Teal
-          imbalanceSell: '#E53935', // Strong Red
-          text: '#000000', // Default text color
+          buy: 'rgba(0, 227, 150, 0.12)', 
+          sell: 'rgba(255, 69, 96, 0.12)', 
+          imbalanceBuy: '#00E396', 
+          imbalanceSell: '#FF4560', 
+          text: '#E0E0E0', 
           background: 'transparent'
         }
       },

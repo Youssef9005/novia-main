@@ -26,6 +26,7 @@ export interface HTFSettings {
     showOutline: boolean;
     showProfile: boolean;
     showPOC: boolean;
+    showValueArea: boolean;
     widthPercentage: number; // 0-100
     align: 'left' | 'right';
     colorScheme: {
@@ -34,6 +35,8 @@ export interface HTFSettings {
         profileUp: string;
         profileDown: string;
         poc: string;
+        val?: string;
+        vah?: string;
         background: string;
     };
 }

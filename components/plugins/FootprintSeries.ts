@@ -16,14 +16,15 @@ interface CanvasRenderingTarget2D {
 
 // Helper for volume formatting (K/M)
 const formatVolume = (num: number): string => {
-    if (num === 0) return '0';
+    if (num === 0) return '';
     if (Math.abs(num) >= 1_000_000) {
-        return (num / 1_000_000).toFixed(3) + ' M';
+        return parseFloat((num / 1_000_000).toFixed(2)) + 'M';
     }
     if (Math.abs(num) >= 1_000) {
-        return (num / 1_000).toFixed(3) + ' K';
+        return parseFloat((num / 1_000).toFixed(2)) + 'K';
     }
-    return num.toString();
+    // User requested K suffix for all numbers (e.g. 2 -> 2K)
+    return num.toString() + 'K';
 };
 
 class FootprintRenderer implements IPrimitivePaneRenderer {
@@ -38,11 +39,11 @@ class FootprintRenderer implements IPrimitivePaneRenderer {
         this._settings = {
             ...settings,
             colorScheme: settings.colorScheme || {
-                buy: '#B2DFDB',
-                sell: '#FFCDD2',
-                imbalanceBuy: '#00897B',
-                imbalanceSell: '#E53935',
-                text: '#000000',
+                buy: 'rgba(0, 227, 150, 0.12)', 
+                sell: 'rgba(255, 69, 96, 0.12)', 
+                imbalanceBuy: '#00E396', 
+                imbalanceSell: '#FF4560', 
+                text: '#E0E0E0', 
                 background: 'transparent'
             }
         };
@@ -54,11 +55,11 @@ class FootprintRenderer implements IPrimitivePaneRenderer {
         this._settings = {
             ...settings,
             colorScheme: settings.colorScheme || {
-                buy: '#B2DFDB', 
-                sell: '#FFCDD2', 
-                imbalanceBuy: '#00897B', 
-                imbalanceSell: '#E53935', 
-                text: '#000000', 
+                buy: 'rgba(0, 227, 150, 0.12)', 
+                sell: 'rgba(255, 69, 96, 0.12)', 
+                imbalanceBuy: '#00E396', 
+                imbalanceSell: '#FF4560', 
+                text: '#E0E0E0', 
                 background: 'transparent'
             }
         };
@@ -75,11 +76,11 @@ class FootprintRenderer implements IPrimitivePaneRenderer {
             // Ensure settings and color scheme are fully populated
             const colorScheme = this._settings.colorScheme || {};
             const colors = {
-                buy: colorScheme.buy || '#B2DFDB',
-                sell: colorScheme.sell || '#FFCDD2',
-                imbalanceBuy: colorScheme.imbalanceBuy || '#00897B',
-                imbalanceSell: colorScheme.imbalanceSell || '#E53935',
-                text: colorScheme.text || '#000000',
+                buy: colorScheme.buy || 'rgba(0, 227, 150, 0.12)',
+                sell: colorScheme.sell || 'rgba(255, 69, 96, 0.12)',
+                imbalanceBuy: colorScheme.imbalanceBuy || '#00E396',
+                imbalanceSell: colorScheme.imbalanceSell || '#FF4560',
+                text: colorScheme.text || '#E0E0E0',
                 background: colorScheme.background || 'transparent'
             };
 
@@ -91,7 +92,7 @@ class FootprintRenderer implements IPrimitivePaneRenderer {
             const barSpacing = timeScale.options().barSpacing;
             // The total width available for the footprint columns
             const barWidth = Math.max(1, barSpacing * 0.95); 
-            const gap = 2; // Gap between Bid and Ask columns
+            const gap = 1; // Gap between Bid and Ask columns
             const columnWidth = (barWidth - gap) / 2;
 
             // Visibility checks
@@ -158,21 +159,37 @@ class FootprintRenderer implements IPrimitivePaneRenderer {
                     }
                     // POC (Black) - Overrides imbalance color for background usually, or just highlights
                     if (index === pocIndex) {
-                        // In some charts POC is a border, in the image provided some cells are black. 
-                        // Let's assume black cell = POC or very high volume.
-                        // We'll treat POC as Black background.
+                        // Black cell for POC
                         bidBg = '#000000';
                         bidText = '#FFFFFF';
                     }
 
-                    ctx.fillStyle = bidBg;
-                    // Add a tiny padding between rows (0.5px)
-                    ctx.fillRect(xLeft, topY + 0.5, columnWidth, cellHeight - 1);
+                    // Draw Bid Cell
+                    // Add 3D/Gradient effect
+                    if (index === pocIndex) {
+                         ctx.fillStyle = '#000000';
+                         ctx.fillRect(xLeft, topY + 0.5, columnWidth, cellHeight - 1);
+                         // Neon Border for POC
+                         ctx.strokeStyle = colors.imbalanceSell;
+                         ctx.lineWidth = 1;
+                         ctx.strokeRect(xLeft + 0.5, topY + 0.5, columnWidth - 1, cellHeight - 1);
+                    } else if (level.imbalance === 'bid') {
+                        // Gradient for Imbalance
+                        const grd = ctx.createLinearGradient(xLeft, topY, xLeft + columnWidth, topY);
+                        grd.addColorStop(0, colors.imbalanceSell);
+                        grd.addColorStop(1, 'rgba(255, 69, 96, 0.8)');
+                        ctx.fillStyle = grd;
+                        ctx.fillRect(xLeft, topY + 0.5, columnWidth, cellHeight - 1);
+                    } else {
+                        // Regular cell
+                        ctx.fillStyle = bidBg;
+                        ctx.fillRect(xLeft, topY + 0.5, columnWidth, cellHeight - 1);
+                    }
 
                     if (effectiveShowText) {
                         ctx.fillStyle = bidText;
                         ctx.textAlign = 'center';
-                        ctx.font = `500 ${this._settings.fontSize}px sans-serif`; // Bold-ish
+                        ctx.font = `600 ${this._settings.fontSize}px sans-serif`; // Bolder font
                         // Always draw if showText is true
                         ctx.fillText(formatVolume(level.bid), xLeft + columnWidth / 2, y);
                     }
@@ -195,54 +212,83 @@ class FootprintRenderer implements IPrimitivePaneRenderer {
                         askText = '#FFFFFF';
                     }
 
-                    ctx.fillStyle = askBg;
-                    ctx.fillRect(xRight, topY + 0.5, columnWidth, cellHeight - 1);
+                    // Draw Ask Cell
+                    if (index === pocIndex) {
+                         ctx.fillStyle = '#000000';
+                         ctx.fillRect(xRight, topY + 0.5, columnWidth, cellHeight - 1);
+                         // Neon Border for POC
+                         ctx.strokeStyle = colors.imbalanceBuy;
+                         ctx.lineWidth = 1;
+                         ctx.strokeRect(xRight + 0.5, topY + 0.5, columnWidth - 1, cellHeight - 1);
+                    } else if (level.imbalance === 'ask') {
+                        // Gradient for Imbalance
+                        const grd = ctx.createLinearGradient(xRight, topY, xRight + columnWidth, topY);
+                        grd.addColorStop(0, colors.imbalanceBuy);
+                        grd.addColorStop(1, 'rgba(0, 227, 150, 0.8)');
+                        ctx.fillStyle = grd;
+                        ctx.fillRect(xRight, topY + 0.5, columnWidth, cellHeight - 1);
+                    } else {
+                        ctx.fillStyle = askBg;
+                        ctx.fillRect(xRight, topY + 0.5, columnWidth, cellHeight - 1);
+                    }
 
                     if (effectiveShowText) {
                         ctx.fillStyle = askText;
                         ctx.textAlign = 'center';
-                        ctx.font = `500 ${this._settings.fontSize}px sans-serif`;
+                        ctx.font = `600 ${this._settings.fontSize}px sans-serif`;
                         // Always draw if showText is true
                         ctx.fillText(formatVolume(level.ask), xRight + columnWidth / 2, y);
                     }
                 });
 
-                // 4. Draw Delta Summary Box
+                // 4. Draw Delta Summary Box (Modern/Neon Style)
                 if (this._settings.showDeltaSummary) {
                     const yLow = this._series.priceToCoordinate(candle.low);
                     if (yLow !== null) {
                         const boxY = yLow + 20; 
-                        const boxWidth = Math.max(80, barWidth * 1.2); // Min width or proportional
-                        const boxHeight = 36;
+                        const boxWidth = Math.max(90, barWidth * 1.2); 
+                        const boxHeight = 40;
                         const boxX = x - boxWidth / 2;
 
                         // Only draw if we have enough horizontal space or if it's the hovered candle (not handled here yet)
                         // Lower threshold to ensure it shows up more often
                         if (barSpacing > 40) {
-                            // Draw Shadow/Border
-                            ctx.shadowColor = 'rgba(0,0,0,0.1)';
-                            ctx.shadowBlur = 4;
-                            ctx.shadowOffsetY = 2;
-                            
-                            ctx.fillStyle = '#FFFFFF';
+                            // Main Box Background (Dark Semi-transparent)
+                            ctx.fillStyle = 'rgba(10, 10, 10, 0.85)';
                             ctx.beginPath();
-                            ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 4);
+                            if (ctx.roundRect) {
+                                ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 6);
+                            } else {
+                                ctx.rect(boxX, boxY, boxWidth, boxHeight); // Fallback
+                            }
                             ctx.fill();
                             
-                            ctx.shadowColor = 'transparent'; // Reset shadow
+                            // Border (Colored by Delta)
+                            const deltaColor = candle.delta > 0 ? colors.imbalanceBuy : colors.imbalanceSell;
+                            ctx.strokeStyle = deltaColor;
+                            ctx.lineWidth = 1;
+                            ctx.stroke();
+
+                            // Subtle Glow
+                            ctx.shadowColor = deltaColor;
+                            ctx.shadowBlur = 8;
+                            ctx.shadowOffsetX = 0;
+                            ctx.shadowOffsetY = 0;
+                            ctx.stroke(); // Re-stroke for glow effect
+                            ctx.shadowColor = 'transparent'; // Reset
 
                             // Text
                             ctx.textAlign = 'center';
                             
                             // Delta Line
-                            ctx.font = '600 10px sans-serif';
-                            ctx.fillStyle = candle.delta > 0 ? '#00897B' : '#E53935'; // Strong Teal or Red
-                            ctx.fillText(`Delta  ${formatVolume(candle.delta)}`, x, boxY + 12);
+                            ctx.font = 'bold 11px sans-serif';
+                            ctx.fillStyle = deltaColor; 
+                            ctx.fillText(`Delta  ${formatVolume(candle.delta)}`, x, boxY + 14);
 
                             // Total Line
-                            ctx.fillStyle = '#000000';
-                            ctx.font = '600 10px sans-serif';
-                            ctx.fillText(`Total  ${formatVolume(candle.volume)}`, x, boxY + 26);
+                            ctx.fillStyle = '#E0E0E0'; // Light Grey
+                            ctx.font = '11px sans-serif';
+                            ctx.fillText(`Total  ${formatVolume(candle.volume)}`, x, boxY + 28);
                         }
                     }
                 }

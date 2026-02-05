@@ -19,6 +19,7 @@ import { FootprintSeries } from './plugins/FootprintSeries';
 import { HTFCandleProfileSeries } from './plugins/HTFCandleProfileSeries';
 import { generateFootprintCandle } from '@/lib/footprint/generator';
 import { aggregateToHTF } from '@/lib/htf/aggregator';
+import { HTFSettings } from '@/types/htfTypes';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Lock } from 'lucide-react';
@@ -155,7 +156,7 @@ const getBinanceSymbol = (symbol: string): string => {
   const SYMBOL_MAP: Record<string, string> = {
       // Metals
       'XAUUSD': 'XAU/USD', // Gold
-      'XAGUSD': 'XAG/USD', // Silver
+      'XAGUSD': 'SLV',     // Silver ETF (Reliable Proxy)
 
       // Crypto
       'BTCUSD': 'BTC/USD', // Bitcoin
@@ -183,8 +184,8 @@ const getBinanceSymbol = (symbol: string): string => {
       'US30': 'DIA',       // Dow Jones ETF (Reliable Proxy)
       'NAS100': 'QQQ',     // Nasdaq 100 ETF (Reliable Proxy)
       'SPX500': 'SPY',     // S&P 500 ETF (Reliable Proxy)
-      'UK100': 'UK100',
-      'DEU40': 'DAX',
+      'UK100': 'EWU',      // FTSE 100 ETF (Reliable Proxy)
+      'DEU40': 'EWG',      // DAX ETF (Reliable Proxy)
 
       // Commodities
       'USOIL': 'WTI'
@@ -1033,8 +1034,23 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                 const json = await res.json();
                 
                 if (json.code === 401 || json.code === 400 || json.code === 404) {
-                     console.error(`TwelveData Error: ${json.message}`);
-                     // Don't show toast on every error to avoid spam, but log it
+                     // Handle Premium Plan Error or Invalid Symbol
+                     const msg = json.message || '';
+                     if (msg.includes('Grow plan') || msg.includes('Pro plan') || msg.includes('upgrade') || msg.includes('available starting with')) {
+                         console.warn(`TwelveData Plan Limit: ${msg}`);
+                         toast.error(`Symbol ${symbol} requires a premium plan. Switching to safe symbol.`);
+                         setSymbol('BTC/USD'); // Switch to a safe free symbol
+                         return;
+                     }
+
+                     if (json.code === 404) {
+                         console.warn(`TwelveData Symbol Not Found: ${symbol}`);
+                         toast.error(`Symbol ${symbol} not found. Switching to safe symbol.`);
+                         setSymbol('BTC/USD');
+                         return;
+                     }
+
+                     console.error(`TwelveData Error: ${msg}`);
                 } else if (json.values && Array.isArray(json.values)) {
                     data = json.values.reverse().map((v: { datetime: string; open: string; high: string; low: string; close: string }) => ({
                         time: (new Date(v.datetime).getTime() / 1000) as Time,
@@ -1050,11 +1066,11 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
         } 
         // --- Binance Source (Default) ---
         else {
-            // Special handling for Indices (US30, NAS100, SPX500) which are not on Binance
+            // Special handling for Indices (US30, NAS100, SPX500, UK100, DEU40) and Commodities (XAGUSD) which are not on Binance
             // If the user has a TwelveData key, we try to use it even if source is Binance
-            if (['US30', 'NAS100', 'SPX500'].includes(symbol) && twelveDataApiKey) {
+            if (['US30', 'NAS100', 'SPX500', 'UK100', 'DEU40', 'XAGUSD'].includes(symbol) && twelveDataApiKey) {
                  try {
-                    const tdSymbol = symbol; // TwelveData uses US30, NAS100, SPX500 usually
+                    const tdSymbol = getTwelveDataSymbol(symbol); // Map to ETF proxies if needed
                     // Map timeframe
                     const intervalMap: Record<string, string> = {
                         '1m': '1min', '3m': '3min', '5m': '5min', '15m': '15min',
@@ -1065,6 +1081,15 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                     const res = await fetch(`https://api.twelvedata.com/time_series?symbol=${tdSymbol}&interval=${tdInterval}&apikey=${twelveDataApiKey}&outputsize=1000`);
                     const json = await res.json();
                     
+                    if (json.code === 400 || json.code === 401 || json.code === 404) {
+                         const msg = json.message || '';
+                         if (msg.includes('Grow plan') || msg.includes('Pro plan') || msg.includes('upgrade') || msg.includes('available starting with')) {
+                             toast.error(`Index ${symbol} requires a premium plan. Switching to BTC/USD.`);
+                             setSymbol('BTC/USD');
+                             return;
+                         }
+                    }
+
                     if (json.values && Array.isArray(json.values)) {
                         data = json.values.reverse().map((v: { datetime: string; open: string; high: string; low: string; close: string }) => ({
                             time: (new Date(v.datetime).getTime() / 1000) as Time,
@@ -1351,6 +1376,46 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
     }
   }, [htfSettings]);
 
+  // HTF Data Refresh
+  useEffect(() => {
+    if (htfProfileSeriesRef.current && candleData.length > 0) {
+        if (htfSettings.enabled) {
+            // Re-calculate data
+            const footprintData = candleData.map(d => generateFootprintCandle({
+                ...d,
+                time: d.time as number
+            }));
+
+            let tfMinutes = 60; 
+            if (timeframe === '1m') tfMinutes = 1;
+            if (timeframe === '3m') tfMinutes = 3;
+            if (timeframe === '5m') tfMinutes = 5;
+            if (timeframe === '15m') tfMinutes = 15;
+            if (timeframe === '30m') tfMinutes = 30;
+            if (timeframe === '1h') tfMinutes = 60;
+            if (timeframe === '4h') tfMinutes = 240;
+            if (timeframe === '1d') tfMinutes = 1440;
+            if (timeframe === '1w') tfMinutes = 10080;
+
+            let targetMinutes = tfMinutes * 4; 
+            if (htfSettings.timeframe !== 'Auto') {
+                if (htfSettings.timeframe === '1H') targetMinutes = 60;
+                if (htfSettings.timeframe === '4H') targetMinutes = 240;
+                if (htfSettings.timeframe === '1D') targetMinutes = 1440;
+            }
+
+            if (targetMinutes > tfMinutes) {
+                const htfData = aggregateToHTF(footprintData, targetMinutes);
+                htfProfileSeriesRef.current.updateData(htfData);
+            } else {
+                htfProfileSeriesRef.current.updateData([]);
+            }
+        } else {
+            htfProfileSeriesRef.current.updateData([]);
+        }
+    }
+  }, [htfSettings, candleData, timeframe]);
+
   // Handle Indicators
   useEffect(() => {
      if (!chartRef.current || candleData.length === 0) return;
@@ -1427,9 +1492,22 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
   useEffect(() => {
     if (!isDragging || !initialDrawingState || !dragStart || !chartRef.current || !seriesRef.current) return;
 
-    const handleGlobalMouseMove = (e: MouseEvent) => {
-        const deltaX = e.clientX - dragStart.x;
-        const deltaY = e.clientY - dragStart.y;
+    const getClientCoordinates = (e: MouseEvent | TouchEvent) => {
+        if ('touches' in e) {
+            return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        }
+        return { x: (e as MouseEvent).clientX, y: (e as MouseEvent).clientY };
+    };
+
+    const handleGlobalMove = (e: MouseEvent | TouchEvent) => {
+        // Prevent default on touch to stop scrolling while dragging
+        if ('touches' in e && e.cancelable) {
+            e.preventDefault();
+        }
+
+        const coords = getClientCoordinates(e);
+        const deltaX = coords.x - dragStart.x;
+        const deltaY = coords.y - dragStart.y;
         
         // Convert initial P1/P2 to coordinates
         const x1_orig = chartRef.current!.timeScale().timeToCoordinate(initialDrawingState.p1.time);
@@ -1458,28 +1536,47 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
         }
     };
 
-    const handleGlobalMouseUp = () => {
+    const handleGlobalUp = () => {
         setIsDragging(false);
         setDragStart(null);
         setInitialDrawingState(null);
     };
 
-    window.addEventListener('mousemove', handleGlobalMouseMove);
-    window.addEventListener('mouseup', handleGlobalMouseUp);
+    window.addEventListener('mousemove', handleGlobalMove);
+    window.addEventListener('mouseup', handleGlobalUp);
+    window.addEventListener('touchmove', handleGlobalMove, { passive: false });
+    window.addEventListener('touchend', handleGlobalUp);
 
     return () => {
-        window.removeEventListener('mousemove', handleGlobalMouseMove);
-        window.removeEventListener('mouseup', handleGlobalMouseUp);
+        window.removeEventListener('mousemove', handleGlobalMove);
+        window.removeEventListener('mouseup', handleGlobalUp);
+        window.removeEventListener('touchmove', handleGlobalMove);
+        window.removeEventListener('touchend', handleGlobalUp);
     };
   }, [isDragging, initialDrawingState, dragStart]);
 
   // Overlay Drawing Handlers
-  const handleOverlayMouseDown = (e: React.MouseEvent) => {
+  const handleOverlayStart = (e: React.MouseEvent | React.TouchEvent) => {
     if (drawingTool === 'cursor' || drawingTool === 'horizontal' || !chartRef.current || !seriesRef.current) return;
     
+    // Prevent default to stop scrolling on mobile while drawing
+    // We check cancelable to avoid errors with passive listeners if any
+    if ('touches' in e && e.cancelable) {
+        e.preventDefault();
+    }
+
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    let clientX, clientY;
+    if ('touches' in e) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else {
+        clientX = (e as React.MouseEvent).clientX;
+        clientY = (e as React.MouseEvent).clientY;
+    }
+
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
     
     const time = chartRef.current.timeScale().coordinateToTime(x);
     const price = seriesRef.current.coordinateToPrice(y);
@@ -1495,12 +1592,25 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
     }
   };
 
-  const handleOverlayMouseMove = (e: React.MouseEvent) => {
+  const handleOverlayMove = (e: React.MouseEvent | React.TouchEvent) => {
     if (!currentDrawing || !chartRef.current || !seriesRef.current) return;
     
+    if ('touches' in e && e.cancelable) {
+        e.preventDefault();
+    }
+    
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    let clientX, clientY;
+    if ('touches' in e) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else {
+        clientX = (e as React.MouseEvent).clientX;
+        clientY = (e as React.MouseEvent).clientY;
+    }
+
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
     
     const time = chartRef.current.timeScale().coordinateToTime(x);
     const price = seriesRef.current.coordinateToPrice(y);
@@ -1513,7 +1623,7 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
     }
   };
 
-  const handleOverlayMouseUp = () => {
+  const handleOverlayEnd = () => {
     if (isDragging) return;
 
     if (currentDrawing && currentDrawing.p1 && currentDrawing.p2) {
@@ -1571,12 +1681,22 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
              if (d.id !== 'preview') setSelectedDrawingId(d.id === selectedDrawingId ? null : d.id);
         };
 
-        const handleMouseDown = (e: React.MouseEvent) => {
+        const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
              if (selectedDrawingId !== d.id) return;
              e.stopPropagation();
-             e.preventDefault();
+             if ('touches' in e && e.cancelable) {
+                 e.preventDefault();
+             }
              setIsDragging(true);
-             setDragStart({ x: e.clientX, y: e.clientY });
+             let clientX, clientY;
+             if ('touches' in e) {
+                 clientX = e.touches[0].clientX;
+                 clientY = e.touches[0].clientY;
+             } else {
+                 clientX = (e as React.MouseEvent).clientX;
+                 clientY = (e as React.MouseEvent).clientY;
+             }
+             setDragStart({ x: clientX, y: clientY });
              setInitialDrawingState(d);
         };
 
@@ -1609,6 +1729,7 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
             );
         } else if (d.type === 'fib') {
             const dy = cy2 - cy1;
+            const priceDiff = d.p2.price - d.p1.price;
             const levels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
             content = (
                 <g>
@@ -1618,21 +1739,40 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                         width={Math.abs(cx2 - cx1)} height={Math.abs(cy2 - cy1)} 
                         fill="transparent" 
                     />
-                    {levels.map(l => (
-                        <g key={l}>
-                            <line 
-                                x1={cx1} y1={cy1 + dy * l} 
-                                x2={cx2} y2={cy1 + dy * l} 
-                                stroke={strokeColor} strokeWidth={d.width ?? 1} strokeDasharray="4 2"
-                            />
-                            <text 
-                                x={cx1} y={cy1 + dy * l - 2} 
-                                fill={strokeColor} fontSize="10" fontWeight="bold"
-                            >
-                                {l}
-                            </text>
-                        </g>
-                    ))}
+                    {levels.map(l => {
+                        const y = cy1 + dy * l;
+                        const price = d.p1.price + priceDiff * l;
+                        // Format price based on magnitude
+                        const formattedPrice = price >= 1000 ? price.toFixed(2) : price.toFixed(4);
+                        const text = `${l} (${formattedPrice})`;
+                        // Approx width calculation
+                        const textWidth = text.length * 6 + 12; 
+                        
+                        return (
+                            <g key={l}>
+                                <line 
+                                    x1={cx1} y1={y} 
+                                    x2={cx2} y2={y} 
+                                    stroke={strokeColor} strokeWidth={d.width ?? 1} strokeDasharray="4 2"
+                                />
+                                {/* Label Badge */}
+                                <rect 
+                                    x={cx1} y={y - 15} 
+                                    width={textWidth} height={14} 
+                                    rx="4"
+                                    fill={strokeColor} 
+                                    fillOpacity="0.85"
+                                />
+                                <text 
+                                    x={cx1 + 6} y={y - 8} 
+                                    fill="#FFFFFF" fontSize="10" fontWeight="bold"
+                                    dominantBaseline="middle"
+                                >
+                                    {text}
+                                </text>
+                            </g>
+                        );
+                    })}
                     <line x1={cx1} y1={cy1} x2={cx2} y2={cy2} stroke={strokeColor} strokeWidth={d.width ?? 1} strokeDasharray="2 2" opacity="0.5" />
                 </g>
             );
@@ -1671,7 +1811,14 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                      if (binIndex >= 0 && binIndex < bins) volumeProfile[binIndex] += Math.abs(c.close - c.open) * 1000; 
                  });
                  const maxVol = Math.max(...volumeProfile);
+                 const pocIndex = volumeProfile.indexOf(maxVol);
                  const profileWidth = Math.abs(cx2 - cx1);
+                 
+                 const formatVol = (n: number) => {
+                     if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+                     if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+                     return Math.round(n).toString();
+                 };
                  
                  content = (
                      <g opacity="0.9" filter="url(#shadow-3d)">
@@ -1683,28 +1830,54 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                              
                              if (y === null || y === undefined) return null;
                              
+                             const isPoc = i === pocIndex;
+
                              return (
                                  <g key={i}>
                                     <rect 
                                         x={Math.min(cx1, cx2)} y={y as number} 
                                         width={barWidth} height={h}
-                                        fill="rgba(41, 98, 255, 0.35)"
+                                        fill={isPoc ? "rgba(255, 179, 0, 0.5)" : "rgba(41, 98, 255, 0.4)"}
                                         rx="4"
-                                        stroke="#2962FF"
+                                        stroke={isPoc ? "#FFB300" : "#2962FF"}
                                         strokeWidth="1"
                                     />
-                                    <text
-                                        x={Math.min(cx1, cx2) + barWidth + 4}
-                                        y={(y as number) + h / 2}
-                                        fill="rgba(41, 98, 255, 0.9)"
-                                        fontSize="10"
-                                        textAnchor="start"
-                                    >
-                                        {Math.round(vol)}
-                                    </text>
+                                    {barWidth > 30 && (
+                                        <text
+                                            x={Math.min(cx1, cx2) + barWidth - 6}
+                                            y={(y as number) + h / 2 + 1}
+                                            fill="#FFFFFF"
+                                            fontSize="10"
+                                            fontWeight="bold"
+                                            textAnchor="end"
+                                            dominantBaseline="middle"
+                                            style={{ pointerEvents: 'none' }}
+                                        >
+                                            {formatVol(vol)}
+                                        </text>
+                                    )}
                                  </g>
                              );
                          })}
+                         {/* POC Line */}
+                         {pocIndex !== -1 && (() => {
+                             const pocPrice = minPrice + pocIndex * binSize + binSize / 2;
+                             const pocY = seriesRef.current?.priceToCoordinate(pocPrice);
+                             if (pocY !== null) {
+                                 return (
+                                     <line 
+                                        x1={Math.min(cx1, cx2)} 
+                                        y1={pocY} 
+                                        x2={Math.max(cx1, cx2)} 
+                                        y2={pocY} 
+                                        stroke="#FFB300" 
+                                        strokeWidth="2" 
+                                        strokeDasharray="4 4" 
+                                     />
+                                 );
+                             }
+                             return null;
+                         })()}
                          <rect x={Math.min(cx1, cx2)} y={Math.min(cy1, cy2)} width={Math.abs(cx2 - cx1)} height={Math.abs(cy2 - cy1)} fill="none" stroke="#787B86" strokeDasharray="4 4" strokeOpacity="0.5" />
                      </g>
                  );
@@ -1712,7 +1885,7 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
         } 
 
         return (
-            <g key={d.id} onClick={handleClick} onMouseDown={handleMouseDown} style={{ cursor: isSelected ? 'grab' : 'pointer', pointerEvents: 'all' }}>
+            <g key={d.id} onClick={handleClick} onMouseDown={handleStart} onTouchStart={handleStart} style={{ cursor: isSelected ? 'grab' : 'pointer', pointerEvents: 'all' }}>
                 {content}
                 {isSelected && (
                      <g>
@@ -2248,7 +2421,7 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                      <Settings size={16} />
                   </button>
                 </DropdownMenuTrigger>
-                  <DropdownMenuContent className="min-w-65 border border-white/10 bg-[#0A0A0A]/95 backdrop-blur-xl p-2 text-gray-200 shadow-[0_20px_50px_rgba(0,0,0,0.8)] rounded-xl z-50">
+                  <DropdownMenuContent className="min-w-65 max-h-[60vh] overflow-y-auto border border-white/10 bg-[#0A0A0A]/95 backdrop-blur-xl p-2 text-gray-200 shadow-[0_20px_50px_rgba(0,0,0,0.8)] rounded-xl z-50 custom-scrollbar">
                    <DropdownMenuLabel className="px-2 py-2 text-[10px] font-black uppercase tracking-widest text-gray-500">Indicators</DropdownMenuLabel>
                    
 
@@ -2314,11 +2487,11 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                                    <Label className="text-xs text-gray-300 font-medium">Timeframe</Label>
                                    <div className="flex gap-1">
                                        {['Auto', '1H', '4H', '1D'].map((tf) => (
-                                           <button
-                                               key={tf}
-                                               onClick={() => setHTFSettings({ timeframe: tf as any })}
-                                               className={`px-2 py-1 text-[10px] rounded border transition-colors ${
-                                                   htfSettings.timeframe === tf 
+                                        <button
+                                            key={tf}
+                                            onClick={() => setHTFSettings({ timeframe: tf as HTFSettings['timeframe'] })}
+                                            className={`px-2 py-1 text-[10px] rounded border transition-colors ${
+                                                htfSettings.timeframe === tf 
                                                    ? 'bg-[#2962FF] border-[#2962FF] text-white' 
                                                    : 'bg-transparent border-white/10 text-gray-400 hover:text-white hover:bg-white/5'
                                                }`}
@@ -2374,6 +2547,15 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
                                             type="checkbox"
                                             checked={htfSettings.showPOC}
                                             onChange={(e) => setHTFSettings({ showPOC: e.target.checked })}
+                                            className="accent-[#2962FF] h-3 w-3 cursor-pointer"
+                                        />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-xs text-gray-300 font-medium">Show Value Area</Label>
+                                        <input 
+                                            type="checkbox"
+                                            checked={htfSettings.showValueArea}
+                                            onChange={(e) => setHTFSettings({ showValueArea: e.target.checked })}
                                             className="accent-[#2962FF] h-3 w-3 cursor-pointer"
                                         />
                                     </div>
@@ -2490,9 +2672,12 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
             {/* SVG Overlay */}
             <svg 
                 className={`absolute inset-0 z-10 h-full w-full ${drawingTool !== 'cursor' && drawingTool !== 'horizontal' ? 'pointer-events-auto' : 'pointer-events-none'}`}
-                onMouseDown={handleOverlayMouseDown}
-                onMouseMove={handleOverlayMouseMove}
-                onMouseUp={handleOverlayMouseUp}
+                onMouseDown={handleOverlayStart}
+                onMouseMove={handleOverlayMove}
+                onMouseUp={handleOverlayEnd}
+                onTouchStart={handleOverlayStart}
+                onTouchMove={handleOverlayMove}
+                onTouchEnd={handleOverlayEnd}
             >
                 {renderSVGElements}
             </svg>
