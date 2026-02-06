@@ -57,11 +57,12 @@ class HTFProfileRenderer implements IPrimitivePaneRenderer {
             // X Coordinates - Fixed to Right Side
             // mediaSize.width is the right edge
             const xRight = mediaSize.width;
-            // Increased width limit for "non-compact" view (was 0.3/30%, now 0.5/50%)
-            const width = mediaSize.width * widthPct * 0.5; 
             
-            const screenWidthUsage = Math.min(0.6, widthPct); // Max 60% of screen
-            const profileWidthPixels = mediaSize.width * screenWidthUsage;
+            // Force maximize width for better visibility
+            // User requested "bigger", so we use 85% of screen width by default if enabled
+            // We ignore widthPct for now to force the size, or use it as a scaler on top of a large base
+            const baseWidthUsage = 0.85; // 85% of screen width
+            const profileWidthPixels = mediaSize.width * baseWidthUsage;
 
             const xStart = xRight - profileWidthPixels;
             
@@ -82,13 +83,70 @@ class HTFProfileRenderer implements IPrimitivePaneRenderer {
 
             // Draw Profile
             if (this._settings.showProfile && htf.levels.length > 0) {
-                // Find max volume in this profile for scaling
-                const maxVol = Math.max(...htf.levels.map(l => l.volume));
+                // --- BINNING LOGIC START ---
+                // To ensure bars are thick enough (at least ~24px height), we group raw levels.
+                // 1. Determine pixel height of the total range
+                const rangeHeightPixels = Math.abs(yLow - yHigh);
+                const minBarHeightPx = 24; // Target minimum height for text visibility
+                
+                // 2. Calculate ideal number of bins
+                // If the range is small, we might have fewer bins than levels, which is fine.
+                let targetBinCount = Math.floor(rangeHeightPixels / minBarHeightPx);
+                if (targetBinCount < 1) targetBinCount = 1;
+                
+                // If raw levels are fewer than target bins, just use raw levels (they are already thick enough)
+                // Otherwise, we need to merge.
+                
+                let levelsToRender: { price: number; volume: number }[] = htf.levels;
 
-                // Detect tick size (min diff)
+                if (htf.levels.length > targetBinCount) {
+                     // Sort levels by price ascending
+                     const sortedLevels = [...htf.levels].sort((a, b) => a.price - b.price);
+                     
+                     // Determine price range per bin
+                     const minPrice = sortedLevels[0].price;
+                     const maxPrice = sortedLevels[sortedLevels.length - 1].price;
+                     const totalPriceRange = maxPrice - minPrice;
+                     const pricePerBin = totalPriceRange / targetBinCount;
+                     
+                     const bins: { price: number; volume: number; count: number }[] = [];
+                     
+                     for (const lvl of sortedLevels) {
+                         // Check if this level belongs to the next bin
+                         // Simple linear binning: floor((price - min) / binSize)
+                         const myBinIdx = Math.min(
+                             targetBinCount - 1, 
+                             Math.floor((lvl.price - minPrice) / pricePerBin)
+                         );
+                         
+                         // Initialize bins if needed (sparse array handling)
+                         while (bins.length <= myBinIdx) {
+                             bins.push({ price: 0, volume: 0, count: 0 });
+                         }
+                         
+                         bins[myBinIdx].volume += lvl.volume;
+                         bins[myBinIdx].count++;
+                         // We'll use average price for positioning
+                         bins[myBinIdx].price += lvl.price; 
+                     }
+                     
+                     // Finalize bins
+                     levelsToRender = bins
+                        .filter(b => b.count > 0)
+                        .map(b => ({
+                             price: b.price / b.count, // Average price center
+                             volume: b.volume
+                        }));
+                }
+                // --- BINNING LOGIC END ---
+
+                // Recalculate maxVol for the NEW aggregated levels
+                const maxVol = Math.max(...levelsToRender.map(l => l.volume));
+
+                // Recalculate tickSize/height logic for aggregated levels
                 let tickSize = 0;
-                if (htf.levels.length > 1) {
-                    const prices = htf.levels.map(l => l.price).sort((a, b) => a - b);
+                if (levelsToRender.length > 1) {
+                    const prices = levelsToRender.map(l => l.price).sort((a, b) => a - b);
                     let minDiff = Infinity;
                     for (let i = 1; i < prices.length; i++) {
                         const diff = prices[i] - prices[i - 1];
@@ -97,7 +155,7 @@ class HTFProfileRenderer implements IPrimitivePaneRenderer {
                     if (minDiff !== Infinity) tickSize = minDiff;
                 }
 
-                htf.levels.forEach(level => {
+                levelsToRender.forEach(level => {
                     const y = this._series.priceToCoordinate(level.price);
                     if (y === null) return;
                     
@@ -109,10 +167,16 @@ class HTFProfileRenderer implements IPrimitivePaneRenderer {
                             barHeight = Math.abs(y - nextY);
                         }
                     } else {
-                        barHeight = Math.max(1, (height / htf.levels.length) - 0.5);
+                         // Fallback if only 1 bin or weird spacing
+                        barHeight = Math.max(minBarHeightPx, (height / levelsToRender.length) - 0.5);
                     }
                     
-                    // Value Area Logic
+                    // Cap max spacing gap visually? No, just ensure it fills mostly.
+                    // Actually, for binning, we want the bars to touch or be close.
+                    // Let's force barHeight to be at least minBarHeightPx - 2 (margin)
+                    if (barHeight < minBarHeightPx) barHeight = minBarHeightPx;
+                    
+                    // Value Area Logic (Approximate for bins)
                     const inVA = (htf.valueAreaHigh !== undefined && htf.valueAreaLow !== undefined) &&
                                     (level.price <= htf.valueAreaHigh && level.price >= htf.valueAreaLow);
                     
@@ -127,31 +191,27 @@ class HTFProfileRenderer implements IPrimitivePaneRenderer {
                     // Always align Right for this mode
                     const barX = xRight - barLen;
 
-                    // 3D Transparent Blue Gradient (Professional Look)
-                    const gradient = ctx.createLinearGradient(barX, barY, barX, barY + barHeight);
-                    // Top: Light Blue Highlight
-                    gradient.addColorStop(0, 'rgba(64, 196, 255, 0.7)'); 
-                    // Middle: Rich Blue
-                    gradient.addColorStop(0.5, 'rgba(33, 150, 243, 0.5)'); 
-                    // Bottom: Deep Blue Shadow
-                    gradient.addColorStop(1, 'rgba(13, 71, 161, 0.7)');
-                    
-                    ctx.fillStyle = gradient;
+                    // Determine if this is the Point of Control (POC) for coloring
+                    const isPoc = level.volume === maxVol;
+
+                    // Match Volume Profile colors
+                    // POC: Orange-ish, Non-POC: Blue-ish
+                    ctx.fillStyle = isPoc ? "rgba(255, 179, 0, 0.5)" : "rgba(41, 98, 255, 0.4)";
                     ctx.fillRect(barX, barY, barLen, barHeight);
 
-                    // Subtle Border for definition
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-                    ctx.lineWidth = 0.5;
+                    ctx.strokeStyle = isPoc ? "#FFB300" : "#2962FF";
+                    ctx.lineWidth = 1;
                     ctx.strokeRect(barX, barY, barLen, barHeight);
 
                     // Draw Volume Text (White, Inside Tube, Professional Style)
-                    if (barHeight >= 12) { 
+                    // Now that bars are guaranteed to be ~24px+, we can always draw text
+                    if (true) { 
                          // Reset alpha for text to be fully opaque and crisp
                          ctx.globalAlpha = 1.0;
                          
                          ctx.fillStyle = '#FFFFFF';
-                         // System UI font stack for professional look
-                         ctx.font = '700 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+                         // System UI font stack for professional look, Larger size 13px
+                         ctx.font = '700 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
                          
                          // Enhanced Shadow for readability against blue
                          ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
@@ -163,7 +223,7 @@ class HTFProfileRenderer implements IPrimitivePaneRenderer {
                          const volText = this._formatVolume(level.volume);
                          
                          // Draw inside the bar, aligned to right edge with balanced padding
-                         ctx.fillText(volText, xRight - 8, barY + barHeight / 2);
+                         ctx.fillText(volText, xRight - 10, barY + barHeight / 2);
                          
                          // Reset shadow
                          ctx.shadowColor = 'transparent';

@@ -229,7 +229,7 @@ export const useChartStore = create<ChartState>()(
           outlineDown: '#F23645',
           profileUp: '#B2DFDB',
           profileDown: '#FFCDD2',
-          poc: '#FFFF00', // Yellow
+          poc: '#FFB300', // Matches Volume Profile POC
           val: '#808080',
           vah: '#808080',
           background: 'transparent'
