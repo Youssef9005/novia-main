@@ -181,11 +181,13 @@ const getBinanceSymbol = (symbol: string): string => {
       'GBPJPY': 'GBP/JPY',
 
       // Indices
-      'US30': 'DIA',       // Dow Jones ETF (Reliable Proxy)
-      'NAS100': 'QQQ',     // Nasdaq 100 ETF (Reliable Proxy)
-      'SPX500': 'SPY',     // S&P 500 ETF (Reliable Proxy)
-      'UK100': 'EWU',      // FTSE 100 ETF (Reliable Proxy)
-      'DEU40': 'EWG',      // DAX ETF (Reliable Proxy)
+      'US30': 'DJI',       // Dow Jones Industrial Average
+      'NAS100': 'NDX',     // Nasdaq 100 Index
+      'US100': 'NDX',      // Nasdaq 100 Index
+      'SPX500': 'SPX',     // S&P 500 Index
+      'US500': 'SPX',      // S&P 500 Index
+      'UK100': 'FTSE',     // FTSE 100 Index
+      'DEU40': 'DAX',      // DAX Index
 
       // Commodities
       'USOIL': 'WTI'
@@ -217,7 +219,9 @@ const getBinanceSymbol = (symbol: string): string => {
 
       'US30': 'Indices',
       'NAS100': 'Indices',
+      'US100': 'Indices',
       'SPX500': 'Indices',
+      'US500': 'Indices',
       'UK100': 'Indices',
       'DEU40': 'Indices',
 
@@ -683,18 +687,18 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
     else if (message.includes('US') || message.includes('الأمريكية')) type = 'US';
 
     // Anchor
-    const anchorMatch = message.match(/(?:Anchor Area|منطقة الارتكاز)\s*:?\s*([\d.]+)/i);
+    const anchorMatch = message.match(/(?:Anchor Area|منطقة الارتكاز|مـنـطـقة الارتـكاز)\s*:?\s*([\d.]+)/i);
     const anchor = anchorMatch ? parseFloat(anchorMatch[1]) : null;
 
     // Resistances
-    const resistanceMatches = Array.from(message.matchAll(/(?:Resistance|المقاومة).*?:\s*([\d.]+)/gi));
+    const resistanceMatches = Array.from(message.matchAll(/(?:Resistance|المقاومة|المـقاومة).*?:\s*([\d.]+)/gi));
     const resistances = resistanceMatches
       .map(m => parseFloat(m[1]))
       .filter(n => !isNaN(n))
       .sort((a, b) => a - b); // Ascending (R1, R2, R3...)
 
     // Supports
-    const supportMatches = Array.from(message.matchAll(/(?:Support|الدعم).*?:\s*([\d.]+)/gi));
+    const supportMatches = Array.from(message.matchAll(/(?:Support|الدعم|الـدعم).*?:\s*([\d.]+)/gi));
     const supports = Array.from(new Set(
       supportMatches
         .map(m => parseFloat(m[1]))
@@ -704,16 +708,124 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
     return { type, anchor, resistances: Array.from(new Set(resistances)), supports };
   };
 
+  // Draw Active Signal Lines (Entry, SL, TP)
+  useEffect(() => {
+    if (!seriesRef.current) return;
+
+    // Clear existing lines
+    priceLinesRef.current.forEach(line => {
+       seriesRef.current?.removePriceLine(line);
+    });
+    priceLinesRef.current = [];
+
+    if (!activeSignal || !showSignalLines) return;
+
+    const createLine = (price: number, color: string, title: string, style: LineStyle = LineStyle.Solid) => {
+       if (isNaN(price) || price <= 0) return;
+       const line = seriesRef.current?.createPriceLine({
+          price,
+          color,
+          lineWidth: 2,
+          lineStyle: style,
+          axisLabelVisible: true,
+          title,
+       });
+       if (line) priceLinesRef.current.push(line);
+    };
+
+    // Determine colors
+    const isBuy = activeSignal.type?.toLowerCase().includes('buy');
+    const isAnalysis = activeSignal.type?.toLowerCase().includes('analysis');
+    
+    let entryColor = isBuy ? '#089981' : '#F23645';
+    let entryLabel = 'ENTRY';
+    let slColor = '#F23645'; // Default SL (Red)
+    let slLabel = 'SL';
+    let tpColor = '#089981'; // Default TP (Green)
+    let tpLabel = 'TP';
+
+    if (isAnalysis) {
+        entryColor = '#2962FF'; // Blue for Pivot
+        entryLabel = 'PIVOT';
+        slColor = '#4CAF50'; // Green for Support (Potential Buy)
+        slLabel = 'SUPPORT';
+        tpColor = '#F44336'; // Red for Resistance (Potential Sell)
+        tpLabel = 'RESISTANCE';
+    }
+
+    // Entry / Pivot
+    if (activeSignal.entry) {
+        createLine(parseFloat(activeSignal.entry), entryColor, entryLabel, LineStyle.Solid);
+    } else if (activeSignal.price) {
+         createLine(activeSignal.price, entryColor, entryLabel, LineStyle.Solid);
+    }
+
+    // Stop Loss / Support
+    if (activeSignal.stopLoss) {
+        createLine(parseFloat(activeSignal.stopLoss), slColor, slLabel, LineStyle.Dashed);
+    } else if (activeSignal.stop) {
+        createLine(activeSignal.stop, slColor, slLabel, LineStyle.Dashed);
+    }
+
+    // Take Profit 1 / Resistance 1
+    if (activeSignal.tp1) {
+        createLine(parseFloat(activeSignal.tp1), tpColor, isAnalysis ? 'RES 1' : 'TP1', LineStyle.Dashed);
+    } else if (activeSignal.target1) {
+        createLine(activeSignal.target1, tpColor, isAnalysis ? 'RES 1' : 'TP1', LineStyle.Dashed);
+    }
+    
+    // Take Profit 2 / Resistance 2
+    if (activeSignal.tp2 || activeSignal.raw?.tp2) {
+         createLine(parseFloat(activeSignal.tp2 || activeSignal.raw.tp2), tpColor, isAnalysis ? 'RES 2' : 'TP2', LineStyle.Dashed);
+    }
+    
+     // Take Profit 3 / Resistance 3
+    if (activeSignal.tp3 || activeSignal.raw?.tp3) {
+         createLine(parseFloat(activeSignal.tp3 || activeSignal.raw.tp3), tpColor, isAnalysis ? 'RES 3' : 'TP3', LineStyle.Dashed);
+    }
+
+    // Take Profit 4 / Resistance 4
+    if (activeSignal.tp4 || activeSignal.raw?.tp4) {
+        createLine(parseFloat(activeSignal.tp4 || activeSignal.raw.tp4), tpColor, isAnalysis ? 'RES 4' : 'TP4', LineStyle.Dashed);
+    }
+
+  }, [activeSignal, showSignalLines, chartUpdateTrigger]);
+
   // Draw Analysis Lines
   useEffect(() => {
-    if (!seriesRef.current || !activeSignal?.message || !showAnalysisLines) {
+    if (!seriesRef.current || !activeSignal || !showAnalysisLines) {
       if (analysisOverlayRef.current) {
          analysisOverlayRef.current.updateLevels([]);
       }
       return;
     }
 
-    const levels = parseAnalysisLevels(activeSignal.message);
+    let levels = null;
+
+    // 1. Try to use structured data from backend (Analysis Signal)
+    // activeSignal.raw contains the full backend document.
+    // The backend stores extra data in 'raw' field of the document.
+    // So we look for activeSignal.raw.raw.resistances
+    if (activeSignal.raw && activeSignal.raw.raw && Array.isArray(activeSignal.raw.raw.resistances)) {
+        const rawData = activeSignal.raw.raw;
+        // Determine session type from message or default
+        let type = 'Asian';
+        const msg = activeSignal.message || '';
+        if (msg.includes('European') || msg.includes('الأوروبية')) type = 'European';
+        else if (msg.includes('US') || msg.includes('الأمريكية')) type = 'US';
+
+        levels = {
+            type,
+            anchor: parseFloat(activeSignal.entry || activeSignal.price || '0'),
+            resistances: rawData.resistances || [],
+            supports: rawData.supports || []
+        };
+    } 
+    // 2. Fallback: Parse message text (for older signals or if raw data missing)
+    else if (activeSignal.message) {
+        levels = parseAnalysisLevels(activeSignal.message);
+    }
+
     if (!levels) {
         if (analysisOverlayRef.current) analysisOverlayRef.current.updateLevels([]);
         return;
@@ -1203,7 +1315,7 @@ export default function TradingChart({ symbol: propSymbol = 'XAUUSD', signal, on
       let ws: WebSocket | null = null;
       try {
           // Use TwelveData WS if source is TwelveData OR if we are using fallback for Indices
-          if ((dataSource === 'twelvedata' || (['US30', 'NAS100', 'SPX500'].includes(symbol))) && twelveDataApiKey) {
+          if ((dataSource === 'twelvedata' || (['US30', 'NAS100', 'SPX500', 'US100', 'US500'].includes(symbol))) && twelveDataApiKey) {
                // TwelveData WebSocket
                ws = new WebSocket(`wss://ws.twelvedata.com/v1/quotes?apikey=${twelveDataApiKey}`);
                ws.onopen = () => {

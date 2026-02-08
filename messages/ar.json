@@ -253,6 +253,8 @@
     "title": "إشارات مباشرة",
     "buy": "شراء",
     "sell": "بيع",
+    "analysis": "تحليل",
+    "update": "تحديث",
     "target": "الهدف",
     "stop_loss": "وقف الخسارة",
     "time_ago": "منذ {time}",

@@ -249,15 +249,17 @@
     "rights_reserved": "All rights reserved",
     "brand": "Novia AI"
   },
-  "Signals": {
-    "title": "Live Signals",
-    "buy": "BUY",
-    "sell": "SELL",
-    "target": "Target",
-    "stop_loss": "Stop Loss",
-    "time_ago": "{time} ago",
-    "time_min": "{count}m"
-  },
+    "Signals": {
+      "title": "Live Signals",
+      "buy": "BUY",
+      "sell": "SELL",
+      "analysis": "ANALYSIS",
+      "update": "UPDATE",
+      "target": "Target",
+      "stop_loss": "Stop Loss",
+      "time_ago": "{time} ago",
+      "time_min": "{count}m"
+    },
   "Chart": {
     "title": "Live Chart",
     "currency": "BTC/USDT",

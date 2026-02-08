@@ -15,6 +15,7 @@ export interface Signal {
   symbol: string;
   createdAt?: string;
   message?: string;
+  raw?: any;
 }
 
 interface SignalNotificationsProps {
@@ -74,11 +75,15 @@ export default function SignalNotifications({ onSelectSignal }: SignalNotificati
       onSelectSignal({
         entry: signal.price.toString(),
         tp1: signal.target1.toString(),
+        tp2: signal.raw.tp2?.toString(),
+        tp3: signal.raw.tp3?.toString(),
+        tp4: signal.raw.tp4?.toString(),
         stopLoss: signal.stop.toString(),
         type: signal.type,
         symbol: signal.symbol.replace('/', ''),
         createdAt: signal.raw.createdAt,
-        message: signal.raw.message
+        message: signal.raw.message,
+        raw: signal.raw
       });
     }
   };
@@ -126,22 +131,38 @@ export default function SignalNotifications({ onSelectSignal }: SignalNotificati
               className="group relative overflow-hidden rounded-2xl border border-white/5 bg-[#0A0A0A]/50 p-0 transition-all duration-500 hover:border-white/20 hover:bg-[#0A0A0A] hover:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] hover:-translate-y-1 cursor-pointer"
               style={{ animationDelay: `${index * 100}ms` }}
             >
-              <div className={`absolute left-0 top-0 bottom-0 w-1 transition-all duration-300 ${signal.type === 'buy' ? 'bg-[#00E396] group-hover:w-1.5 group-hover:shadow-[0_0_25px_#00E396]' : 'bg-[#FF0057] group-hover:w-1.5 group-hover:shadow-[0_0_25px_#FF0057]'}`} />
+              <div className={`absolute left-0 top-0 bottom-0 w-1 transition-all duration-300 ${
+                signal.type === 'buy' ? 'bg-[#00E396] group-hover:w-1.5 group-hover:shadow-[0_0_25px_#00E396]' : 
+                signal.type === 'analysis' ? 'bg-[#2962FF] group-hover:w-1.5 group-hover:shadow-[0_0_25px_#2962FF]' :
+                'bg-[#FF0057] group-hover:w-1.5 group-hover:shadow-[0_0_25px_#FF0057]'
+              }`} />
               
               <div className="p-5 pl-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
-                        <div className={`flex h-10 w-10 items-center justify-center rounded-full text-lg font-black text-white shadow-lg ${signal.type === 'buy' ? 'bg-gradient-to-br from-[#00E396] to-[#00B779] shadow-[#00E396]/20' : 'bg-gradient-to-br from-[#FF0057] to-[#C40043] shadow-[#FF0057]/20'}`}>
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-full text-lg font-black text-white shadow-lg ${
+                            signal.type === 'buy' ? 'bg-gradient-to-br from-[#00E396] to-[#00B779] shadow-[#00E396]/20' : 
+                            signal.type === 'analysis' ? 'bg-gradient-to-br from-[#2962FF] to-[#0039CB] shadow-[#2962FF]/20' :
+                            'bg-gradient-to-br from-[#FF0057] to-[#C40043] shadow-[#FF0057]/20'
+                        }`}>
                             {signal.symbol.substring(0, 1)}
                         </div>
                         <div className="flex flex-col">
                             <span className="font-black text-white tracking-tight text-lg leading-none">{signal.symbol}</span>
-                            <span className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${signal.type === 'buy' ? 'text-[#00E396]' : 'text-[#FF0057]'}`}>{signal.type === 'buy' ? 'شراء (Long)' : 'بيع (Short)'}</span>
+                            <span className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${
+                                signal.type === 'buy' ? 'text-[#00E396]' : 
+                                signal.type === 'analysis' ? 'text-[#2962FF]' :
+                                'text-[#FF0057]'
+                            }`}>
+                                {signal.type === 'buy' ? 'شراء (Long)' : signal.type === 'analysis' ? 'تحليل (Analysis)' : 'بيع (Short)'}
+                            </span>
                         </div>
                     </div>
                     <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border backdrop-blur-md shadow-lg transition-transform group-hover:scale-105 ${
                       signal.type === 'buy' 
                         ? 'bg-[#00E396]/10 text-[#00E396] border-[#00E396]/20 shadow-[#00E396]/10' 
+                        : signal.type === 'analysis'
+                        ? 'bg-[#2962FF]/10 text-[#2962FF] border-[#2962FF]/20 shadow-[#2962FF]/10'
                         : 'bg-[#FF0057]/10 text-[#FF0057] border-[#FF0057]/20 shadow-[#FF0057]/10'
                     }`}>
                       {t(signal.type)}
@@ -169,7 +190,11 @@ export default function SignalNotifications({ onSelectSignal }: SignalNotificati
                            <span className="w-1.5 h-1.5 rounded-full bg-gray-600 group-hover:bg-[#2962FF] group-hover:shadow-[0_0_10px_rgba(41,98,255,0.8)] transition-all duration-300" />
                            ثقة الذكاء الاصطناعي: 98%
                        </div>
-                       <div className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0 ${signal.type === 'buy' ? 'text-[#00E396]' : 'text-[#FF0057]'}`}>
+                       <div className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0 ${
+                           signal.type === 'buy' ? 'text-[#00E396]' : 
+                           signal.type === 'analysis' ? 'text-[#2962FF]' :
+                           'text-[#FF0057]'
+                       }`}>
                            تحليل <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-arrow-left"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
                        </div>
                   </div>
@@ -177,7 +202,9 @@ export default function SignalNotifications({ onSelectSignal }: SignalNotificati
 
               {/* Hover Gradient Overlay */}
               <div className={`absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-10 transition-opacity duration-500 pointer-events-none ${
-                  signal.type === 'buy' ? 'from-[#00E396] to-transparent' : 'from-[#FF0057] to-transparent'
+                  signal.type === 'buy' ? 'from-[#00E396] to-transparent' : 
+                  signal.type === 'analysis' ? 'from-[#2962FF] to-transparent' :
+                  'from-[#FF0057] to-transparent'
               }`} />
             </div>
           )))}
